@@ -46,18 +46,19 @@ impl Command for Skip {
             Example {
                 description: "Skip the first value of a list",
                 example: "[2 4 6 8] | skip 1",
-                result: Some(Value::test_list(vec![
-                    Value::test_int(4),
-                    Value::test_int(6),
-                    Value::test_int(8),
-                ])),
+                result: Some(Value::test_list(
+                    [Value::test_int(4), Value::test_int(6), Value::test_int(8)].into(),
+                )),
             },
             Example {
                 description: "Skip two rows of a table",
                 example: "[[editions]; [2015] [2018] [2021]] | skip 2",
-                result: Some(Value::test_list(vec![Value::test_record(record! {
-                    "editions" => Value::test_int(2021),
-                })])),
+                result: Some(Value::test_list(
+                    [Value::test_record(record! {
+                        "editions" => Value::test_int(2021),
+                    })]
+                    .into(),
+                )),
             },
         ]
     }

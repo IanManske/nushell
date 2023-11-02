@@ -1,3 +1,4 @@
+use ecow::EcoVec;
 use nu_color_config::StyleComputer;
 use nu_protocol::{Config, Record, Span, Value};
 use tabled::{
@@ -147,7 +148,7 @@ fn build_vertical_map(record: Record, config: &Config) -> TableValue {
     TableValue::Column(rows)
 }
 
-fn build_vertical_array(vals: Vec<Value>, config: &Config) -> TableValue {
+fn build_vertical_array(vals: EcoVec<Value>, config: &Config) -> TableValue {
     let map = vals
         .into_iter()
         .map(|val| convert_nu_value_to_table_value(val, config))
@@ -183,7 +184,7 @@ fn count_columns_in_record(vals: &[Value]) -> usize {
     }
 }
 
-fn build_map_from_record(vals: Vec<Value>, config: &Config) -> TableValue {
+fn build_map_from_record(vals: EcoVec<Value>, config: &Config) -> TableValue {
     let mut list = vec![];
 
     let head = get_columns_in_record(&vals);

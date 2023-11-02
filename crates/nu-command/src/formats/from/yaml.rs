@@ -1,3 +1,4 @@
+use ecow::EcoVec;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use nu_protocol::ast::Call;
@@ -97,11 +98,11 @@ fn convert_yaml_value_to_nu_value(
         }
         serde_yaml::Value::String(s) => Value::string(s.to_string(), span),
         serde_yaml::Value::Sequence(a) => {
-            let result: Result<Vec<Value>, ShellError> = a
+            let result = a
                 .iter()
                 .map(|x| convert_yaml_value_to_nu_value(x, span, val_span))
-                .collect();
-            Value::list(result?, span)
+                .collect::<Result<_, _>>()?;
+            Value::list(result, span)
         }
         serde_yaml::Value::Mapping(t) => {
             // Using an IndexMap ensures consistent ordering
@@ -195,19 +196,20 @@ pub fn from_yaml_string_to_value(
     span: Span,
     val_span: Span,
 ) -> Result<Value, ShellError> {
-    let mut documents = vec![];
-
-    for document in serde_yaml::Deserializer::from_str(&s) {
-        let v: serde_yaml::Value = serde_yaml::Value::deserialize(document).map_err(|x| {
-            ShellError::UnsupportedInput(
-                format!("Could not load YAML: {x}"),
-                "value originates from here".into(),
-                span,
-                val_span,
-            )
-        })?;
-        documents.push(convert_yaml_value_to_nu_value(&v, span, val_span)?);
-    }
+    let mut documents = serde_yaml::Deserializer::from_str(&s)
+        .map(|document| {
+            serde_yaml::Value::deserialize(document)
+                .map_err(|x| {
+                    ShellError::UnsupportedInput(
+                        format!("Could not load YAML: {x}"),
+                        "value originates from here".into(),
+                        span,
+                        val_span,
+                    )
+                })
+                .and_then(|v| convert_yaml_value_to_nu_value(&v, span, val_span))
+        })
+        .collect::<Result<EcoVec<_>, _>>()?;
 
     match documents.len() {
         0 => Ok(Value::nothing(span)),
@@ -228,15 +230,17 @@ pub fn get_examples() -> Vec<Example<'static>> {
         Example {
             example: "'[ a: 1, b: [1, 2] ]' | from yaml",
             description: "Converts yaml formatted string to table",
-            result: Some(Value::test_list(vec![
-                Value::test_record(record! {
-                    "a" => Value::test_int(1),
-                }),
-                Value::test_record(record! {
-                    "b" => Value::test_list(
-                        vec![Value::test_int(1), Value::test_int(2)],),
-                }),
-            ])),
+            result: Some(Value::test_list(
+                [
+                    Value::test_record(record! {
+                        "a" => Value::test_int(1),
+                    }),
+                    Value::test_record(record! {
+                        "b" => Value::test_list([Value::test_int(1), Value::test_int(2)].into())
+                    }),
+                ]
+                .into(),
+            )),
         },
     ]
 }
@@ -325,16 +329,19 @@ mod test {
                 Span::test_data(),
             );
 
-            let expected: Result<Value, ShellError> = Ok(Value::test_list(vec![
-                Value::test_record(record! {
-                    "a" => Value::test_string("b"),
-                    "b" => Value::test_string("c"),
-                }),
-                Value::test_record(record! {
-                    "a" => Value::test_string("g"),
-                    "b" => Value::test_string("h"),
-                }),
-            ]));
+            let expected: Result<Value, ShellError> = Ok(Value::test_list(
+                [
+                    Value::test_record(record! {
+                        "a" => Value::test_string("b"),
+                        "b" => Value::test_string("c"),
+                    }),
+                    Value::test_record(record! {
+                        "a" => Value::test_string("g"),
+                        "b" => Value::test_string("h"),
+                    }),
+                ]
+                .into(),
+            ));
 
             // Unfortunately the eq function for Value doesn't compare well enough to detect
             // ordering errors in List columns or values.

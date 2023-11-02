@@ -37,7 +37,7 @@ impl Command for Columns {
                 example: "{ acronym:PWD, meaning:'Print Working Directory' } | columns",
                 description: "Get the columns from the record",
                 result: Some(Value::list(
-                    vec![Value::test_string("acronym"), Value::test_string("meaning")],
+                    [Value::test_string("acronym"), Value::test_string("meaning")].into(),
                     Span::test_data(),
                 )),
             },
@@ -45,11 +45,12 @@ impl Command for Columns {
                 example: "[[name,age,grade]; [bill,20,a]] | columns",
                 description: "Get the columns from the table",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("name"),
                         Value::test_string("age"),
                         Value::test_string("grade"),
-                    ],
+                    ]
+                    .into(),
                     Span::test_data(),
                 )),
             },

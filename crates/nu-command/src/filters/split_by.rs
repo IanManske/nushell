@@ -1,3 +1,4 @@
+use ecow::EcoVec;
 use indexmap::IndexMap;
 use nu_engine::CallExt;
 use nu_protocol::ast::Call;
@@ -51,28 +52,28 @@ impl Command for SplitBy {
             result: Some(Value::test_record(record! {
                     "rb" => Value::test_record(record! {
                         "2019" => Value::test_list(
-                            vec![Value::test_record(record! {
+                            [Value::test_record(record! {
                                     "name" => Value::test_string("andres"),
                                     "lang" => Value::test_string("rb"),
                                     "year" => Value::test_string("2019"),
-                            })],
+                            })].into(),
                         ),
                     }),
                     "rs" => Value::test_record(record! {
-                            "2019" => Value::test_list(
-                                vec![Value::test_record(record! {
-                                        "name" => Value::test_string("jt"),
-                                        "lang" => Value::test_string("rs"),
-                                        "year" => Value::test_string("2019"),
-                                })],
-                            ),
-                            "2021" => Value::test_list(
-                                vec![Value::test_record(record! {
-                                        "name" => Value::test_string("storm"),
-                                        "lang" => Value::test_string("rs"),
-                                        "year" => Value::test_string("2021"),
-                                })],
-                            ),
+                        "2019" => Value::test_list(
+                            [Value::test_record(record! {
+                                    "name" => Value::test_string("jt"),
+                                    "lang" => Value::test_string("rs"),
+                                    "year" => Value::test_string("2019"),
+                            })].into(),
+                        ),
+                        "2021" => Value::test_list(
+                            [Value::test_record(record! {
+                                    "name" => Value::test_string("storm"),
+                                    "lang" => Value::test_string("rs"),
+                                    "year" => Value::test_string("2021"),
+                            })].into(),
+                        ),
                     }),
             })),
         }]
@@ -150,7 +151,7 @@ fn data_group(
     grouper: Option<&dyn Fn(usize, &Value) -> Result<String, ShellError>>,
     span: Span,
 ) -> Result<Value, ShellError> {
-    let mut groups: IndexMap<String, Vec<Value>> = IndexMap::new();
+    let mut groups: IndexMap<String, EcoVec<Value>> = IndexMap::new();
 
     for (idx, value) in values.clone().into_pipeline_data().into_iter().enumerate() {
         let group_key = if let Some(ref grouper) = grouper {

@@ -1,3 +1,4 @@
+use ecow::EcoVec;
 use nu_protocol::{span as span_join, ShellError, Span, Spanned, Value};
 
 // Default value used when selecting rows from dataframe
@@ -49,7 +50,7 @@ pub(crate) fn convert_columns(
 // Converts a Vec<Value> to a Vec<String> with a Span marking the whole
 // location of the columns for error referencing
 pub(crate) fn convert_columns_string(
-    columns: Vec<Value>,
+    columns: EcoVec<Value>,
     span: Span,
 ) -> Result<(Vec<String>, Span), ShellError> {
     // First column span

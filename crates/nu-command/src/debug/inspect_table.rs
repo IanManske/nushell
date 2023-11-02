@@ -193,6 +193,7 @@ fn push_empty_column(data: &mut Vec<Vec<String>>) {
 
 mod util {
     use crate::debug::explain::debug_string_without_formatting;
+    use ecow::EcoVec;
     use nu_engine::get_columns;
     use nu_protocol::{ast::PathMember, Span, Value};
 
@@ -235,7 +236,7 @@ mod util {
         }
     }
 
-    fn convert_records_to_dataset(cols: &[String], records: Vec<Value>) -> Vec<Vec<String>> {
+    fn convert_records_to_dataset(cols: &[String], records: EcoVec<Value>) -> Vec<Vec<String>> {
         if !cols.is_empty() {
             create_table_for_record(cols, &records)
         } else if cols.is_empty() && records.is_empty() {

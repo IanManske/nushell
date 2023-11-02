@@ -81,23 +81,26 @@ impl Command for SubCommand {
                 description: "Convert table of duration strings to table of duration values",
                 example:
                     "[[value]; ['1sec'] ['2min'] ['3hr'] ['4day'] ['5wk']] | into duration value",
-                result: Some(Value::test_list(vec![
-                    Value::test_record(record! {
-                        "value" => Value::test_duration(NS_PER_SEC),
-                    }),
-                    Value::test_record(record! {
-                        "value" => Value::test_duration(2 * 60 * NS_PER_SEC),
-                    }),
-                    Value::test_record(record! {
-                        "value" => Value::test_duration(3 * 60 * 60 * NS_PER_SEC),
-                    }),
-                    Value::test_record(record! {
-                        "value" => Value::test_duration(4 * 24 * 60 * 60 * NS_PER_SEC),
-                    }),
-                    Value::test_record(record! {
-                        "value" => Value::test_duration(5 * 7 * 24 * 60 * 60 * NS_PER_SEC),
-                    }),
-                ])),
+                result: Some(Value::test_list(
+                    [
+                        Value::test_record(record! {
+                            "value" => Value::test_duration(NS_PER_SEC),
+                        }),
+                        Value::test_record(record! {
+                            "value" => Value::test_duration(2 * 60 * NS_PER_SEC),
+                        }),
+                        Value::test_record(record! {
+                            "value" => Value::test_duration(3 * 60 * 60 * NS_PER_SEC),
+                        }),
+                        Value::test_record(record! {
+                            "value" => Value::test_duration(4 * 24 * 60 * 60 * NS_PER_SEC),
+                        }),
+                        Value::test_record(record! {
+                            "value" => Value::test_duration(5 * 7 * 24 * 60 * 60 * NS_PER_SEC),
+                        }),
+                    ]
+                    .into(),
+                )),
             },
             Example {
                 description: "Convert duration to duration",

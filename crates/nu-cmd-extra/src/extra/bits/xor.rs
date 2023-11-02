@@ -64,7 +64,7 @@ impl Command for BitsXor {
                 description: "Apply logical xor to a list of numbers",
                 example: "[8 3 2] | bits xor 2",
                 result: Some(Value::list(
-                    vec![Value::test_int(10), Value::test_int(1), Value::test_int(0)],
+                    [Value::test_int(10), Value::test_int(1), Value::test_int(0)].into(),
                     Span::test_data(),
                 )),
             },

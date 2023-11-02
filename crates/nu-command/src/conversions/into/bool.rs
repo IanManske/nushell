@@ -57,23 +57,26 @@ impl Command for SubCommand {
             Example {
                 description: "Convert value to boolean in table",
                 example: "[[value]; ['false'] ['1'] [0] [1.0] [true]] | into bool value",
-                result: Some(Value::test_list(vec![
-                    Value::test_record(record! {
-                        "value" => Value::test_bool(false),
-                    }),
-                    Value::test_record(record! {
-                        "value" => Value::test_bool(true),
-                    }),
-                    Value::test_record(record! {
-                        "value" => Value::test_bool(false),
-                    }),
-                    Value::test_record(record! {
-                        "value" => Value::test_bool(true),
-                    }),
-                    Value::test_record(record! {
-                        "value" => Value::test_bool(true),
-                    }),
-                ])),
+                result: Some(Value::test_list(
+                    [
+                        Value::test_record(record! {
+                            "value" => Value::test_bool(false),
+                        }),
+                        Value::test_record(record! {
+                            "value" => Value::test_bool(true),
+                        }),
+                        Value::test_record(record! {
+                            "value" => Value::test_bool(false),
+                        }),
+                        Value::test_record(record! {
+                            "value" => Value::test_bool(true),
+                        }),
+                        Value::test_record(record! {
+                            "value" => Value::test_bool(true),
+                        }),
+                    ]
+                    .into(),
+                )),
             },
             Example {
                 description: "Convert bool to boolean",

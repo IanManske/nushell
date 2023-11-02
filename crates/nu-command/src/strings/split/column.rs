@@ -63,48 +63,60 @@ impl Command for SubCommand {
             Example {
                 description: "Split a string into columns by the specified separator",
                 example: "'a--b--c' | split column '--'",
-                result: Some(Value::test_list(vec![Value::test_record(record! {
+                result: Some(Value::test_list(
+                    [Value::test_record(record! {
                         "column1" => Value::test_string("a"),
                         "column2" => Value::test_string("b"),
                         "column3" => Value::test_string("c"),
-                })])),
+                    })]
+                    .into(),
+                )),
             },
             Example {
                 description: "Split a string into columns of char and remove the empty columns",
                 example: "'abc' | split column --collapse-empty ''",
-                result: Some(Value::test_list(vec![Value::test_record(record! {
+                result: Some(Value::test_list(
+                    [Value::test_record(record! {
                         "column1" => Value::test_string("a"),
                         "column2" => Value::test_string("b"),
                         "column3" => Value::test_string("c"),
-                })])),
+                    })]
+                    .into(),
+                )),
             },
             Example {
                 description: "Split a list of strings into a table",
                 example: "['a-b' 'c-d'] | split column -",
-                result: Some(Value::test_list(vec![
-                    Value::test_record(record! {
-                        "column1" => Value::test_string("a"),
-                        "column2" => Value::test_string("b"),
-                    }),
-                    Value::test_record(record! {
-                        "column1" => Value::test_string("c"),
-                        "column2" => Value::test_string("d"),
-                    }),
-                ])),
+                result: Some(Value::test_list(
+                    [
+                        Value::test_record(record! {
+                            "column1" => Value::test_string("a"),
+                            "column2" => Value::test_string("b"),
+                        }),
+                        Value::test_record(record! {
+                            "column1" => Value::test_string("c"),
+                            "column2" => Value::test_string("d"),
+                        }),
+                    ]
+                    .into(),
+                )),
             },
             Example {
                 description: "Split a list of strings into a table, ignoring padding",
                 example: r"['a -  b' 'c  -    d'] | split column --regex '\s*-\s*'",
-                result: Some(Value::test_list(vec![
-                    Value::test_record(record! {
-                        "column1" => Value::test_string("a"),
-                        "column2" => Value::test_string("b"),
-                    }),
-                    Value::test_record(record! {
-                        "column1" => Value::test_string("c"),
-                        "column2" => Value::test_string("d"),
-                    }),
-                ])),
+                result: Some(Value::test_list(
+                    [
+                        Value::test_record(record! {
+                            "column1" => Value::test_string("a"),
+                            "column2" => Value::test_string("b"),
+                        }),
+                        Value::test_record(record! {
+                            "column1" => Value::test_string("c"),
+                            "column2" => Value::test_string("d"),
+                        }),
+                    ]
+                    .into(),
+                )),
             },
         ]
     }

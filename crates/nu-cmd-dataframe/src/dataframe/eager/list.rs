@@ -64,7 +64,7 @@ impl Command for ListDF {
                     call.head,
                 )
             })
-            .collect::<Vec<Value>>();
+            .collect();
 
         let list = Value::list(vals, call.head);
 

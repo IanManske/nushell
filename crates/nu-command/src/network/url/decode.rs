@@ -65,11 +65,11 @@ impl Command for SubCommand {
                 description: "Decode multiple urls with escape characters in list",
                 example: "['https://example.com/foo%20bar' 'https://example.com/a%3Eb' '%E4%B8%AD%E6%96%87%E5%AD%97/eng/12%2034'] | url decode",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("https://example.com/foo bar"),
                         Value::test_string("https://example.com/a>b"),
                         Value::test_string("中文字/eng/12 34"),
-                    ],
+                    ].into(),
                     Span::test_data(),
                 )),
             },

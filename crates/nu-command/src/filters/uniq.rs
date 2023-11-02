@@ -1,4 +1,5 @@
 use crate::formats::value_to_string;
+use ecow::EcoVec;
 use itertools::Itertools;
 use nu_protocol::ast::Call;
 use nu_protocol::engine::{Command, EngineState, Stack};
@@ -89,7 +90,7 @@ impl Command for Uniq {
                 description: "Return the distinct values of a list/table (remove duplicates so that each value occurs once only)",
                 example: "[2 3 3 4] | uniq",
                 result: Some(Value::list(
-                    vec![Value::test_int(2), Value::test_int(3), Value::test_int(4)],
+                    [Value::test_int(2), Value::test_int(3), Value::test_int(4)].into(),
                     Span::test_data(),
                 )),
             },
@@ -97,7 +98,7 @@ impl Command for Uniq {
                 description: "Return the input values that occur more than once",
                 example: "[1 2 2] | uniq -d",
                 result: Some(Value::list(
-                    vec![Value::test_int(2)],
+                    [Value::test_int(2)].into(),
                     Span::test_data(),
                 )),
             },
@@ -105,7 +106,7 @@ impl Command for Uniq {
                 description: "Return the input values that occur once only",
                 example: "[1 2 2] | uniq --unique",
                 result: Some(Value::list(
-                    vec![Value::test_int(1)],
+                    [Value::test_int(1)].into(),
                     Span::test_data(),
                 )),
             },
@@ -113,14 +114,14 @@ impl Command for Uniq {
                 description: "Ignore differences in case when comparing input values",
                 example: "['hello' 'goodbye' 'Hello'] | uniq --ignore-case",
                 result: Some(Value::test_list(
-                    vec![Value::test_string("hello"), Value::test_string("goodbye")],
+                    [Value::test_string("hello"), Value::test_string("goodbye")].into(),
                 )),
             },
             Example {
                 description: "Return a table containing the distinct input values together with their counts",
                 example: "[1 2 2] | uniq --count",
                 result: Some(Value::test_list(
-                    vec![
+                    [
                         Value::test_record(record! {
                             "value" => Value::test_int(1),
                             "count" => Value::test_int(1),
@@ -129,7 +130,7 @@ impl Command for Uniq {
                             "value" => Value::test_int(2),
                             "count" => Value::test_int(2),
                         }),
-                    ],
+                    ].into(),
                 )),
             },
         ]
@@ -224,7 +225,7 @@ fn sort_attributes(val: Value) -> Value {
             )
         }
         Value::List { vals, .. } => {
-            Value::list(vals.into_iter().map(sort_attributes).collect_vec(), span)
+            Value::list(vals.into_iter().map(sort_attributes).collect(), span)
         }
         other => other,
     }
@@ -235,7 +236,7 @@ fn generate_key(item: &ValueCounter) -> Result<String, ShellError> {
     value_to_string(&value, Span::unknown(), 0, None)
 }
 
-fn generate_results_with_count(head: Span, uniq_values: Vec<ValueCounter>) -> Vec<Value> {
+fn generate_results_with_count(head: Span, uniq_values: Vec<ValueCounter>) -> EcoVec<Value> {
     uniq_values
         .into_iter()
         .map(|item| {

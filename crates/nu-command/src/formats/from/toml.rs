@@ -38,9 +38,9 @@ b = [1, 2]' | from toml",
                 description: "Converts toml formatted string to record",
                 result: Some(Value::test_record(record! {
                     "a" =>  Value::test_int(1),
-                    "b" =>  Value::test_list(vec![
+                    "b" =>  Value::test_list([
                         Value::test_int(1),
-                        Value::test_int(2)],),
+                        Value::test_int(2)].into(),),
                 })),
             },
         ]
@@ -63,7 +63,7 @@ b = [1, 2]' | from toml",
 fn convert_toml_to_value(value: &toml::Value, span: Span) -> Value {
     match value {
         toml::Value::Array(array) => {
-            let v: Vec<Value> = array
+            let v = array
                 .iter()
                 .map(|x| convert_toml_to_value(x, span))
                 .collect();

@@ -1,3 +1,4 @@
+use ecow::EcoVec;
 use nu_engine::{eval_expression, CallExt};
 use nu_protocol::ast::{Argument, Block, Call, Expr, Expression};
 use nu_protocol::engine::{Closure, Command, EngineState, Stack};
@@ -83,7 +84,7 @@ pub fn get_pipeline_elements(
                     get_arguments(engine_state, stack, *call),
                 )
             } else {
-                ("no-op".to_string(), vec![])
+                ("no-op".to_string(), EcoVec::new())
             };
             let index = format!("{pipeline_idx}_{i}");
             let value_type = value.get_type();
@@ -106,8 +107,8 @@ pub fn get_pipeline_elements(
     Ok(element_values)
 }
 
-fn get_arguments(engine_state: &EngineState, stack: &mut Stack, call: Call) -> Vec<Value> {
-    let mut arg_value = vec![];
+fn get_arguments(engine_state: &EngineState, stack: &mut Stack, call: Call) -> EcoVec<Value> {
+    let mut arg_value = EcoVec::new();
     let span = Span::test_data();
     for arg in &call.arguments {
         match arg {

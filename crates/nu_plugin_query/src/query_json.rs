@@ -1,3 +1,4 @@
+use ecow::EcoVec;
 use gjson::Value as gjValue;
 use nu_plugin::{EvaluatedCall, LabeledError};
 use nu_protocol::{Record, Span, Spanned, Value};
@@ -73,7 +74,7 @@ fn query_contains_modifiers(query: &str) -> bool {
 fn convert_gjson_value_to_nu_value(v: &gjValue, span: Span) -> Value {
     match v.kind() {
         gjson::Kind::Array => {
-            let mut vals = vec![];
+            let mut vals = EcoVec::new();
             v.each(|_k, v| {
                 vals.push(convert_gjson_value_to_nu_value(&v, span));
                 true

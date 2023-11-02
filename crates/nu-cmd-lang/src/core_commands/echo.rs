@@ -48,7 +48,7 @@ little reason to use this over just writing the values as-is."#
                 description: "Put a list of numbers in the pipeline. This is the same as [1 2 3].",
                 example: "echo 1 2 3",
                 result: Some(Value::list(
-                    vec![Value::test_int(1), Value::test_int(2), Value::test_int(3)],
+                    [Value::test_int(1), Value::test_int(2), Value::test_int(3)].into(),
                     Span::test_data(),
                 )),
             },

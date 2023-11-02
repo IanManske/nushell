@@ -1166,6 +1166,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23d2f3407d9a573d666de4b5bdf10569d73ca9478087346697dcbae6244bfbcd"
 
 [[package]]
+name = "ecow"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6ea5e3f9cda726431da9d1a8d5a29785d544b31e98e1ca7a210906244002e02"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "ego-tree"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2753,6 +2762,7 @@ name = "nu-cmd-dataframe"
 version = "0.86.1"
 dependencies = [
  "chrono",
+ "ecow",
  "fancy-regex",
  "indexmap 2.0.2",
  "nu-cmd-lang",
@@ -2796,6 +2806,7 @@ dependencies = [
 name = "nu-cmd-lang"
 version = "0.86.1"
 dependencies = [
+ "ecow",
  "fancy-regex",
  "itertools 0.11.0",
  "nu-ansi-term",
@@ -2839,6 +2850,7 @@ dependencies = [
  "digest",
  "dirs-next",
  "dtparse",
+ "ecow",
  "encoding_rs",
  "fancy-regex",
  "filesize",
@@ -2923,6 +2935,7 @@ dependencies = [
 name = "nu-engine"
 version = "0.86.1"
 dependencies = [
+ "ecow",
  "nu-glob",
  "nu-path",
  "nu-protocol",
@@ -2935,6 +2948,7 @@ version = "0.86.1"
 dependencies = [
  "ansi-str",
  "crossterm 0.27.0",
+ "ecow",
  "lscolors",
  "nu-ansi-term",
  "nu-color-config",
@@ -3040,6 +3054,7 @@ dependencies = [
  "byte-unit",
  "chrono",
  "chrono-humanize",
+ "ecow",
  "fancy-regex",
  "indexmap 2.0.2",
  "lru",
@@ -3089,6 +3104,7 @@ dependencies = [
 name = "nu-table"
 version = "0.86.1"
 dependencies = [
+ "ecow",
  "fancy-regex",
  "nu-ansi-term",
  "nu-color-config",
@@ -3184,6 +3200,7 @@ dependencies = [
 name = "nu_plugin_query"
 version = "0.86.1"
 dependencies = [
+ "ecow",
  "gjson",
  "nu-engine",
  "nu-plugin",

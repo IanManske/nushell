@@ -57,14 +57,14 @@ used as the next argument to the closure, otherwise generation stops.
                 example: "unfold 0 {|i| if $i <= 10 { {out: $i, next: ($i + 2)} }}",
                 description: "Generate a sequence of numbers",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_int(0),
                         Value::test_int(2),
                         Value::test_int(4),
                         Value::test_int(6),
                         Value::test_int(8),
                         Value::test_int(10),
-                    ],
+                    ].into(),
                     Span::test_data(),
                 )),
             },
@@ -72,7 +72,7 @@ used as the next argument to the closure, otherwise generation stops.
                 example: "unfold [0, 1] {|fib| {out: $fib.0, next: [$fib.1, ($fib.0 + $fib.1)]} } | first 10",
                 description: "Generate a stream of fibonacci numbers",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_int(0),
                         Value::test_int(1),
                         Value::test_int(1),
@@ -83,7 +83,7 @@ used as the next argument to the closure, otherwise generation stops.
                         Value::test_int(13),
                         Value::test_int(21),
                         Value::test_int(34),
-                    ],
+                    ].into(),
                     Span::test_data(),
                 )),
             },

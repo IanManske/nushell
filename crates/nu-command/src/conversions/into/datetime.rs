@@ -196,7 +196,7 @@ impl Command for SubCommand {
                 description: "Convert list of timestamps to datetimes",
                 example: r#"["2023-03-30 10:10:07 -05:00", "2023-05-05 13:43:49 -05:00", "2023-06-05 01:37:42 -05:00"] | into datetime"#,
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::date(
                             DateTime::parse_from_str(
                                 "2023-03-30 10:10:07 -05:00",
@@ -221,7 +221,8 @@ impl Command for SubCommand {
                             .expect("date calculation should not fail in test"),
                             Span::test_data(),
                         ),
-                    ],
+                    ]
+                    .into(),
                     Span::test_data(),
                 )),
             },

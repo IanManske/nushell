@@ -5,6 +5,7 @@ use crate::ast::{CellPath, MatchPattern, PathMember};
 use crate::engine::{Block, Closure};
 use crate::{Range, Record, ShellError, Spanned, Value};
 use chrono::{DateTime, FixedOffset};
+use ecow::EcoVec;
 
 pub trait FromValue: Sized {
     fn from_value(v: Value) -> Result<Self, ShellError>;
@@ -461,7 +462,7 @@ impl FromValue for Spanned<PathBuf> {
     }
 }
 
-impl FromValue for Vec<Value> {
+impl FromValue for EcoVec<Value> {
     fn from_value(v: Value) -> Result<Self, ShellError> {
         // FIXME: we may want to fail a little nicer here
         match v {

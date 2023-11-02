@@ -107,27 +107,29 @@ impl Command for Take {
             Example {
                 description: "Return the first item of a list/table",
                 example: "[1 2 3] | take 1",
-                result: Some(Value::test_list(vec![Value::test_int(1)])),
+                result: Some(Value::test_list([Value::test_int(1)].into())),
             },
             Example {
                 description: "Return the first 2 items of a list/table",
                 example: "[1 2 3] | take 2",
-                result: Some(Value::test_list(vec![
-                    Value::test_int(1),
-                    Value::test_int(2),
-                ])),
+                result: Some(Value::test_list(
+                    [Value::test_int(1), Value::test_int(2)].into(),
+                )),
             },
             Example {
                 description: "Return the first two rows of a table",
                 example: "[[editions]; [2015] [2018] [2021]] | take 2",
-                result: Some(Value::test_list(vec![
-                    Value::test_record(record! {
-                        "editions" => Value::test_int(2015),
-                    }),
-                    Value::test_record(record! {
-                        "editions" => Value::test_int(2018),
-                    }),
-                ])),
+                result: Some(Value::test_list(
+                    [
+                        Value::test_record(record! {
+                            "editions" => Value::test_int(2015),
+                        }),
+                        Value::test_record(record! {
+                            "editions" => Value::test_int(2018),
+                        }),
+                    ]
+                    .into(),
+                )),
             },
             Example {
                 description: "Return the first 2 bytes of a binary value",
@@ -137,11 +139,9 @@ impl Command for Take {
             Example {
                 description: "Return the first 3 elements of a range",
                 example: "1..10 | take 3",
-                result: Some(Value::test_list(vec![
-                    Value::test_int(1),
-                    Value::test_int(2),
-                    Value::test_int(3),
-                ])),
+                result: Some(Value::test_list(
+                    [Value::test_int(1), Value::test_int(2), Value::test_int(3)].into(),
+                )),
             },
         ]
     }

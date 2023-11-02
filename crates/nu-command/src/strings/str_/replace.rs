@@ -133,11 +133,11 @@ impl Command for SubCommand {
                 example:
                     "[[ColA ColB ColC]; [abc abc ads]] | str replace --all --regex 'b' 'z' ColA ColC",
                 result: Some(Value::test_list (
-                    vec![Value::test_record(record! {
+                    [Value::test_record(record! {
                         "ColA" => Value::test_string("azc"),
                         "ColB" => Value::test_string("abc"),
                         "ColC" => Value::test_string("ads"),
-                    })],
+                    })].into(),
                 )),
             },
             Example {

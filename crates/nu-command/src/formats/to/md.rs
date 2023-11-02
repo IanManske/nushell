@@ -1,3 +1,4 @@
+use ecow::EcoVec;
 use indexmap::map::IndexMap;
 use nu_cmd_base::formats::to::delimited::merge_descriptors;
 use nu_protocol::ast::Call;
@@ -202,8 +203,9 @@ fn table(input: PipelineData, pretty: bool, config: &Config) -> String {
 }
 
 pub fn group_by(values: PipelineData, head: Span, config: &Config) -> (PipelineData, bool) {
-    let mut lists = IndexMap::new();
+    let mut lists = IndexMap::<_, EcoVec<_>>::new();
     let mut single_list = false;
+
     for val in values {
         if let Value::Record {
             val: ref record, ..
@@ -211,26 +213,31 @@ pub fn group_by(values: PipelineData, head: Span, config: &Config) -> (PipelineD
         {
             lists
                 .entry(record.cols.concat())
-                .and_modify(|v: &mut Vec<Value>| v.push(val.clone()))
-                .or_insert_with(|| vec![val.clone()]);
+                .and_modify(|v| v.push(val.clone()))
+                .or_insert_with(|| [val.clone()].into());
         } else {
             lists
                 .entry(val.into_string(",", config))
-                .and_modify(|v: &mut Vec<Value>| v.push(val.clone()))
-                .or_insert_with(|| vec![val.clone()]);
+                .and_modify(|v| v.push(val.clone()))
+                .or_insert_with(|| [val.clone()].into());
         }
     }
-    let mut output = vec![];
-    for (_, mut value) in lists {
-        if value.len() == 1 {
-            output.push(value.pop().unwrap_or_else(|| Value::nothing(head)))
-        } else {
-            output.push(Value::list(value.to_vec(), head))
-        }
-    }
+
+    let output = lists
+        .into_values()
+        .map(|mut value| {
+            if value.len() == 1 {
+                value.pop().unwrap_or_else(|| Value::nothing(head))
+            } else {
+                Value::list(value, head)
+            }
+        })
+        .collect::<EcoVec<_>>();
+
     if output.len() == 1 {
         single_list = true;
     }
+
     (Value::list(output, head).into_pipeline_data(), single_list)
 }
 
@@ -378,17 +385,20 @@ mod tests {
 
     #[test]
     fn render_table() {
-        let value = Value::test_list(vec![
-            Value::test_record(record! {
-                "country" => Value::test_string("Ecuador"),
-            }),
-            Value::test_record(record! {
-                "country" => Value::test_string("New Zealand"),
-            }),
-            Value::test_record(record! {
-                "country" => Value::test_string("USA"),
-            }),
-        ]);
+        let value = Value::test_list(
+            [
+                Value::test_record(record! {
+                    "country" => Value::test_string("Ecuador"),
+                }),
+                Value::test_record(record! {
+                    "country" => Value::test_string("New Zealand"),
+                }),
+                Value::test_record(record! {
+                    "country" => Value::test_string("USA"),
+                }),
+            ]
+            .into(),
+        );
 
         assert_eq!(
             table(

@@ -76,10 +76,10 @@ impl Command for FromTsv {
                 description: "Convert tab-separated data to a table",
                 example: "\"ColA\tColB\n1\t2\" | from tsv",
                 result: Some(Value::test_list (
-                    vec![Value::test_record(record! {
+                    [Value::test_record(record! {
                         "ColA" =>  Value::test_int(1),
                         "ColB" =>  Value::test_int(2),
-                    })],
+                    })].into(),
                 ))
             },
             Example {

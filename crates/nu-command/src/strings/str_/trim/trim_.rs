@@ -420,19 +420,21 @@ mod tests {
     #[test]
     fn global_trim_left_table() {
         let row = Value::list(
-            vec![
+            [
                 Value::test_string("  a  "),
                 Value::test_int(65),
                 Value::test_string(" d"),
-            ],
+            ]
+            .into(),
             Span::test_data(),
         );
         let expected = Value::list(
-            vec![
+            [
                 Value::test_string("a  "),
                 Value::test_int(65),
                 Value::test_string("d"),
-            ],
+            ]
+            .into(),
             Span::test_data(),
         );
 
@@ -520,19 +522,21 @@ mod tests {
     #[test]
     fn global_trim_right_table() {
         let row = Value::list(
-            vec![
+            [
                 Value::test_string("  a  "),
                 Value::test_int(65),
                 Value::test_string(" d"),
-            ],
+            ]
+            .into(),
             Span::test_data(),
         );
         let expected = Value::list(
-            vec![
+            [
                 Value::test_string("  a"),
                 Value::test_int(65),
                 Value::test_string(" d"),
-            ],
+            ]
+            .into(),
             Span::test_data(),
         );
         let args = Arguments {

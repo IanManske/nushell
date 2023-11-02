@@ -177,18 +177,21 @@ On Windows, an extra 'prefix' column is added."#
             Example {
                 description: "Parse all paths in a list",
                 example: r"[ /home/viking.d /home/spam.txt ] | path parse",
-                result: Some(Value::test_list(vec![
-                    Value::test_record(record! {
-                        "parent" =>    Value::test_string("/home"),
-                        "stem" =>      Value::test_string("viking"),
-                        "extension" => Value::test_string("d"),
-                    }),
-                    Value::test_record(record! {
-                        "parent" =>    Value::test_string("/home"),
-                        "stem" =>      Value::test_string("spam"),
-                        "extension" => Value::test_string("txt"),
-                    }),
-                ])),
+                result: Some(Value::test_list(
+                    [
+                        Value::test_record(record! {
+                            "parent" =>    Value::test_string("/home"),
+                            "stem" =>      Value::test_string("viking"),
+                            "extension" => Value::test_string("d"),
+                        }),
+                        Value::test_record(record! {
+                            "parent" =>    Value::test_string("/home"),
+                            "stem" =>      Value::test_string("spam"),
+                            "extension" => Value::test_string("txt"),
+                        }),
+                    ]
+                    .into(),
+                )),
             },
         ]
     }

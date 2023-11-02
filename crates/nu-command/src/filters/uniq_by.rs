@@ -1,4 +1,5 @@
 pub use super::uniq;
+use ecow::EcoVec;
 use nu_engine::column::nonexistent_column;
 use nu_engine::CallExt;
 use nu_protocol::ast::Call;
@@ -92,20 +93,23 @@ impl Command for UniqBy {
         vec![Example {
             description: "Get rows from table filtered by column uniqueness ",
             example: "[[fruit count]; [apple 9] [apple 2] [pear 3] [orange 7]] | uniq-by fruit",
-            result: Some(Value::test_list(vec![
-                Value::test_record(record! {
-                    "fruit" => Value::test_string("apple"),
-                    "count" => Value::test_int(9),
-                }),
-                Value::test_record(record! {
-                    "fruit" => Value::test_string("pear"),
-                    "count" => Value::test_int(3),
-                }),
-                Value::test_record(record! {
-                    "fruit" => Value::test_string("orange"),
-                    "count" => Value::test_int(7),
-                }),
-            ])),
+            result: Some(Value::test_list(
+                [
+                    Value::test_record(record! {
+                        "fruit" => Value::test_string("apple"),
+                        "count" => Value::test_int(9),
+                    }),
+                    Value::test_record(record! {
+                        "fruit" => Value::test_string("pear"),
+                        "count" => Value::test_int(3),
+                    }),
+                    Value::test_record(record! {
+                        "fruit" => Value::test_string("orange"),
+                        "count" => Value::test_int(7),
+                    }),
+                ]
+                .into(),
+            )),
         }]
     }
 }
@@ -139,11 +143,11 @@ fn validate(vec: &[Value], columns: &[String], span: Span) -> Result<(), ShellEr
     Ok(())
 }
 
-fn get_data_by_columns(columns: &[String], item: &Value) -> Vec<Value> {
+fn get_data_by_columns(columns: &[String], item: &Value) -> EcoVec<Value> {
     columns
         .iter()
         .filter_map(|col| item.get_data_by_key(col))
-        .collect::<Vec<_>>()
+        .collect()
 }
 
 fn item_mapper_by_col(cols: Vec<String>) -> impl Fn(crate::ItemMapperState) -> crate::ValueCounter {

@@ -1,3 +1,4 @@
+use ecow::EcoVec;
 use lscolors::{LsColors, Style};
 use nu_color_config::color_from_hex;
 use nu_color_config::{StyleComputer, TextStyle};
@@ -140,44 +141,53 @@ impl Command for Table {
             Example {
                 description: "Render data in table view",
                 example: r#"[[a b]; [1 2] [3 4]] | table"#,
-                result: Some(Value::test_list(vec![
-                    Value::test_record(record! {
-                        "a" =>  Value::test_int(1),
-                        "b" =>  Value::test_int(2),
-                    }),
-                    Value::test_record(record! {
-                        "a" =>  Value::test_int(3),
-                        "b" =>  Value::test_int(4),
-                    }),
-                ])),
+                result: Some(Value::test_list(
+                    [
+                        Value::test_record(record! {
+                            "a" => Value::test_int(1),
+                            "b" => Value::test_int(2),
+                        }),
+                        Value::test_record(record! {
+                            "a" => Value::test_int(3),
+                            "b" => Value::test_int(4),
+                        }),
+                    ]
+                    .into(),
+                )),
             },
             Example {
                 description: "Render data in table view (expanded)",
                 example: r#"[[a b]; [1 2] [2 [4 4]]] | table --expand"#,
-                result: Some(Value::test_list(vec![
-                    Value::test_record(record! {
-                        "a" =>  Value::test_int(1),
-                        "b" =>  Value::test_int(2),
-                    }),
-                    Value::test_record(record! {
-                        "a" =>  Value::test_int(3),
-                        "b" =>  Value::test_int(4),
-                    }),
-                ])),
+                result: Some(Value::test_list(
+                    [
+                        Value::test_record(record! {
+                            "a" => Value::test_int(1),
+                            "b" => Value::test_int(2),
+                        }),
+                        Value::test_record(record! {
+                            "a" => Value::test_int(3),
+                            "b" => Value::test_int(4),
+                        }),
+                    ]
+                    .into(),
+                )),
             },
             Example {
                 description: "Render data in table view (collapsed)",
                 example: r#"[[a b]; [1 2] [2 [4 4]]] | table --collapse"#,
-                result: Some(Value::test_list(vec![
-                    Value::test_record(record! {
-                        "a" =>  Value::test_int(1),
-                        "b" =>  Value::test_int(2),
-                    }),
-                    Value::test_record(record! {
-                        "a" =>  Value::test_int(3),
-                        "b" =>  Value::test_int(4),
-                    }),
-                ])),
+                result: Some(Value::test_list(
+                    [
+                        Value::test_record(record! {
+                            "a" => Value::test_int(1),
+                            "b" => Value::test_int(2),
+                        }),
+                        Value::test_record(record! {
+                            "a" => Value::test_int(3),
+                            "b" => Value::test_int(4),
+                        }),
+                    ]
+                    .into(),
+                )),
             },
         ]
     }
@@ -425,7 +435,7 @@ fn build_table_batch(
             ExpandedTable::new(limit, flatten, sep).build_list(&vals, opts)
         }
         TableView::Collapsed => {
-            let value = Value::list(vals, span);
+            let value = Value::list(vals.into(), span);
             CollapsedTable::build(value, opts)
         }
     }
@@ -906,8 +916,8 @@ where
     out
 }
 
-fn supported_table_modes() -> Vec<Value> {
-    vec![
+fn supported_table_modes() -> EcoVec<Value> {
+    [
         Value::test_string("basic"),
         Value::test_string("compact"),
         Value::test_string("compact_double"),
@@ -926,4 +936,5 @@ fn supported_table_modes() -> Vec<Value> {
         Value::test_string("ascii_rounded"),
         Value::test_string("basic_compact"),
     ]
+    .into()
 }

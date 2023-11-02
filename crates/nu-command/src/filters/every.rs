@@ -44,7 +44,7 @@ impl Command for Every {
                 example: "[1 2 3 4 5] | every 2",
                 description: "Get every second row",
                 result: Some(Value::list(
-                    vec![Value::test_int(1), Value::test_int(3), Value::test_int(5)],
+                    [Value::test_int(1), Value::test_int(3), Value::test_int(5)].into(),
                     Span::test_data(),
                 )),
             },
@@ -52,7 +52,7 @@ impl Command for Every {
                 example: "[1 2 3 4 5] | every 2 --skip",
                 description: "Skip every second row",
                 result: Some(Value::list(
-                    vec![Value::test_int(2), Value::test_int(4)],
+                    [Value::test_int(2), Value::test_int(4)].into(),
                     Span::test_data(),
                 )),
             },

@@ -1,4 +1,5 @@
 use chrono::{DateTime, FixedOffset, Local, LocalResult, TimeZone};
+use ecow::EcoVec;
 use nu_protocol::{record, ShellError, Span, Value};
 
 pub(crate) fn parse_date_from_string(
@@ -265,7 +266,7 @@ pub(crate) fn generate_strftime_list(head: Span, show_parse_only_formats: bool) 
                 head,
             )
         })
-        .collect::<Vec<Value>>();
+        .collect::<EcoVec<_>>();
 
     if show_parse_only_formats {
         // now.format("%#z") will panic since it is parse-only

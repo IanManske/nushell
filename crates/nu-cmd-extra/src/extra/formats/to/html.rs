@@ -258,7 +258,7 @@ fn to_html(
         // If asset doesn't work, make sure to return the default theme
         let html_themes = get_html_themes("228_themes.json").unwrap_or_default();
 
-        let result: Vec<Value> = html_themes
+        let result = html_themes
             .themes
             .into_iter()
             .map(|n| {
@@ -288,6 +288,7 @@ fn to_html(
                 )
             })
             .collect();
+
         return Ok(
             Value::list(result, head).into_pipeline_data_with_metadata(PipelineMetadata {
                 data_source: DataSource::HtmlThemes,

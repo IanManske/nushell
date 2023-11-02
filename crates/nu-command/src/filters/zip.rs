@@ -36,17 +36,17 @@ impl Command for Zip {
 
     fn examples(&self) -> Vec<Example> {
         let test_row_1 = Value::list(
-            vec![Value::test_int(1), Value::test_int(4)],
+            [Value::test_int(1), Value::test_int(4)].into(),
             Span::test_data(),
         );
 
         let test_row_2 = Value::list(
-            vec![Value::test_int(2), Value::test_int(5)],
+            [Value::test_int(2), Value::test_int(5)].into(),
             Span::test_data(),
         );
 
         let test_row_3 = Value::list(
-            vec![Value::test_int(3), Value::test_int(6)],
+            [Value::test_int(3), Value::test_int(6)].into(),
             Span::test_data(),
         );
 
@@ -55,16 +55,16 @@ impl Command for Zip {
                 example: "[1 2] | zip [3 4]",
                 description: "Zip two lists",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::list(
-                            vec![Value::test_int(1), Value::test_int(3)],
+                            [Value::test_int(1), Value::test_int(3)].into(),
                             Span::test_data(),
                         ),
                         Value::list(
-                            vec![Value::test_int(2), Value::test_int(4)],
+                            [Value::test_int(2), Value::test_int(4)].into(),
                             Span::test_data(),
                         ),
-                    ],
+                    ].into(),
                     Span::test_data(),
                 )),
             },
@@ -72,7 +72,7 @@ impl Command for Zip {
                 example: "1..3 | zip 4..6",
                 description: "Zip two ranges",
                 result: Some(Value::list(
-                    vec![test_row_1, test_row_2, test_row_3],
+                    [test_row_1, test_row_2, test_row_3].into(),
                     Span::test_data(),
                 )),
             },
@@ -99,7 +99,7 @@ impl Command for Zip {
         Ok(input
             .into_iter()
             .zip(other.into_pipeline_data())
-            .map(move |(x, y)| Value::list(vec![x, y], head))
+            .map(move |(x, y)| Value::list([x, y].into(), head))
             .into_pipeline_data(ctrlc)
             .set_metadata(metadata))
     }

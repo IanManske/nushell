@@ -39,7 +39,7 @@ impl Command for Rotate {
             Example {
                 description: "Rotate a record clockwise, producing a table (like `transpose` but with column order reversed)",
                 example: "{a:1, b:2} | rotate",
-                result: Some(Value::test_list(vec![
+                result: Some(Value::test_list([
                         Value::test_record(record! {
                             "column0" => Value::test_int(1),
                             "column1" => Value::test_string("a"),
@@ -48,14 +48,14 @@ impl Command for Rotate {
                             "column0" => Value::test_int(2),
                             "column1" => Value::test_string("b"),
                         }),
-                    ],
+                    ].into(),
                 )),
             },
             Example {
                 description: "Rotate 2x3 table clockwise",
                 example: "[[a b]; [1 2] [3 4] [5 6]] | rotate",
                 result: Some(Value::test_list(
-                    vec![
+                    [
                         Value::test_record(record! {
                             "column0" => Value::test_int(5),
                             "column1" => Value::test_int(3),
@@ -68,14 +68,14 @@ impl Command for Rotate {
                             "column2" => Value::test_int(2),
                             "column3" => Value::test_string("b"),
                         }),
-                    ],
+                    ].into(),
                 )),
             },
             Example {
                 description: "Rotate table clockwise and change columns names",
                 example: "[[a b]; [1 2]] | rotate col_a col_b",
                 result: Some(Value::test_list(
-                    vec![
+                    [
                         Value::test_record(record! {
                             "col_a" => Value::test_int(1),
                             "col_b" => Value::test_string("a"),
@@ -84,14 +84,14 @@ impl Command for Rotate {
                             "col_a" => Value::test_int(2),
                             "col_b" => Value::test_string("b"),
                         }),
-                    ],
+                    ].into(),
                 )),
             },
             Example {
                 description: "Rotate table counter clockwise",
                 example: "[[a b]; [1 2]] | rotate --ccw",
                 result: Some(Value::test_list(
-                    vec![
+                    [
                         Value::test_record(record! {
                             "column0" => Value::test_string("b"),
                             "column1" => Value::test_int(2),
@@ -100,14 +100,14 @@ impl Command for Rotate {
                             "column0" => Value::test_string("a"),
                             "column1" => Value::test_int(1),
                         }),
-                    ],
+                    ].into(),
                 )),
             },
             Example {
                 description: "Rotate table counter-clockwise",
                 example: "[[a b]; [1 2] [3 4] [5 6]] | rotate --ccw",
                 result: Some(Value::test_list(
-                    vec![
+                    [
                         Value::test_record(record! {
                             "column0" => Value::test_string("b"),
                             "column1" => Value::test_int(2),
@@ -120,14 +120,14 @@ impl Command for Rotate {
                             "column2" => Value::test_int(3),
                             "column3" => Value::test_int(5),
                         }),
-                    ],
+                    ].into(),
                 )),
             },
             Example {
                 description: "Rotate table counter-clockwise and change columns names",
                 example: "[[a b]; [1 2]] | rotate --ccw col_a col_b",
                 result: Some(Value::test_list(
-                    vec![
+                    [
                         Value::test_record(record! {
                             "col_a" => Value::test_string("b"),
                             "col_b" => Value::test_int(2),
@@ -136,7 +136,7 @@ impl Command for Rotate {
                             "col_a" => Value::test_string("a"),
                             "col_b" => Value::test_int(1),
                         }),
-                    ],
+                    ].into(),
                 )),
             },
         ]
@@ -237,21 +237,19 @@ pub fn rotate(
 
     if not_a_record {
         return Ok(Value::list(
-            vec![Value::record(
+            [Value::record(
                 Record {
                     cols: new_column_names,
                     vals: new_values,
                 },
                 call.head,
-            )],
+            )]
+            .into(),
             call.head,
         )
         .into_pipeline_data()
         .set_metadata(metadata));
     }
-
-    // holder for the new records
-    let mut final_values = vec![];
 
     // the number of initial columns will be our number of rows, so we iterate through that to get the new number of rows that we need to make
     // for counter clockwise, we're iterating from right to left and have a pair of (index, value)
@@ -266,34 +264,38 @@ pub fn rotate(
         old_column_names.iter().enumerate().collect::<Vec<_>>()
     };
 
-    for (idx, val) in columns_iter {
-        // when rotating counter clockwise, the old columns names become the first column's values
-        let mut res = if ccw {
-            vec![Value::string(val, call.head)]
-        } else {
-            vec![]
-        };
+    let final_values = columns_iter
+        .into_iter()
+        .map(|(idx, val)| {
+            // when rotating counter clockwise, the old columns names become the first column's values
+            let mut res = if ccw {
+                vec![Value::string(val, call.head)]
+            } else {
+                vec![]
+            };
 
-        let new_vals = {
-            // move through the array with a step, which is every new_values size / total rows, starting from our old column's index
-            // so if initial data was like this [[a b]; [1 2] [3 4]] - we basically iterate on this [3 4 1 2] array, so we pick 3, then 1, and then when idx increases, we pick 4 and 2
-            for i in (idx..new_values.len()).step_by(new_values.len() / *total_rows) {
-                res.push(new_values[i].clone());
-            }
-            // when rotating clockwise, the old column names become the last column's values
-            if !ccw {
-                res.push(Value::string(val, call.head));
-            }
-            res.to_vec()
-        };
-        final_values.push(Value::record(
-            Record {
-                cols: new_column_names.clone(),
-                vals: new_vals,
-            },
-            call.head,
-        ))
-    }
+            let new_vals = {
+                // move through the array with a step, which is every new_values size / total rows, starting from our old column's index
+                // so if initial data was like this [[a b]; [1 2] [3 4]] - we basically iterate on this [3 4 1 2] array, so we pick 3, then 1, and then when idx increases, we pick 4 and 2
+                for i in (idx..new_values.len()).step_by(new_values.len() / *total_rows) {
+                    res.push(new_values[i].clone());
+                }
+                // when rotating clockwise, the old column names become the last column's values
+                if !ccw {
+                    res.push(Value::string(val, call.head));
+                }
+                res.to_vec()
+            };
+
+            Value::record(
+                Record {
+                    cols: new_column_names.clone(),
+                    vals: new_vals,
+                },
+                call.head,
+            )
+        })
+        .collect();
 
     Ok(Value::list(final_values, call.head)
         .into_pipeline_data()

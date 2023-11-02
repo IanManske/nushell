@@ -40,46 +40,49 @@ impl Command for Window {
     }
 
     fn examples(&self) -> Vec<Example> {
-        let stream_test_1 = vec![
+        let stream_test_1 = [
             Value::list(
-                vec![Value::test_int(1), Value::test_int(2)],
+                [Value::test_int(1), Value::test_int(2)].into(),
                 Span::test_data(),
             ),
             Value::list(
-                vec![Value::test_int(2), Value::test_int(3)],
+                [Value::test_int(2), Value::test_int(3)].into(),
                 Span::test_data(),
             ),
             Value::list(
-                vec![Value::test_int(3), Value::test_int(4)],
+                [Value::test_int(3), Value::test_int(4)].into(),
                 Span::test_data(),
             ),
-        ];
+        ]
+        .into();
 
-        let stream_test_2 = vec![
+        let stream_test_2 = [
             Value::list(
-                vec![Value::test_int(1), Value::test_int(2)],
+                [Value::test_int(1), Value::test_int(2)].into(),
                 Span::test_data(),
             ),
             Value::list(
-                vec![Value::test_int(4), Value::test_int(5)],
+                [Value::test_int(4), Value::test_int(5)].into(),
                 Span::test_data(),
             ),
             Value::list(
-                vec![Value::test_int(7), Value::test_int(8)],
+                [Value::test_int(7), Value::test_int(8)].into(),
                 Span::test_data(),
             ),
-        ];
+        ]
+        .into();
 
-        let stream_test_3 = vec![
+        let stream_test_3 = [
             Value::list(
-                vec![Value::test_int(1), Value::test_int(2), Value::test_int(3)],
+                [Value::test_int(1), Value::test_int(2), Value::test_int(3)].into(),
                 Span::test_data(),
             ),
             Value::list(
-                vec![Value::test_int(4), Value::test_int(5)],
+                [Value::test_int(4), Value::test_int(5)].into(),
                 Span::test_data(),
             ),
-        ];
+        ]
+        .into();
 
         vec![
             Example {
@@ -221,10 +224,9 @@ impl Iterator for EachWindowIterator {
             return None;
         }
 
-        let return_group = group.clone();
+        let list = Some(Value::list(group.as_slice().into(), self.span));
         self.previous = Some(group);
-
-        Some(Value::list(return_group, self.span))
+        list
     }
 }
 

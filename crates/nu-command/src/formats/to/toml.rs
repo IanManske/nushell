@@ -192,7 +192,7 @@ mod tests {
         m.insert(
             "features".to_owned(),
             Value::list(
-                vec![Value::test_string("hello"), Value::test_string("array")],
+                [Value::test_string("hello"), Value::test_string("array")].into(),
                 Span::test_data(),
             ),
         );
@@ -220,7 +220,7 @@ mod tests {
         .expect_err("Expected non-valid toml (String) to cause error!");
         value_to_toml_value(
             &engine_state,
-            &Value::list(vec![Value::test_string("1")], Span::test_data()),
+            &Value::list([Value::test_string("1")].into(), Span::test_data()),
             Span::test_data(),
         )
         .expect_err("Expected non-valid toml (Table) to cause error!");

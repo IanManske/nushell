@@ -134,10 +134,9 @@ path."#
             Example {
                 description: "Find a relative path from absolute paths in list",
                 example: r"[ /home/viking, /home/spam ] | path relative-to '/home'",
-                result: Some(Value::test_list(vec![
-                    Value::test_string("viking"),
-                    Value::test_string("spam"),
-                ])),
+                result: Some(Value::test_list(
+                    [Value::test_string("viking"), Value::test_string("spam")].into(),
+                )),
             },
             Example {
                 description: "Find a relative path from two relative paths",

@@ -162,7 +162,7 @@ fn main() -> Result<()> {
 
     if let Some(include_path) = &parsed_nu_cli_args.include_path {
         let span = include_path.span;
-        let vals: Vec<_> = include_path
+        let vals = include_path
             .item
             .split('\x1e') // \x1e is the record separator character (a character that is unlikely to appear in a path)
             .map(|x| Value::string(x.trim().to_string(), span))

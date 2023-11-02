@@ -1,3 +1,4 @@
+use ecow::EcoVec;
 use indexmap::IndexMap;
 use nu_protocol::ast::Call;
 use nu_protocol::engine::{Command, EngineState, Stack};
@@ -37,7 +38,7 @@ impl Command for Values {
                 example: "{ mode:normal userid:31415 } | values",
                 description: "Get the values from the record (produce a list)",
                 result: Some(Value::list(
-                    vec![Value::test_string("normal"), Value::test_int(31415)],
+                    [Value::test_string("normal"), Value::test_int(31415)].into(),
                     Span::test_data(),
                 )),
             },
@@ -45,7 +46,7 @@ impl Command for Values {
                 example: "{ f:250 g:191 c:128 d:1024 e:2000 a:16 b:32 } | values",
                 description: "Values are ordered by the column order of the record",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_int(250),
                         Value::test_int(191),
                         Value::test_int(128),
@@ -53,7 +54,8 @@ impl Command for Values {
                         Value::test_int(2000),
                         Value::test_int(16),
                         Value::test_int(32),
-                    ],
+                    ]
+                    .into(),
                     Span::test_data(),
                 )),
             },
@@ -61,24 +63,27 @@ impl Command for Values {
                 example: "[[name meaning]; [ls list] [mv move] [cd 'change directory']] | values",
                 description: "Get the values from the table (produce a list of lists)",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::list(
-                            vec![
+                            [
                                 Value::test_string("ls"),
                                 Value::test_string("mv"),
                                 Value::test_string("cd"),
-                            ],
+                            ]
+                            .into(),
                             Span::test_data(),
                         ),
                         Value::list(
-                            vec![
+                            [
                                 Value::test_string("list"),
                                 Value::test_string("move"),
                                 Value::test_string("change directory"),
-                            ],
+                            ]
+                            .into(),
                             Span::test_data(),
                         ),
-                    ],
+                    ]
+                    .into(),
                     Span::test_data(),
                 )),
             },
@@ -106,7 +111,7 @@ pub fn get_values<'a>(
     head: Span,
     input_span: Span,
 ) -> Result<Vec<Value>, ShellError> {
-    let mut output: IndexMap<String, Vec<Value>> = IndexMap::new();
+    let mut output: IndexMap<String, EcoVec<Value>> = IndexMap::new();
 
     for item in input {
         match item {
@@ -115,7 +120,7 @@ pub fn get_values<'a>(
                     if let Some(vec) = output.get_mut(k) {
                         vec.push(v.clone());
                     } else {
-                        output.insert(k.clone(), vec![v.clone()]);
+                        output.insert(k.clone(), [v.clone()].into());
                     }
                 }
             }

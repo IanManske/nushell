@@ -50,7 +50,7 @@ impl Command for Sort {
                 example: "[2 0 1] | sort",
                 description: "sort the list by increasing value",
                 result: Some(Value::list(
-                    vec![Value::test_int(0), Value::test_int(1), Value::test_int(2)],
+                    [Value::test_int(0), Value::test_int(1), Value::test_int(2)].into(),
                     Span::test_data(),
                 )),
             },
@@ -58,7 +58,7 @@ impl Command for Sort {
                 example: "[2 0 1] | sort --reverse",
                 description: "sort the list by decreasing value",
                 result: Some(Value::list(
-                    vec![Value::test_int(2), Value::test_int(1), Value::test_int(0)],
+                    [Value::test_int(2), Value::test_int(1), Value::test_int(0)].into(),
                     Span::test_data(),
                 )),
             },
@@ -66,11 +66,12 @@ impl Command for Sort {
                 example: "[betty amy sarah] | sort",
                 description: "sort a list of strings",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("amy"),
                         Value::test_string("betty"),
                         Value::test_string("sarah"),
-                    ],
+                    ]
+                    .into(),
                     Span::test_data(),
                 )),
             },
@@ -78,11 +79,12 @@ impl Command for Sort {
                 example: "[betty amy sarah] | sort --reverse",
                 description: "sort a list of strings in reverse",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("sarah"),
                         Value::test_string("betty"),
                         Value::test_string("amy"),
-                    ],
+                    ]
+                    .into(),
                     Span::test_data(),
                 )),
             },
@@ -90,11 +92,12 @@ impl Command for Sort {
                 description: "Sort strings (case-insensitive)",
                 example: "[airplane Truck Car] | sort -i",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("airplane"),
                         Value::test_string("Car"),
                         Value::test_string("Truck"),
-                    ],
+                    ]
+                    .into(),
                     Span::test_data(),
                 )),
             },
@@ -102,11 +105,12 @@ impl Command for Sort {
                 description: "Sort strings (reversed case-insensitive)",
                 example: "[airplane Truck Car] | sort -i -r",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("Truck"),
                         Value::test_string("Car"),
                         Value::test_string("airplane"),
-                    ],
+                    ]
+                    .into(),
                     Span::test_data(),
                 )),
             },

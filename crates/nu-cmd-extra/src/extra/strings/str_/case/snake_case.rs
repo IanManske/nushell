@@ -78,10 +78,13 @@ impl Command for SubCommand {
             Example {
                 description: "convert a column from a table to snake_case",
                 example: r#"[[lang, gems]; [nuTest, 100]] | str snake-case lang"#,
-                result: Some(Value::test_list(vec![Value::test_record(record! {
-                    "lang" => Value::test_string("nu_test"),
-                    "gems" => Value::test_int(100),
-                })])),
+                result: Some(Value::test_list(
+                    [Value::test_record(record! {
+                        "lang" => Value::test_string("nu_test"),
+                        "gems" => Value::test_int(100),
+                    })]
+                    .into(),
+                )),
             },
         ]
     }

@@ -4,6 +4,7 @@ mod custom_value;
 mod operations;
 
 pub use conversion::{Column, ColumnMap};
+use ecow::EcoVec;
 pub use operations::Axis;
 
 use indexmap::map::IndexMap;
@@ -147,10 +148,8 @@ impl NuDataFrame {
             match value {
                 Value::CustomValue { .. } => return Self::try_from_value(value),
                 Value::List { vals, .. } => {
-                    let cols = (0..vals.len())
-                        .map(|i| format!("{i}"))
-                        .collect::<Vec<String>>();
-
+                    let cols = (0..vals.len()).map(|i| format!("{i}")).collect();
+                    let vals = vals.to_vec();
                     conversion::insert_record(&mut column_values, Record { cols, vals })?
                 }
                 Value::Record { val: record, .. } => {
@@ -193,7 +192,7 @@ impl NuDataFrame {
         conversion::from_parsed_columns(column_values)
     }
 
-    pub fn fill_list_nan(list: Vec<Value>, list_span: Span, fill: Value) -> Value {
+    pub fn fill_list_nan(list: EcoVec<Value>, list_span: Span, fill: Value) -> Value {
         let newlist = list
             .into_iter()
             .map(|value| {
@@ -210,7 +209,7 @@ impl NuDataFrame {
                     _ => value,
                 }
             })
-            .collect::<Vec<Value>>();
+            .collect();
         Value::list(newlist, list_span)
     }
 

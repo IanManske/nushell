@@ -98,18 +98,24 @@ impl Command for SubCommand {
             Example {
                 description: "Check if input contains string in a table",
                 example: " [[ColA ColB]; [test 100]] | str contains --ignore-case 'E' ColA",
-                result: Some(Value::test_list(vec![Value::test_record(record! {
-                    "ColA" => Value::test_bool(true),
-                    "ColB" => Value::test_int(100),
-                })])),
+                result: Some(Value::test_list(
+                    [Value::test_record(record! {
+                        "ColA" => Value::test_bool(true),
+                        "ColB" => Value::test_int(100),
+                    })]
+                    .into(),
+                )),
             },
             Example {
                 description: "Check if input contains string in a table",
                 example: " [[ColA ColB]; [test hello]] | str contains 'e' ColA ColB",
-                result: Some(Value::test_list(vec![Value::test_record(record! {
-                    "ColA" => Value::test_bool(true),
-                    "ColB" => Value::test_bool(true),
-                })])),
+                result: Some(Value::test_list(
+                    [Value::test_record(record! {
+                        "ColA" => Value::test_bool(true),
+                        "ColB" => Value::test_bool(true),
+                    })]
+                    .into(),
+                )),
             },
             Example {
                 description: "Check if input string contains 'banana'",
@@ -119,20 +125,26 @@ impl Command for SubCommand {
             Example {
                 description: "Check if list contains string",
                 example: "[one two three] | str contains o",
-                result: Some(Value::test_list(vec![
-                    Value::test_bool(true),
-                    Value::test_bool(true),
-                    Value::test_bool(false),
-                ])),
+                result: Some(Value::test_list(
+                    [
+                        Value::test_bool(true),
+                        Value::test_bool(true),
+                        Value::test_bool(false),
+                    ]
+                    .into(),
+                )),
             },
             Example {
                 description: "Check if list does not contain string",
                 example: "[one two three] | str contains --not o",
-                result: Some(Value::test_list(vec![
-                    Value::test_bool(false),
-                    Value::test_bool(false),
-                    Value::test_bool(true),
-                ])),
+                result: Some(Value::test_list(
+                    [
+                        Value::test_bool(false),
+                        Value::test_bool(false),
+                        Value::test_bool(true),
+                    ]
+                    .into(),
+                )),
             },
         ]
     }

@@ -6,6 +6,7 @@ use crate::{
     engine::{EngineState, StateWorkingSet},
     record, HistoryFileFormat, PipelineData, Range, Record, ShellError, Span, Value,
 };
+use ecow::EcoVec;
 use nu_system::os_info::{get_kernel_version, get_os_arch, get_os_family, get_os_name};
 use std::path::{Path, PathBuf};
 
@@ -276,7 +277,7 @@ pub fn eval_constant(
         }
         Expr::DateTime(dt) => Ok(Value::date(*dt, expr.span)),
         Expr::List(x) => {
-            let mut output = vec![];
+            let mut output = EcoVec::new();
             for expr in x {
                 output.push(eval_constant(working_set, expr)?);
             }
@@ -309,7 +310,7 @@ pub fn eval_constant(
                 }
             }
 
-            let mut output_rows = vec![];
+            let mut output_rows = EcoVec::new();
             for val in vals {
                 let mut row = vec![];
                 for expr in val {

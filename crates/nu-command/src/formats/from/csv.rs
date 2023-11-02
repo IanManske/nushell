@@ -82,10 +82,10 @@ impl Command for FromCsv {
                 description: "Convert comma-separated data to a table",
                 example: "\"ColA,ColB\n1,2\" | from csv",
                 result: Some(Value::test_list (
-                    vec![Value::test_record(record! {
+                    [Value::test_record(record! {
                         "ColA" => Value::test_int(1),
                         "ColB" => Value::test_int(2),
-                    })],
+                    })].into(),
                 ))
             },
             Example {

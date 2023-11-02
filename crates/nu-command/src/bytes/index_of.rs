@@ -1,3 +1,4 @@
+use ecow::EcoVec;
 use nu_cmd_base::input_handler::{operate, CmdArgument};
 use nu_engine::CallExt;
 use nu_protocol::ast::{Call, CellPath};
@@ -95,29 +96,28 @@ impl Command for BytesIndexOf {
             Example {
                 description: "Returns all matched index",
                 example: " 0x[33 44 55 10 01 33 44 33 44] | bytes index-of --all 0x[33 44]",
-                result: Some(Value::test_list(vec![
-                    Value::test_int(0),
-                    Value::test_int(5),
-                    Value::test_int(7),
-                ])),
+                result: Some(Value::test_list(
+                    [Value::test_int(0), Value::test_int(5), Value::test_int(7)].into(),
+                )),
             },
             Example {
                 description: "Returns all matched index, searching from end",
                 example: " 0x[33 44 55 10 01 33 44 33 44] | bytes index-of --all --end 0x[33 44]",
-                result: Some(Value::test_list(vec![
-                    Value::test_int(7),
-                    Value::test_int(5),
-                    Value::test_int(0),
-                ])),
+                result: Some(Value::test_list(
+                    [Value::test_int(7), Value::test_int(5), Value::test_int(0)].into(),
+                )),
             },
             Example {
                 description: "Returns index of pattern for specific column",
                 example: r#" [[ColA ColB ColC]; [0x[11 12 13] 0x[14 15 16] 0x[17 18 19]]] | bytes index-of 0x[11] ColA ColC"#,
-                result: Some(Value::test_list(vec![Value::test_record(record! {
-                    "ColA" => Value::test_int(0),
-                    "ColB" => Value::binary(vec![0x14, 0x15, 0x16], Span::test_data()),
-                    "ColC" => Value::test_int(-1),
-                })])),
+                result: Some(Value::test_list(
+                    [Value::test_record(record! {
+                        "ColA" => Value::test_int(0),
+                        "ColB" => Value::binary(vec![0x14, 0x15, 0x16], Span::test_data()),
+                        "ColC" => Value::test_int(-1),
+                    })]
+                    .into(),
+                )),
             },
         ]
     }
@@ -167,7 +167,7 @@ fn index_of_impl(input: &[u8], arg: &Arguments, span: Span) -> Value {
 }
 
 fn search_all_index(input: &[u8], pattern: &[u8], from_end: bool, span: Span) -> Value {
-    let mut result = vec![];
+    let mut result = EcoVec::new();
     if from_end {
         let (mut left, mut right) = (
             input.len() as isize - pattern.len() as isize,

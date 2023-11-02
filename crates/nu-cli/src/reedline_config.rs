@@ -1049,7 +1049,7 @@ mod test {
         });
         let event = record! {
             "until" => Value::list(
-                vec![menu_event, enter_event],
+                [menu_event, enter_event].into(),
                 Span::test_data(),
             ),
         };
@@ -1080,7 +1080,7 @@ mod test {
         let enter_event = Value::test_record(record! {
             "send" => Value::test_string("Enter"),
         });
-        let event = Value::list(vec![menu_event, enter_event], Span::test_data());
+        let event = Value::list([menu_event, enter_event].into(), Span::test_data());
 
         let config = Config::default();
         let parsed_event = parse_event(&event, &config).unwrap();

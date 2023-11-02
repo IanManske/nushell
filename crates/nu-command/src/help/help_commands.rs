@@ -1,4 +1,5 @@
 use crate::help::highlight_search_in_table;
+use ecow::EcoVec;
 use nu_color_config::StyleComputer;
 use nu_engine::{get_full_help, CallExt};
 use nu_protocol::{
@@ -138,7 +139,7 @@ fn build_help_commands(engine_state: &EngineState, span: Span) -> Vec<Value> {
 
         // Build table of parameters
         let param_table = {
-            let mut vals = vec![];
+            let mut vals = EcoVec::new();
 
             for required_param in &sig.required_positional {
                 vals.push(Value::record(
@@ -208,21 +209,19 @@ fn build_help_commands(engine_state: &EngineState, span: Span) -> Vec<Value> {
         };
 
         // Build the signature input/output table
-        let input_output_table = {
-            let mut vals = vec![];
-
-            for (input_type, output_type) in sig.input_output_types {
-                vals.push(Value::record(
+        let input_output = sig
+            .input_output_types
+            .into_iter()
+            .map(|(input, output)| {
+                Value::record(
                     record! {
-                        "input" => Value::string(input_type.to_string(), span),
-                        "output" => Value::string(output_type.to_string(), span),
+                        "input" => Value::string(input.to_string(), span),
+                        "output" => Value::string(output.to_string(), span),
                     },
                     span,
-                ));
-            }
-
-            Value::list(vals, span)
-        };
+                )
+            })
+            .collect();
 
         let record = record! {
             "name" => Value::string(key, span),
@@ -230,7 +229,7 @@ fn build_help_commands(engine_state: &EngineState, span: Span) -> Vec<Value> {
             "command_type" => Value::string(command_type, span),
             "usage" => Value::string(usage, span),
             "params" => param_table,
-            "input_output" => input_output_table,
+            "input_output" => Value::list(input_output, span),
             "search_terms" => Value::string(search_terms.join(", "), span),
         };
 

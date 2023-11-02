@@ -92,7 +92,7 @@ impl Command for BitsShr {
                 description: "Shift right a list of numbers",
                 example: "[15 35 2] | bits shr 2",
                 result: Some(Value::list(
-                    vec![Value::test_int(3), Value::test_int(8), Value::test_int(0)],
+                    [Value::test_int(3), Value::test_int(8), Value::test_int(0)].into(),
                     Span::test_data(),
                 )),
             },

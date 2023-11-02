@@ -67,32 +67,38 @@ impl Command for Wrap {
             Example {
                 description: "Wrap a list into a table with a given column name",
                 example: "[1 2 3] | wrap num",
-                result: Some(Value::test_list(vec![
-                    Value::test_record(record! {
-                        "num" => Value::test_int(1),
-                    }),
-                    Value::test_record(record! {
-                        "num" => Value::test_int(2),
-                    }),
-                    Value::test_record(record! {
-                        "num" => Value::test_int(3),
-                    }),
-                ])),
+                result: Some(Value::test_list(
+                    [
+                        Value::test_record(record! {
+                            "num" => Value::test_int(1),
+                        }),
+                        Value::test_record(record! {
+                            "num" => Value::test_int(2),
+                        }),
+                        Value::test_record(record! {
+                            "num" => Value::test_int(3),
+                        }),
+                    ]
+                    .into(),
+                )),
             },
             Example {
                 description: "Wrap a range into a table with a given column name",
                 example: "1..3 | wrap num",
-                result: Some(Value::test_list(vec![
-                    Value::test_record(record! {
-                        "num" => Value::test_int(1),
-                    }),
-                    Value::test_record(record! {
-                        "num" => Value::test_int(2),
-                    }),
-                    Value::test_record(record! {
-                        "num" => Value::test_int(3),
-                    }),
-                ])),
+                result: Some(Value::test_list(
+                    [
+                        Value::test_record(record! {
+                            "num" => Value::test_int(1),
+                        }),
+                        Value::test_record(record! {
+                            "num" => Value::test_int(2),
+                        }),
+                        Value::test_record(record! {
+                            "num" => Value::test_int(3),
+                        }),
+                    ]
+                    .into(),
+                )),
             },
         ]
     }

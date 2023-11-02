@@ -44,11 +44,11 @@ impl Command for SubCommand {
                 description: "Define a range inside braces to produce a list of string.",
                 example: "\"{3..5}\" | str expand",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("3"),
                         Value::test_string("4"),
                         Value::test_string("5")
-                    ],
+                    ].into(),
                     Span::test_data()
                 )),
             },
@@ -57,10 +57,10 @@ impl Command for SubCommand {
                 description: "Ignore the next character after the backslash ('\\')",
                 example: "'A{B\\,,C}' | str expand",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("AB,"),
                         Value::test_string("AC"),
-                    ],
+                    ].into(),
                     Span::test_data()
                 )),
             },
@@ -69,10 +69,10 @@ impl Command for SubCommand {
                 description: "Commas that are not inside any braces need to be skipped.",
                 example: "'Welcome\\, {home,mon ami}!' | str expand",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("Welcome, home!"),
                         Value::test_string("Welcome, mon ami!"),
-                    ],
+                    ].into(),
                     Span::test_data()
                 )),
             },
@@ -81,10 +81,10 @@ impl Command for SubCommand {
                 description: "Use double backslashes to add a backslash.",
                 example: "'A{B\\\\,C}' | str expand",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("AB\\"),
                         Value::test_string("AC"),
-                    ],
+                    ].into(),
                     Span::test_data()
                 )),
             },
@@ -93,11 +93,11 @@ impl Command for SubCommand {
                 description: "Export comma separated values inside braces (`{}`) to a string list.",
                 example: "\"{apple,banana,cherry}\" | str expand",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("apple"),
                         Value::test_string("banana"),
                         Value::test_string("cherry")
-                    ],
+                    ].into(),
                     Span::test_data()
                 )),
             },
@@ -106,10 +106,10 @@ impl Command for SubCommand {
                 description: "If the piped data is path, you may want to use --path flag, or else manually replace the backslashes with double backslashes.",
                 example: "'C:\\{Users,Windows}' | str expand --path",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("C:\\Users"),
                         Value::test_string("C:\\Windows"),
-                    ],
+                    ].into(),
                     Span::test_data()
                 )),
             },
@@ -118,12 +118,12 @@ impl Command for SubCommand {
                 description: "Brace expressions can be used one after another.",
                 example: "\"A{b,c}D{e,f}G\" | str expand",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("AbDeG"),
                         Value::test_string("AbDfG"),
                         Value::test_string("AcDeG"),
                         Value::test_string("AcDfG"),
-                    ],
+                    ].into(),
                     Span::test_data()
                 )),
             },
@@ -132,11 +132,11 @@ impl Command for SubCommand {
                 description: "Collection may include an empty item. It can be put at the start of the list.",
                 example: "\"A{,B,C}\" | str expand",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("A"),
                         Value::test_string("AB"),
                         Value::test_string("AC"),
-                    ],
+                    ].into(),
                     Span::test_data()
                 )),
             },
@@ -145,11 +145,11 @@ impl Command for SubCommand {
                 description: "Empty item can be at the end of the collection.",
                 example: "\"A{B,C,}\" | str expand",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("AB"),
                         Value::test_string("AC"),
                         Value::test_string("A"),
-                    ],
+                    ].into(),
                     Span::test_data()
                 )),
             },
@@ -158,11 +158,11 @@ impl Command for SubCommand {
                 description: "Empty item can be in the middle of the collection.",
                 example: "\"A{B,,C}\" | str expand",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("AB"),
                         Value::test_string("A"),
                         Value::test_string("AC"),
-                    ],
+                    ].into(),
                     Span::test_data()
                 )),
             },
@@ -171,12 +171,12 @@ impl Command for SubCommand {
                 description: "Also, it is possible to use one inside another. Here is a real-world example, that creates files:",
                 example: "\"A{B{1,3},C{2,5}}D\" | str expand",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("AB1D"),
                         Value::test_string("AB3D"),
                         Value::test_string("AC2D"),
                         Value::test_string("AC5D"),
-                    ],
+                    ].into(),
                     Span::test_data()
                 )),
             }
@@ -230,7 +230,7 @@ fn str_expand(contents: &str, span: Span, value_span: Span) -> Value {
                 Ok(node) => {
                     match expand(&node) {
                         Ok(possibilities) => {
-                            Value::list(possibilities.iter().map(|e| Value::string(e,span)).collect::<Vec<Value>>(), span)
+                            Value::list(possibilities.iter().map(|e| Value::string(e,span)).collect(), span)
                         },
                         Err(e) => match e {
                             bracoxide::ExpansionError::NumConversionFailed(s) => Value::error(
@@ -293,30 +293,33 @@ mod tests {
         assert_eq!(
             str_expand("{a.b.c,d}", Span::test_data(), Span::test_data()),
             Value::list(
-                vec![
-                    Value::string(String::from("a.b.c"), Span::test_data(),),
-                    Value::string(String::from("d"), Span::test_data(),)
-                ],
+                [
+                    Value::string(String::from("a.b.c"), Span::test_data()),
+                    Value::string(String::from("d"), Span::test_data()),
+                ]
+                .into(),
                 Span::test_data(),
             )
         );
         assert_eq!(
             str_expand("{1.2.3,a}", Span::test_data(), Span::test_data()),
             Value::list(
-                vec![
-                    Value::string(String::from("1.2.3"), Span::test_data(),),
-                    Value::string(String::from("a"), Span::test_data(),)
-                ],
+                [
+                    Value::string(String::from("1.2.3"), Span::test_data()),
+                    Value::string(String::from("a"), Span::test_data()),
+                ]
+                .into(),
                 Span::test_data(),
             )
         );
         assert_eq!(
             str_expand("{a-1.2,b}", Span::test_data(), Span::test_data()),
             Value::list(
-                vec![
-                    Value::string(String::from("a-1.2"), Span::test_data(),),
-                    Value::string(String::from("b"), Span::test_data(),)
-                ],
+                [
+                    Value::string(String::from("a-1.2"), Span::test_data()),
+                    Value::string(String::from("b"), Span::test_data()),
+                ]
+                .into(),
                 Span::test_data(),
             )
         );

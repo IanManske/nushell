@@ -65,7 +65,7 @@ impl Command for BitsAnd {
                 description: "Apply logical and to a list of numbers",
                 example: "[4 3 2] | bits and 2",
                 result: Some(Value::list(
-                    vec![Value::test_int(0), Value::test_int(2), Value::test_int(2)],
+                    [Value::test_int(0), Value::test_int(2), Value::test_int(2)].into(),
                     Span::test_data(),
                 )),
             },

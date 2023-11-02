@@ -55,7 +55,7 @@ impl Command for Last {
                 example: "[1,2,3] | last 2",
                 description: "Return the last 2 items of a list/table",
                 result: Some(Value::list(
-                    vec![Value::test_int(2), Value::test_int(3)],
+                    [Value::test_int(2), Value::test_int(3)].into(),
                     Span::test_data(),
                 )),
             },

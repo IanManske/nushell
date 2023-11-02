@@ -186,7 +186,7 @@ impl Command for SubCommand {
                 description: "Convert bool to int",
                 example: "[false, true] | into int",
                 result: Some(Value::list(
-                    vec![Value::test_int(0), Value::test_int(1)],
+                    [Value::test_int(0), Value::test_int(1)].into(),
                     Span::test_data(),
                 )),
             },

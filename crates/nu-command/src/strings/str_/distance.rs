@@ -72,30 +72,31 @@ impl Command for SubCommand {
     }
 
     fn examples(&self) -> Vec<Example> {
-        vec![Example {
-            description: "get the edit distance between two strings",
-            example: "'nushell' | str distance 'nutshell'",
-            result: Some(Value::test_int(1)),
-        },
-        Example {
-            description: "Compute edit distance between strings in table and another string, using cell paths",
-            example: "[{a: 'nutshell' b: 'numetal'}] | str distance 'nushell' 'a' 'b'",
-            result: Some(Value::test_list (
-                vec![
+        vec![
+            Example {
+                description: "get the edit distance between two strings",
+                example: "'nushell' | str distance 'nutshell'",
+                result: Some(Value::test_int(1)),
+            },
+            Example {
+                description: "Compute edit distance between strings in table and another string, using cell paths",
+                example: "[{a: 'nutshell' b: 'numetal'}] | str distance 'nushell' 'a' 'b'",
+                result: Some(Value::test_list([
                     Value::test_record(record! {
                         "a" => Value::test_int(1),
                         "b" => Value::test_int(4),
-                    })])),
-        },
-        Example {
-            description: "Compute edit distance between strings in record and another string, using cell paths",
-            example: "{a: 'nutshell' b: 'numetal'} | str distance 'nushell' a b",
-            result: Some(
-                    Value::test_record(record! {
-                        "a" => Value::test_int(1),
-                        "b" => Value::test_int(4),
-                    })),
-        }]
+                    })
+                ].into())),
+            },
+            Example {
+                description: "Compute edit distance between strings in record and another string, using cell paths",
+                example: "{a: 'nutshell' b: 'numetal'} | str distance 'nushell' a b",
+                result: Some(Value::test_record(record! {
+                    "a" => Value::test_int(1),
+                    "b" => Value::test_int(4),
+                })),
+            }
+        ]
     }
 }
 

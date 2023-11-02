@@ -1,4 +1,5 @@
 use crate::formats::nu_xml_format::{COLUMN_ATTRS_NAME, COLUMN_CONTENT_NAME, COLUMN_TAG_NAME};
+use ecow::EcoVec;
 use indexmap::IndexMap;
 use nu_engine::CallExt;
 use nu_protocol::ast::Call;
@@ -219,7 +220,7 @@ fn to_tag_like<W: Write>(
 
         let content = match content {
             Value::List { vals, .. } => vals,
-            Value::Nothing { .. } => Vec::new(),
+            Value::Nothing { .. } => EcoVec::new(),
             _ => {
                 return Err(ShellError::CantConvert {
                     to_type: "XML".into(),
@@ -294,7 +295,7 @@ fn to_tag<W: Write>(
     tag: String,
     tag_span: Span,
     attrs: Record,
-    children: Vec<Value>,
+    children: EcoVec<Value>,
     writer: &mut quick_xml::Writer<W>,
 ) -> Result<(), ShellError> {
     if tag.starts_with('!') || tag.starts_with('?') {

@@ -120,10 +120,9 @@ If you need to distinguish dirs and files, please use `path type`."#
             Example {
                 description: "Check if files in list exist",
                 example: "[ /home/joe/todo.txt, /home/doe/todo.txt ] | path exists",
-                result: Some(Value::test_list(vec![
-                    Value::test_bool(false),
-                    Value::test_bool(false),
-                ])),
+                result: Some(Value::test_list(
+                    [Value::test_bool(false), Value::test_bool(false)].into(),
+                )),
             },
         ]
     }

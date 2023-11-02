@@ -88,7 +88,7 @@ impl Command for Find {
                 description: "Search a number or a file size in a list of numbers",
                 example: r#"[1 5 3kb 4 3Mb] | find 5 3kb"#,
                 result: Some(Value::list(
-                    vec![Value::test_int(5), Value::test_filesize(3000)],
+                    [Value::test_int(5), Value::test_filesize(3000)].into(),
                     Span::test_data(),
                 )),
             },
@@ -96,7 +96,7 @@ impl Command for Find {
                 description: "Search a char in a list of string",
                 example: r#"[moe larry curly] | find l"#,
                 result: Some(Value::list(
-                    vec![Value::test_string("larry"), Value::test_string("curly")],
+                    [Value::test_string("larry"), Value::test_string("curly")].into(),
                     Span::test_data(),
                 )),
             },
@@ -104,10 +104,10 @@ impl Command for Find {
                 description: "Find using regex",
                 example: r#"[abc bde arc abf] | find --regex "ab""#,
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("abc".to_string()),
                         Value::test_string("abf".to_string()),
-                    ],
+                    ].into(),
                     Span::test_data(),
                 )),
             },
@@ -115,10 +115,10 @@ impl Command for Find {
                 description: "Find using regex case insensitive",
                 example: r#"[aBc bde Arc abf] | find --regex "ab" -i"#,
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("aBc".to_string()),
                         Value::test_string("abf".to_string()),
-                    ],
+                    ].into(),
                     Span::test_data(),
                 )),
             },
@@ -126,17 +126,17 @@ impl Command for Find {
                 description: "Find value in records using regex",
                 example: r#"[[version name]; ['0.1.0' nushell] ['0.1.1' fish] ['0.2.0' zsh]] | find --regex "nu""#,
                 result: Some(Value::test_list(
-                    vec![Value::test_record(record! {
+                    [Value::test_record(record! {
                             "version" => Value::test_string("0.1.0"),
                             "name" => Value::test_string("nushell".to_string()),
-                    })],
+                    })].into(),
                 )),
             },
             Example {
                 description: "Find inverted values in records using regex",
                 example: r#"[[version name]; ['0.1.0' nushell] ['0.1.1' fish] ['0.2.0' zsh]] | find --regex "nu" --invert"#,
                 result: Some(Value::test_list(
-                    vec![
+                    [
                         Value::test_record(record!{
                                 "version" => Value::test_string("0.1.1"),
                                 "name" => Value::test_string("fish".to_string()),
@@ -145,17 +145,17 @@ impl Command for Find {
                                 "version" => Value::test_string("0.2.0"),
                                 "name" =>Value::test_string("zsh".to_string()),
                         }),
-                    ],
+                    ].into(),
                 )),
             },
             Example {
                 description: "Find value in list using regex",
                 example: r#"[["Larry", "Moe"], ["Victor", "Marina"]] | find --regex "rr""#,
                 result: Some(Value::list(
-                    vec![Value::list(
-                        vec![Value::test_string("Larry"), Value::test_string("Moe")],
+                    [Value::list(
+                        [Value::test_string("Larry"), Value::test_string("Moe")].into(),
                         Span::test_data(),
-                    )],
+                    )].into(),
                     Span::test_data(),
                 )),
             },
@@ -163,10 +163,10 @@ impl Command for Find {
                 description: "Find inverted values in records using regex",
                 example: r#"[["Larry", "Moe"], ["Victor", "Marina"]] | find --regex "rr" --invert"#,
                 result: Some(Value::list(
-                    vec![Value::list(
-                        vec![Value::test_string("Victor"), Value::test_string("Marina")],
+                    [Value::list(
+                        [Value::test_string("Victor"), Value::test_string("Marina")].into(),
                         Span::test_data(),
-                    )],
+                    )].into(),
                     Span::test_data(),
                 )),
             },
@@ -180,14 +180,14 @@ impl Command for Find {
                 example:
                     "[[col1 col2 col3]; [moe larry curly] [larry curly moe]] | find moe --columns [col1]",
                 result: Some(Value::list(
-                    vec![Value::test_record(record! {
+                    [Value::test_record(record! {
                             "col1" => Value::test_string(
                                 "\u{1b}[37m\u{1b}[0m\u{1b}[41;37mmoe\u{1b}[0m\u{1b}[37m\u{1b}[0m"
                                     .to_string(),
                             ),
                             "col2" => Value::test_string("larry".to_string()),
                             "col3" => Value::test_string("curly".to_string()),
-                    })],
+                    })].into(),
                     Span::test_data(),
                 )),
             },
@@ -253,11 +253,8 @@ fn find_with_regex(
     input.filter(
         move |value| match value {
             Value::String { val, .. } => re.is_match(val.as_str()).unwrap_or(false) != invert,
-            Value::Record {
-                val: Record { vals, .. },
-                ..
-            }
-            | Value::List { vals, .. } => values_match_find(vals, &re, &config, invert),
+            Value::Record { val, .. } => values_match_find(&val.vals, &re, &config, invert),
+            Value::List { vals, .. } => values_match_find(vals, &re, &config, invert),
             _ => false,
         },
         ctrlc,

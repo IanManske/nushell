@@ -59,20 +59,23 @@ impl Command for SortBy {
             Example {
                 description: "Sort a table by a column (reversed order)",
                 example: "[[fruit count]; [apple 9] [pear 3] [orange 7]] | sort-by fruit --reverse",
-                result: Some(Value::test_list(vec![
-                    Value::test_record(record! {
-                        "fruit" => Value::test_string("pear"),
-                        "count" => Value::test_int(3),
-                    }),
-                    Value::test_record(record! {
-                        "fruit" => Value::test_string("orange"),
-                        "count" => Value::test_int(7),
-                    }),
-                    Value::test_record(record! {
-                        "fruit" => Value::test_string("apple"),
-                        "count" => Value::test_int(9),
-                    }),
-                ])),
+                result: Some(Value::test_list(
+                    [
+                        Value::test_record(record! {
+                            "fruit" => Value::test_string("pear"),
+                            "count" => Value::test_int(3),
+                        }),
+                        Value::test_record(record! {
+                            "fruit" => Value::test_string("orange"),
+                            "count" => Value::test_int(7),
+                        }),
+                        Value::test_record(record! {
+                            "fruit" => Value::test_string("apple"),
+                            "count" => Value::test_int(9),
+                        }),
+                    ]
+                    .into(),
+                )),
             },
         ]
     }

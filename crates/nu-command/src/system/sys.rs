@@ -1,5 +1,6 @@
 use chrono::prelude::DateTime;
 use chrono::Local;
+use ecow::EcoVec;
 use nu_protocol::{
     ast::Call,
     engine::{Command, EngineState, Stack},
@@ -110,23 +111,27 @@ pub fn disks(span: Span) -> Value {
     sys.refresh_disks();
     sys.refresh_disks_list();
 
-    let mut output = vec![];
-    for disk in sys.disks() {
-        let device = trim_cstyle_null(disk.name().to_string_lossy().to_string());
-        let typ = trim_cstyle_null(String::from_utf8_lossy(disk.file_system()).to_string());
+    let output = sys
+        .disks()
+        .iter()
+        .map(|disk| {
+            let device = trim_cstyle_null(disk.name().to_string_lossy().to_string());
+            let typ = trim_cstyle_null(String::from_utf8_lossy(disk.file_system()).to_string());
 
-        let record = record! {
-            "device" => Value::string(device, span),
-            "type" => Value::string(typ, span),
-            "mount" => Value::string(disk.mount_point().to_string_lossy(), span),
-            "total" => Value::filesize(disk.total_space() as i64, span),
-            "free" => Value::filesize(disk.available_space() as i64, span),
-            "removable" => Value::bool(disk.is_removable(), span),
-            "kind" => Value::string(format!("{:?}", disk.kind()), span),
-        };
+            let record = record! {
+                "device" => Value::string(device, span),
+                "type" => Value::string(typ, span),
+                "mount" => Value::string(disk.mount_point().to_string_lossy(), span),
+                "total" => Value::filesize(disk.total_space() as i64, span),
+                "free" => Value::filesize(disk.available_space() as i64, span),
+                "removable" => Value::bool(disk.is_removable(), span),
+                "kind" => Value::string(format!("{:?}", disk.kind()), span),
+            };
 
-        output.push(Value::record(record, span));
-    }
+            Value::record(record, span)
+        })
+        .collect();
+
     Value::list(output, span)
 }
 
@@ -135,16 +140,20 @@ pub fn net(span: Span) -> Value {
     sys.refresh_networks();
     sys.refresh_networks_list();
 
-    let mut output = vec![];
-    for (iface, data) in sys.networks() {
-        let record = record! {
-            "name" => Value::string(trim_cstyle_null(iface.to_string()), span),
-            "sent" => Value::filesize(data.total_transmitted() as i64, span),
-            "recv" => Value::filesize(data.total_received() as i64, span),
-        };
+    let output = sys
+        .networks()
+        .into_iter()
+        .map(|(iface, data)| {
+            let record = record! {
+                "name" => Value::string(trim_cstyle_null(iface.to_string()), span),
+                "sent" => Value::filesize(data.total_transmitted() as i64, span),
+                "recv" => Value::filesize(data.total_received() as i64, span),
+            };
 
-        output.push(Value::record(record, span));
-    }
+            Value::record(record, span)
+        })
+        .collect();
+
     Value::list(output, span)
 }
 
@@ -157,29 +166,32 @@ pub fn cpu(span: Span) -> Value {
     std::thread::sleep(System::MINIMUM_CPU_UPDATE_INTERVAL * 2);
     sys.refresh_cpu_specifics(CpuRefreshKind::new().with_cpu_usage());
 
-    let mut output = vec![];
-    for cpu in sys.cpus() {
-        // sysinfo CPU usage numbers are not very precise unless you wait a long time between refreshes.
-        // Round to 1DP (chosen somewhat arbitrarily) so people aren't misled by high-precision floats.
-        let rounded_usage = (cpu.cpu_usage() * 10.0).round() / 10.0;
+    let output = sys
+        .cpus()
+        .iter()
+        .map(|cpu| {
+            // sysinfo CPU usage numbers are not very precise unless you wait a long time between refreshes.
+            // Round to 1DP (chosen somewhat arbitrarily) so people aren't misled by high-precision floats.
+            let rounded_usage = (cpu.cpu_usage() * 10.0).round() / 10.0;
 
-        let load_avg = sys.load_average();
-        let load_avg = trim_cstyle_null(format!(
-            "{:.2}, {:.2}, {:.2}",
-            load_avg.one, load_avg.five, load_avg.fifteen
-        ));
+            let load_avg = sys.load_average();
+            let load_avg = trim_cstyle_null(format!(
+                "{:.2}, {:.2}, {:.2}",
+                load_avg.one, load_avg.five, load_avg.fifteen
+            ));
 
-        let record = record! {
-            "name" => Value::string(trim_cstyle_null(cpu.name().to_string()), span),
-            "brand" => Value::string(trim_cstyle_null(cpu.brand().to_string()), span),
-            "freq" => Value::int(cpu.frequency() as i64, span),
-            "cpu_usage" => Value::float(rounded_usage as f64, span),
-            "load_average" => Value::string(load_avg, span),
-            "vendor_id" => Value::string(trim_cstyle_null(cpu.vendor_id().to_string()), span),
-        };
+            let record = record! {
+                "name" => Value::string(trim_cstyle_null(cpu.name().to_string()), span),
+                "brand" => Value::string(trim_cstyle_null(cpu.brand().to_string()), span),
+                "freq" => Value::int(cpu.frequency() as i64, span),
+                "cpu_usage" => Value::float(rounded_usage as f64, span),
+                "load_average" => Value::string(load_avg, span),
+                "vendor_id" => Value::string(trim_cstyle_null(cpu.vendor_id().to_string()), span),
+            };
 
-        output.push(Value::record(record, span));
-    }
+            Value::record(record, span)
+        })
+        .collect();
 
     Value::list(output, span)
 }
@@ -254,20 +266,24 @@ pub fn host(span: Span) -> Value {
 
     record.push("boot_time", Value::string(timestamp_str, span));
 
-    let mut users = vec![];
-    for user in sys.users() {
-        let mut groups = vec![];
-        for group in user.groups() {
-            groups.push(Value::string(trim_cstyle_null(group.to_string()), span));
-        }
+    let users = sys
+        .users()
+        .iter()
+        .map(|user| {
+            let groups = user
+                .groups()
+                .iter()
+                .map(|group| Value::string(trim_cstyle_null(group.to_string()), span))
+                .collect();
 
-        let record = record! {
-            "name" => Value::string(trim_cstyle_null(user.name().to_string()), span),
-            "groups" => Value::list(groups, span),
-        };
+            let record = record! {
+                "name" => Value::string(trim_cstyle_null(user.name().to_string()), span),
+                "groups" => Value::list(groups, span),
+            };
 
-        users.push(Value::record(record, span));
-    }
+            Value::record(record, span)
+        })
+        .collect::<EcoVec<_>>();
 
     if !users.is_empty() {
         record.push("sessions", Value::list(users, span));
@@ -281,20 +297,23 @@ pub fn temp(span: Span) -> Value {
     sys.refresh_components();
     sys.refresh_components_list();
 
-    let mut output = vec![];
+    let output = sys
+        .components()
+        .iter()
+        .map(|component| {
+            let mut record = record! {
+                "unit" => Value::string(component.label(), span),
+                "temp" => Value::float(component.temperature() as f64, span),
+                "high" => Value::float(component.max() as f64, span),
+            };
 
-    for component in sys.components() {
-        let mut record = record! {
-            "unit" => Value::string(component.label(), span),
-            "temp" => Value::float(component.temperature() as f64, span),
-            "high" => Value::float(component.max() as f64, span),
-        };
+            if let Some(critical) = component.critical() {
+                record.push("critical", Value::float(critical as f64, span));
+            }
 
-        if let Some(critical) = component.critical() {
-            record.push("critical", Value::float(critical as f64, span));
-        }
-        output.push(Value::record(record, span));
-    }
+            Value::record(record, span)
+        })
+        .collect();
 
     Value::list(output, span)
 }

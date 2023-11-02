@@ -1,3 +1,4 @@
+use ecow::EcoVec;
 use nu_engine::CallExt;
 use nu_protocol::{
     ast::Call,
@@ -27,8 +28,8 @@ impl Command for SubCommand {
                 "the value that denotes what separates the list",
             )
             .switch(
-                "regex", 
-                "separator is a regular expression, matching values that can be coerced into a string", 
+                "regex",
+                "separator is a regular expression, matching values that can be coerced into a string",
                 Some('r'))
             .category(Category::Filters)
     }
@@ -57,24 +58,27 @@ impl Command for SubCommand {
                 description: "Split a list of chars into two lists",
                 example: "[a, b, c, d, e, f, g] | split list d",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::list(
-                            vec![
+                            [
                                 Value::test_string("a"),
                                 Value::test_string("b"),
                                 Value::test_string("c"),
-                            ],
+                            ]
+                            .into(),
                             Span::test_data(),
                         ),
                         Value::list(
-                            vec![
+                            [
                                 Value::test_string("e"),
                                 Value::test_string("f"),
                                 Value::test_string("g"),
-                            ],
+                            ]
+                            .into(),
                             Span::test_data(),
                         ),
-                    ],
+                    ]
+                    .into(),
                     Span::test_data(),
                 )),
             },
@@ -82,22 +86,25 @@ impl Command for SubCommand {
                 description: "Split a list of lists into two lists of lists",
                 example: "[[1,2], [2,3], [3,4]] | split list [2,3]",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::list(
-                            vec![Value::list(
-                                vec![Value::test_int(1), Value::test_int(2)],
+                            [Value::list(
+                                [Value::test_int(1), Value::test_int(2)].into(),
                                 Span::test_data(),
-                            )],
+                            )]
+                            .into(),
                             Span::test_data(),
                         ),
                         Value::list(
-                            vec![Value::list(
-                                vec![Value::test_int(3), Value::test_int(4)],
+                            [Value::list(
+                                [Value::test_int(3), Value::test_int(4)].into(),
                                 Span::test_data(),
-                            )],
+                            )]
+                            .into(),
                             Span::test_data(),
                         ),
-                    ],
+                    ]
+                    .into(),
                     Span::test_data(),
                 )),
             },
@@ -105,24 +112,27 @@ impl Command for SubCommand {
                 description: "Split a list of chars into two lists",
                 example: "[a, b, c, d, a, e, f, g] | split list a",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::list(
-                            vec![
+                            [
                                 Value::test_string("b"),
                                 Value::test_string("c"),
                                 Value::test_string("d"),
-                            ],
+                            ]
+                            .into(),
                             Span::test_data(),
                         ),
                         Value::list(
-                            vec![
+                            [
                                 Value::test_string("e"),
                                 Value::test_string("f"),
                                 Value::test_string("g"),
-                            ],
+                            ]
+                            .into(),
                             Span::test_data(),
                         ),
-                    ],
+                    ]
+                    .into(),
                     Span::test_data(),
                 )),
             },
@@ -130,21 +140,23 @@ impl Command for SubCommand {
                 description: "Split a list of chars into lists based on multiple characters",
                 example: r"[a, b, c, d, a, e, f, g] | split list --regex '(b|e)'",
                 result: Some(Value::list(
-                    vec![
-                        Value::list(vec![Value::test_string("a")], Span::test_data()),
+                    [
+                        Value::list([Value::test_string("a")].into(), Span::test_data()),
                         Value::list(
-                            vec![
+                            [
                                 Value::test_string("c"),
                                 Value::test_string("d"),
                                 Value::test_string("a"),
-                            ],
+                            ]
+                            .into(),
                             Span::test_data(),
                         ),
                         Value::list(
-                            vec![Value::test_string("f"), Value::test_string("g")],
+                            [Value::test_string("f"), Value::test_string("g")].into(),
                             Span::test_data(),
                         ),
-                    ],
+                    ]
+                    .into(),
                     Span::test_data(),
                 )),
             },
@@ -200,23 +212,23 @@ fn split_list(
     input: PipelineData,
 ) -> Result<PipelineData, ShellError> {
     let separator: Value = call.req(engine_state, stack, 0)?;
-    let mut temp_list = Vec::new();
-    let mut returned_list = Vec::new();
+    let mut temp_list = EcoVec::new();
+    let mut returned_list = EcoVec::new();
 
     let iter = input.into_interruptible_iter(engine_state.ctrlc.clone());
     let matcher = Matcher::new(call.has_flag("regex"), separator)?;
     for val in iter {
         if matcher.compare(&val)? {
             if !temp_list.is_empty() {
-                returned_list.push(Value::list(temp_list.clone(), call.head));
-                temp_list = Vec::new();
+                returned_list.push(Value::list(temp_list, call.head));
+                temp_list = EcoVec::new();
             }
         } else {
             temp_list.push(val);
         }
     }
     if !temp_list.is_empty() {
-        returned_list.push(Value::list(temp_list.clone(), call.head));
+        returned_list.push(Value::list(temp_list, call.head));
     }
     Ok(Value::list(returned_list, call.head).into_pipeline_data())
 }

@@ -66,7 +66,7 @@ impl Command for Def {
             Example {
                 description: "Define a custom wrapper for an external command",
                 example: r#"def --wrapped my-echo [...rest] { echo $rest }; my-echo spam"#,
-                result: Some(Value::test_list(vec![Value::test_string("spam")])),
+                result: Some(Value::test_list([Value::test_string("spam")].into())),
             },
         ]
     }

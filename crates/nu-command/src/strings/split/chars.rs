@@ -47,13 +47,14 @@ impl Command for SubCommand {
                 description: "Split the string into a list of characters",
                 example: "'hello' | split chars",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("h"),
                         Value::test_string("e"),
                         Value::test_string("l"),
                         Value::test_string("l"),
                         Value::test_string("o"),
-                    ],
+                    ]
+                    .into(),
                     Span::test_data(),
                 )),
             },
@@ -61,33 +62,43 @@ impl Command for SubCommand {
                 description: "Split on grapheme clusters",
                 example: "'🇯🇵ほげ' | split chars --grapheme-clusters",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("🇯🇵"),
                         Value::test_string("ほ"),
                         Value::test_string("げ"),
-                    ],
+                    ]
+                    .into(),
                     Span::test_data(),
                 )),
             },
             Example {
                 description: "Split multiple strings into lists of characters",
                 example: "['hello', 'world'] | split chars",
-                result: Some(Value::test_list(vec![
-                    Value::test_list(vec![
-                        Value::test_string("h"),
-                        Value::test_string("e"),
-                        Value::test_string("l"),
-                        Value::test_string("l"),
-                        Value::test_string("o"),
-                    ]),
-                    Value::test_list(vec![
-                        Value::test_string("w"),
-                        Value::test_string("o"),
-                        Value::test_string("r"),
-                        Value::test_string("l"),
-                        Value::test_string("d"),
-                    ]),
-                ])),
+                result: Some(Value::test_list(
+                    [
+                        Value::test_list(
+                            [
+                                Value::test_string("h"),
+                                Value::test_string("e"),
+                                Value::test_string("l"),
+                                Value::test_string("l"),
+                                Value::test_string("o"),
+                            ]
+                            .into(),
+                        ),
+                        Value::test_list(
+                            [
+                                Value::test_string("w"),
+                                Value::test_string("o"),
+                                Value::test_string("r"),
+                                Value::test_string("l"),
+                                Value::test_string("d"),
+                            ]
+                            .into(),
+                        ),
+                    ]
+                    .into(),
+                )),
             },
         ]
     }

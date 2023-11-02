@@ -69,7 +69,7 @@ impl Command for First {
                 description: "Return the first 2 items of a list/table",
                 example: "[1 2 3] | first 2",
                 result: Some(Value::list(
-                    vec![Value::test_int(1), Value::test_int(2)],
+                    [Value::test_int(1), Value::test_int(2)].into(),
                     Span::test_data(),
                 )),
             },

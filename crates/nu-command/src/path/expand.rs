@@ -137,10 +137,9 @@ impl Command for SubCommand {
             Example {
                 description: "Expand a list of paths",
                 example: "[ /foo/../bar, /foo/../baz ] | path expand",
-                result: Some(Value::test_list(vec![
-                    Value::test_string("/bar"),
-                    Value::test_string("/baz"),
-                ])),
+                result: Some(Value::test_list(
+                    [Value::test_string("/bar"), Value::test_string("/baz")].into(),
+                )),
             },
         ]
     }

@@ -33,35 +33,38 @@ fn from_delimited_string_to_value(
         reader.headers()?.iter().map(String::from).collect()
     };
 
-    let mut rows = vec![];
-    for row in reader.records() {
-        let row = row?;
-        let output_row = (0..headers.len())
-            .map(|i| {
-                row.get(i)
-                    .map(|value| {
-                        if no_infer {
-                            Value::string(value.to_string(), span)
-                        } else if let Ok(i) = value.parse::<i64>() {
-                            Value::int(i, span)
-                        } else if let Ok(f) = value.parse::<f64>() {
-                            Value::float(f, span)
-                        } else {
-                            Value::string(value.to_string(), span)
-                        }
+    let rows = reader
+        .records()
+        .map(|row| {
+            row.map(|row| {
+                let output_row = (0..headers.len())
+                    .map(|i| {
+                        row.get(i)
+                            .map(|value| {
+                                if no_infer {
+                                    Value::string(value.to_string(), span)
+                                } else if let Ok(i) = value.parse::<i64>() {
+                                    Value::int(i, span)
+                                } else if let Ok(f) = value.parse::<f64>() {
+                                    Value::float(f, span)
+                                } else {
+                                    Value::string(value.to_string(), span)
+                                }
+                            })
+                            .unwrap_or(Value::nothing(span))
                     })
-                    .unwrap_or(Value::nothing(span))
-            })
-            .collect::<Vec<Value>>();
+                    .collect();
 
-        rows.push(Value::record(
-            Record {
-                cols: headers.clone(),
-                vals: output_row,
-            },
-            span,
-        ));
-    }
+                Value::record(
+                    Record {
+                        cols: headers.clone(),
+                        vals: output_row,
+                    },
+                    span,
+                )
+            })
+        })
+        .collect::<Result<_, _>>()?;
 
     Ok(Value::list(rows, span))
 }

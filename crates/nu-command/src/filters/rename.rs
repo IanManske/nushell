@@ -57,28 +57,37 @@ impl Command for Rename {
             Example {
                 description: "Rename a column",
                 example: "[[a, b]; [1, 2]] | rename my_column",
-                result: Some(Value::test_list(vec![Value::test_record(record! {
-                    "my_column" => Value::test_int(1),
-                    "b" =>         Value::test_int(2),
-                })])),
+                result: Some(Value::test_list(
+                    [Value::test_record(record! {
+                        "my_column" => Value::test_int(1),
+                        "b" =>         Value::test_int(2),
+                    })]
+                    .into(),
+                )),
             },
             Example {
                 description: "Rename many columns",
                 example: "[[a, b, c]; [1, 2, 3]] | rename eggs ham bacon",
-                result: Some(Value::test_list(vec![Value::test_record(record! {
-                    "eggs" =>  Value::test_int(1),
-                    "ham" =>   Value::test_int(2),
-                    "bacon" => Value::test_int(3),
-                })])),
+                result: Some(Value::test_list(
+                    [Value::test_record(record! {
+                        "eggs" =>  Value::test_int(1),
+                        "ham" =>   Value::test_int(2),
+                        "bacon" => Value::test_int(3),
+                    })]
+                    .into(),
+                )),
             },
             Example {
                 description: "Rename a specific column",
                 example: "[[a, b, c]; [1, 2, 3]] | rename --column { a: ham }",
-                result: Some(Value::test_list(vec![Value::test_record(record! {
-                    "ham" => Value::test_int(1),
-                    "b" =>   Value::test_int(2),
-                    "c" =>   Value::test_int(3),
-                })])),
+                result: Some(Value::test_list(
+                    [Value::test_record(record! {
+                        "ham" => Value::test_int(1),
+                        "b" =>   Value::test_int(2),
+                        "c" =>   Value::test_int(3),
+                    })]
+                    .into(),
+                )),
             },
             Example {
                 description: "Rename the fields of a record",

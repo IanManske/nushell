@@ -458,7 +458,7 @@ fn series_to_values(
             } else {
                 Either::Right(it)
             }
-            .collect::<Vec<Value>>();
+            .collect();
 
             Ok(values)
         }
@@ -483,7 +483,7 @@ fn series_to_values(
                 Some(a) => Value::int(a as i64, span),
                 None => Value::nothing(span),
             })
-            .collect::<Vec<Value>>();
+            .collect();
 
             Ok(values)
         }
@@ -508,7 +508,7 @@ fn series_to_values(
                 Some(a) => Value::int(a as i64, span),
                 None => Value::nothing(span),
             })
-            .collect::<Vec<Value>>();
+            .collect();
 
             Ok(values)
         }
@@ -533,7 +533,7 @@ fn series_to_values(
                 Some(a) => Value::int(a as i64, span),
                 None => Value::nothing(span),
             })
-            .collect::<Vec<Value>>();
+            .collect();
 
             Ok(values)
         }
@@ -558,7 +558,7 @@ fn series_to_values(
                 Some(a) => Value::int(a as i64, span),
                 None => Value::nothing(span),
             })
-            .collect::<Vec<Value>>();
+            .collect();
 
             Ok(values)
         }
@@ -583,7 +583,7 @@ fn series_to_values(
                 Some(a) => Value::int(a as i64, span),
                 None => Value::nothing(span),
             })
-            .collect::<Vec<Value>>();
+            .collect();
 
             Ok(values)
         }
@@ -608,7 +608,7 @@ fn series_to_values(
                 Some(a) => Value::int(a as i64, span),
                 None => Value::nothing(span),
             })
-            .collect::<Vec<Value>>();
+            .collect();
 
             Ok(values)
         }
@@ -633,7 +633,7 @@ fn series_to_values(
                 Some(a) => Value::int(a as i64, span),
                 None => Value::nothing(span),
             })
-            .collect::<Vec<Value>>();
+            .collect();
 
             Ok(values)
         }
@@ -658,7 +658,7 @@ fn series_to_values(
                 Some(a) => Value::int(a, span),
                 None => Value::nothing(span),
             })
-            .collect::<Vec<Value>>();
+            .collect();
 
             Ok(values)
         }
@@ -683,7 +683,7 @@ fn series_to_values(
                 Some(a) => Value::float(a as f64, span),
                 None => Value::nothing(span),
             })
-            .collect::<Vec<Value>>();
+            .collect();
 
             Ok(values)
         }
@@ -708,7 +708,7 @@ fn series_to_values(
                 Some(a) => Value::float(a, span),
                 None => Value::nothing(span),
             })
-            .collect::<Vec<Value>>();
+            .collect();
 
             Ok(values)
         }
@@ -733,7 +733,7 @@ fn series_to_values(
                 Some(a) => Value::bool(a, span),
                 None => Value::nothing(span),
             })
-            .collect::<Vec<Value>>();
+            .collect();
 
             Ok(values)
         }
@@ -758,7 +758,7 @@ fn series_to_values(
                 Some(a) => Value::string(a.to_string(), span),
                 None => Value::nothing(span),
             })
-            .collect::<Vec<Value>>();
+            .collect();
 
             Ok(values)
         }
@@ -787,7 +787,7 @@ fn series_to_values(
                         Some(a) => a.get_value(),
                         None => Value::nothing(span),
                     })
-                    .collect::<Vec<Value>>();
+                    .collect();
 
                     Ok(values)
                 }
@@ -805,27 +805,27 @@ fn series_to_values(
                 )),
                 Some(ca) => {
                     let it = ca.into_iter();
-                    let values: Vec<Value> =
-                        if let (Some(size), Some(from_row)) = (maybe_size, maybe_from_row) {
-                            Either::Left(it.skip(from_row).take(size))
-                        } else {
-                            Either::Right(it)
-                        }
-                        .map(|ca| {
-                            let sublist = ca
-                                .map(|ref s| {
-                                    match series_to_values(s, None, None, Span::unknown()) {
-                                        Ok(v) => v,
-                                        Err(e) => {
-                                            eprintln!("Error list values: {e}");
-                                            vec![]
-                                        }
+                    let values = if let (Some(size), Some(from_row)) = (maybe_size, maybe_from_row)
+                    {
+                        Either::Left(it.skip(from_row).take(size))
+                    } else {
+                        Either::Right(it)
+                    }
+                    .map(|ca| {
+                        let sublist = ca
+                            .map(
+                                |ref s| match series_to_values(s, None, None, Span::unknown()) {
+                                    Ok(v) => v,
+                                    Err(e) => {
+                                        eprintln!("Error list values: {e}");
+                                        [].into()
                                     }
-                                })
-                                .unwrap_or(vec![]);
-                            Value::list(sublist, span)
-                        })
-                        .collect::<Vec<Value>>();
+                                },
+                            )
+                            .unwrap_or([].into());
+                        Value::list(sublist.into(), span)
+                    })
+                    .collect();
                     Ok(values)
                 }
             }
@@ -889,7 +889,7 @@ fn series_to_values(
                 }
                 None => Value::nothing(span),
             })
-            .collect::<Vec<Value>>();
+            .collect();
 
             Ok(values)
         }
@@ -957,7 +957,7 @@ fn series_to_values(
                 }
                 None => Value::nothing(span),
             })
-            .collect::<Vec<Value>>();
+            .collect();
 
             Ok(values)
         }
@@ -982,7 +982,7 @@ fn series_to_values(
                 Some(nanoseconds) => Value::duration(nanoseconds, span),
                 None => Value::nothing(span),
             })
-            .collect::<Vec<Value>>();
+            .collect();
 
             Ok(values)
         }
@@ -1005,11 +1005,11 @@ mod tests {
     fn test_parsed_column_string_list() -> Result<(), Box<dyn std::error::Error>> {
         let values = vec![
             Value::list(
-                vec![Value::string("bar".to_string(), Span::test_data())],
+                [Value::string("bar".to_string(), Span::test_data())].into(),
                 Span::test_data(),
             ),
             Value::list(
-                vec![Value::string("baz".to_string(), Span::test_data())],
+                [Value::string("baz".to_string(), Span::test_data())].into(),
                 Span::test_data(),
             ),
         ];

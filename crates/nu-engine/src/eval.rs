@@ -1,4 +1,5 @@
 use crate::{current_dir_str, get_full_help};
+use ecow::EcoVec;
 use nu_path::expand_path_with;
 use nu_protocol::{
     ast::{
@@ -62,15 +63,14 @@ pub fn eval_call(
         }
 
         if let Some(rest_positional) = decl.signature().rest_positional {
-            let mut rest_items = vec![];
-
-            for arg in call.positional_iter().skip(
-                decl.signature().required_positional.len()
-                    + decl.signature().optional_positional.len(),
-            ) {
-                let result = eval_expression(engine_state, caller_stack, arg)?;
-                rest_items.push(result);
-            }
+            let rest_items = call
+                .positional_iter()
+                .skip(
+                    decl.signature().required_positional.len()
+                        + decl.signature().optional_positional.len(),
+                )
+                .map(|arg| eval_expression(engine_state, caller_stack, arg))
+                .collect::<Result<EcoVec<_>, _>>()?;
 
             let span = if let Some(rest_item) = rest_items.first() {
                 rest_item.span()
@@ -539,13 +539,12 @@ pub fn eval_expression(
             ))
         }
         Expr::Block(block_id) => Ok(Value::block(*block_id, expr.span)),
-        Expr::List(x) => {
-            let mut output = vec![];
-            for expr in x {
-                output.push(eval_expression(engine_state, stack, expr)?);
-            }
-            Ok(Value::list(output, expr.span))
-        }
+        Expr::List(list) => Ok(Value::list(
+            list.iter()
+                .map(|expr| eval_expression(engine_state, stack, expr))
+                .collect::<Result<_, _>>()?,
+            expr.span,
+        )),
         Expr::Record(fields) => {
             let mut record = Record::new();
 
@@ -585,17 +584,21 @@ pub fn eval_expression(
                 }
             }
 
-            let mut output_rows = vec![];
-            for val in vals {
-                let mut row = vec![];
-                for expr in val {
-                    row.push(eval_expression(engine_state, stack, expr)?);
-                }
-                output_rows.push(Value::record(
-                    Record::from_raw_cols_vals(output_headers.clone(), row),
-                    expr.span,
-                ));
-            }
+            let output_rows = vals
+                .iter()
+                .map(|val| {
+                    val.iter()
+                        .map(|expr| eval_expression(engine_state, stack, expr))
+                        .collect::<Result<_, _>>()
+                        .map(|row| {
+                            Value::record(
+                                Record::from_raw_cols_vals(output_headers.clone(), row),
+                                expr.span,
+                            )
+                        })
+                })
+                .collect::<Result<_, _>>()?;
+
             Ok(Value::list(output_rows, expr.span))
         }
         Expr::Keyword(_, _, expr) => eval_expression(engine_state, stack, expr),

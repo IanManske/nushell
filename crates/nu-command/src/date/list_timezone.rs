@@ -52,9 +52,12 @@ impl Command for SubCommand {
         vec![Example {
             example: "date list-timezone | where timezone =~ Shanghai",
             description: "Show timezone(s) that contains 'Shanghai'",
-            result: Some(Value::test_list(vec![Value::test_record(record! {
-                "timezone" => Value::test_string("Asia/Shanghai"),
-            })])),
+            result: Some(Value::test_list(
+                [Value::test_record(record! {
+                    "timezone" => Value::test_string("Asia/Shanghai"),
+                })]
+                .into(),
+            )),
         }]
     }
 }

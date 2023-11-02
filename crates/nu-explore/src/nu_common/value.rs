@@ -71,8 +71,7 @@ fn collect_external_stream(
         data.push(value);
     }
     if let Some(exit_code) = exit_code {
-        let list = exit_code.collect::<Vec<_>>();
-        let val = Value::list(list, span);
+        let val = Value::list(exit_code.collect(), span);
 
         columns.push(String::from("exit_code"));
         data.push(val);
@@ -93,7 +92,7 @@ pub fn collect_input(value: Value) -> (Vec<String>, Vec<Vec<Value>>) {
         Value::Record { val: record, .. } => (record.cols, vec![record.vals]),
         Value::List { vals, .. } => {
             let mut columns = get_columns(&vals);
-            let data = convert_records_to_dataset(&columns, vals);
+            let data = convert_records_to_dataset(&columns, vals.to_vec());
 
             if columns.is_empty() && !data.is_empty() {
                 columns = vec![String::from("")];

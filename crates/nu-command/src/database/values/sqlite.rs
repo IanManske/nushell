@@ -3,6 +3,7 @@ use super::definitions::{
     db_index::DbIndex, db_table::DbTable,
 };
 
+use ecow::EcoVec;
 use nu_protocol::{CustomValue, PipelineData, Record, ShellError, Span, Spanned, Value};
 use rusqlite::{types::ValueRef, Connection, Row};
 use serde::{Deserialize, Serialize};
@@ -383,7 +384,7 @@ fn prepared_statement_to_nu_list(
     })?;
 
     // we collect all rows before returning them. Not ideal but it's hard/impossible to return a stream from a CustomValue
-    let mut row_values = vec![];
+    let mut row_values = EcoVec::new();
 
     for row_result in row_results {
         if nu_utils::ctrl_c::was_pressed(&ctrlc) {
@@ -485,7 +486,7 @@ mod test {
         let converted_db = read_entire_sqlite_db(db, Span::test_data(), None).unwrap();
 
         let expected = Value::test_record(record! {
-            "person" => Value::test_list(vec![]),
+            "person" => Value::test_list([].into()),
         });
 
         assert_eq!(converted_db, expected);
@@ -515,7 +516,7 @@ mod test {
 
         let expected = Value::test_record(record! {
             "item" => Value::test_list(
-                vec![
+                [
                     Value::test_record(record! {
                         "id" =>   Value::test_int(123),
                         "name" => Value::nothing(span),
@@ -524,7 +525,7 @@ mod test {
                         "id" =>   Value::test_int(456),
                         "name" => Value::test_string("foo bar"),
                     }),
-                ]
+                ].into()
             ),
         });
 

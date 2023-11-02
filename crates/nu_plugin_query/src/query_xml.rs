@@ -54,8 +54,6 @@ pub fn execute_xpath_query(
     match res {
         Ok(r) => {
             let mut record = Record::new();
-            let mut records: Vec<Value> = vec![];
-
             match r {
                 sxd_xpath::Value::Nodeset(ns) => {
                     for n in ns.into_iter() {
@@ -75,9 +73,10 @@ pub fn execute_xpath_query(
 
             // convert the cols and vecs to a table by creating individual records
             // for each item so we can then use a list to make a table
-            for (k, v) in record {
-                records.push(Value::record(record! { k => v }, call.head))
-            }
+            let records = record
+                .into_iter()
+                .map(|(k, v)| Value::record(record! { k => v }, call.head))
+                .collect();
 
             Ok(Value::list(records, call.head))
         }
@@ -133,9 +132,10 @@ mod tests {
 
         let actual = query("", &call, &text, Some(spanned_str)).expect("test should not fail");
         let expected = Value::list(
-            vec![Value::test_record(record! {
+            [Value::test_record(record! {
                 "count(//a/*[posit..." => Value::test_float(1.0),
-            })],
+            })]
+            .into(),
             Span::test_data(),
         );
 
@@ -162,9 +162,10 @@ mod tests {
 
         let actual = query("", &call, &text, Some(spanned_str)).expect("test should not fail");
         let expected = Value::list(
-            vec![Value::test_record(record! {
+            [Value::test_record(record! {
                 "count(//*[contain..." => Value::test_float(1.0),
-            })],
+            })]
+            .into(),
             Span::test_data(),
         );
 

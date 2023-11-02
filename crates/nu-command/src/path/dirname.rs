@@ -143,10 +143,13 @@ impl Command for SubCommand {
             Example {
                 description: "Get dirname of a list of paths",
                 example: "[ /home/joe/test.txt, /home/doe/test.txt ] | path dirname",
-                result: Some(Value::test_list(vec![
-                    Value::test_string("/home/joe"),
-                    Value::test_string("/home/doe"),
-                ])),
+                result: Some(Value::test_list(
+                    [
+                        Value::test_string("/home/joe"),
+                        Value::test_string("/home/doe"),
+                    ]
+                    .into(),
+                )),
             },
             Example {
                 description: "Walk up two levels",

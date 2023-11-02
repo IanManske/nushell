@@ -133,29 +133,30 @@ fn from_xlsx(
     }
 
     for sheet_name in sheet_names {
-        let mut sheet_output = vec![];
-
         if let Some(Ok(current_sheet)) = xlsx.worksheet_range(&sheet_name) {
-            for row in current_sheet.rows() {
-                let record = row
-                    .iter()
-                    .enumerate()
-                    .map(|(i, cell)| {
-                        let value = match cell {
-                            DataType::Empty => Value::nothing(head),
-                            DataType::String(s) => Value::string(s, head),
-                            DataType::Float(f) => Value::float(*f, head),
-                            DataType::Int(i) => Value::int(*i, head),
-                            DataType::Bool(b) => Value::bool(*b, head),
-                            _ => Value::nothing(head),
-                        };
+            let sheet_output = current_sheet
+                .rows()
+                .map(|row| {
+                    let record = row
+                        .iter()
+                        .enumerate()
+                        .map(|(i, cell)| {
+                            let value = match cell {
+                                DataType::Empty => Value::nothing(head),
+                                DataType::String(s) => Value::string(s, head),
+                                DataType::Float(f) => Value::float(*f, head),
+                                DataType::Int(i) => Value::int(*i, head),
+                                DataType::Bool(b) => Value::bool(*b, head),
+                                _ => Value::nothing(head),
+                            };
 
-                        (format!("column{i}"), value)
-                    })
-                    .collect();
+                            (format!("column{i}"), value)
+                        })
+                        .collect();
 
-                sheet_output.push(Value::record(record, head));
-            }
+                    Value::record(record, head)
+                })
+                .collect();
 
             dict.insert(sheet_name, Value::list(sheet_output, head));
         } else {

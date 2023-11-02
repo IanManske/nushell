@@ -36,7 +36,7 @@ impl Command for FromNuon {
                 description: "Converts nuon formatted string to table",
                 result: Some(Value::test_record(record! {
                     "a" => Value::test_int(1),
-                    "b" => Value::test_list(vec![Value::test_int(1), Value::test_int(2)]),
+                    "b" => Value::test_list([Value::test_int(1), Value::test_int(2)].into()),
                 })),
             },
         ]
@@ -269,10 +269,10 @@ fn convert_to_value(
             expr.span,
         )),
         Expr::List(vals) => {
-            let mut output = vec![];
-            for val in vals {
-                output.push(convert_to_value(val, span, original_text)?);
-            }
+            let output = vals
+                .into_iter()
+                .map(|val| convert_to_value(val, span, original_text))
+                .collect::<Result<_, _>>()?;
 
             Ok(Value::list(output, span))
         }
@@ -364,8 +364,6 @@ fn convert_to_value(
         Expr::Table(mut headers, cells) => {
             let mut cols = vec![];
 
-            let mut output = vec![];
-
             for key in headers.iter_mut() {
                 let key_str = match &mut key.expr {
                     Expr::String(key_str) => key_str,
@@ -389,30 +387,32 @@ fn convert_to_value(
                 }
             }
 
-            for row in cells {
-                let mut vals = vec![];
-
-                for cell in row {
-                    vals.push(convert_to_value(cell, span, original_text)?);
-                }
-
-                if cols.len() != vals.len() {
-                    return Err(ShellError::OutsideSpannedLabeledError(
-                        original_text.to_string(),
-                        "Error when loading".into(),
-                        "table has mismatched columns".into(),
-                        expr.span,
-                    ));
-                }
-
-                output.push(Value::record(
-                    Record {
-                        cols: cols.clone(),
-                        vals,
-                    },
-                    span,
-                ));
-            }
+            let output = cells
+                .into_iter()
+                .map(|row| {
+                    row.into_iter()
+                        .map(|cell| convert_to_value(cell, span, original_text))
+                        .collect::<Result<Vec<_>, _>>()
+                        .and_then(|vals| {
+                            if cols.len() != vals.len() {
+                                Err(ShellError::OutsideSpannedLabeledError(
+                                    original_text.to_string(),
+                                    "Error when loading".into(),
+                                    "table has mismatched columns".into(),
+                                    expr.span,
+                                ))
+                            } else {
+                                Ok(Value::record(
+                                    Record {
+                                        cols: cols.clone(),
+                                        vals,
+                                    },
+                                    span,
+                                ))
+                            }
+                        })
+                })
+                .collect::<Result<_, _>>()?;
 
             Ok(Value::list(output, span))
         }

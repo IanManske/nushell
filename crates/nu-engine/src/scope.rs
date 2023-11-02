@@ -1,3 +1,4 @@
+use ecow::EcoVec;
 use nu_protocol::{
     ast::Expr,
     engine::{Command, EngineState, Stack, Visibility},
@@ -182,8 +183,8 @@ impl<'e, 's> ScopeData<'e, 's> {
         output_type: &Type,
         signature: &Signature,
         span: Span,
-    ) -> Vec<Value> {
-        let mut sig_records = vec![];
+    ) -> EcoVec<Value> {
+        let mut sig_records = EcoVec::new();
 
         let sig_cols = vec![
             "parameter_name".to_string(),
@@ -415,7 +416,7 @@ impl<'e, 's> ScopeData<'e, 's> {
 
         let all_decls = module.decls();
 
-        let mut export_commands: Vec<Value> = all_decls
+        let mut export_commands = all_decls
             .iter()
             .filter_map(|(name_bytes, decl_id)| {
                 let decl = self.engine_state.get_decl(*decl_id);
@@ -432,9 +433,9 @@ impl<'e, 's> ScopeData<'e, 's> {
                     None
                 }
             })
-            .collect();
+            .collect::<EcoVec<_>>();
 
-        let mut export_aliases: Vec<Value> = all_decls
+        let mut export_aliases = all_decls
             .iter()
             .filter_map(|(name_bytes, decl_id)| {
                 let decl = self.engine_state.get_decl(*decl_id);
@@ -451,9 +452,9 @@ impl<'e, 's> ScopeData<'e, 's> {
                     None
                 }
             })
-            .collect();
+            .collect::<EcoVec<_>>();
 
-        let mut export_externs: Vec<Value> = all_decls
+        let mut export_externs = all_decls
             .iter()
             .filter_map(|(name_bytes, decl_id)| {
                 let decl = self.engine_state.get_decl(*decl_id);
@@ -470,15 +471,15 @@ impl<'e, 's> ScopeData<'e, 's> {
                     None
                 }
             })
-            .collect();
+            .collect::<EcoVec<_>>();
 
-        let mut export_submodules: Vec<Value> = module
+        let mut export_submodules = module
             .submodules()
             .iter()
             .map(|(name_bytes, submodule_id)| self.collect_module(name_bytes, submodule_id, span))
-            .collect();
+            .collect::<EcoVec<_>>();
 
-        let mut export_consts: Vec<Value> = module
+        let mut export_consts = module
             .consts()
             .iter()
             .map(|(name_bytes, var_id)| {
@@ -491,13 +492,13 @@ impl<'e, 's> ScopeData<'e, 's> {
                     span,
                 )
             })
-            .collect();
+            .collect::<EcoVec<_>>();
 
-        sort_rows(&mut export_commands);
-        sort_rows(&mut export_aliases);
-        sort_rows(&mut export_externs);
-        sort_rows(&mut export_submodules);
-        sort_rows(&mut export_consts);
+        sort_rows(export_commands.make_mut());
+        sort_rows(export_aliases.make_mut());
+        sort_rows(export_externs.make_mut());
+        sort_rows(export_submodules.make_mut());
+        sort_rows(export_consts.make_mut());
 
         let export_env_block = module.env_block.map_or_else(
             || Value::nothing(span),

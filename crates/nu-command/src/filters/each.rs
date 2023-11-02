@@ -54,13 +54,14 @@ with 'transpose' first."#
     }
 
     fn examples(&self) -> Vec<Example> {
-        let stream_test_1 = vec![Value::test_int(2), Value::test_int(4), Value::test_int(6)];
+        let stream_test_1 = [Value::test_int(2), Value::test_int(4), Value::test_int(6)].into();
 
-        let stream_test_2 = vec![
+        let stream_test_2 = [
             Value::nothing(Span::test_data()),
             Value::test_string("found 2!"),
             Value::nothing(Span::test_data()),
-        ];
+        ]
+        .into();
 
         vec![
             Example {
@@ -72,11 +73,12 @@ with 'transpose' first."#
                 example: "{major:2, minor:1, patch:4} | values | each {|| into string }",
                 description: "Produce a list of values in the record, converted to string",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("2"),
                         Value::test_string("1"),
                         Value::test_string("4"),
-                    ],
+                    ]
+                    .into(),
                     Span::test_data(),
                 )),
             },
@@ -84,7 +86,7 @@ with 'transpose' first."#
                 example: r#"[1 2 3 2] | each {|e| if $e == 2 { "two" } }"#,
                 description: "Produce a list that has \"two\" for each 2 in the input",
                 result: Some(Value::list(
-                    vec![Value::test_string("two"), Value::test_string("two")],
+                    [Value::test_string("two"), Value::test_string("two")].into(),
                     Span::test_data(),
                 )),
             },
@@ -93,7 +95,7 @@ with 'transpose' first."#
                 description:
                     "Iterate over each element, producing a list showing indexes of any 2s",
                 result: Some(Value::list(
-                    vec![Value::test_string("found 2 at 1!")],
+                    [Value::test_string("found 2 at 1!")].into(),
                     Span::test_data(),
                 )),
             },

@@ -152,9 +152,9 @@ produce a table, a list will produce a list, and a record will produce a record.
                 description: "Select a column in a table",
                 example: "[{a: a b: b}] | select a",
                 result: Some(Value::test_list(
-                    vec![Value::test_record(record! {
+                    [Value::test_record(record! {
                         "a" => Value::test_string("a")
-                    })],
+                    })].into(),
                 )),
             },
             Example {

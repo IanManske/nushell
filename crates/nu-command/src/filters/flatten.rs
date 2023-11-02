@@ -54,14 +54,15 @@ impl Command for Flatten {
                 description: "flatten a table",
                 example: "[[N, u, s, h, e, l, l]] | flatten ",
                 result: Some(Value::test_list(
-                    vec![
+                    [
                         Value::test_string("N"),
                         Value::test_string("u"),
                         Value::test_string("s"),
                         Value::test_string("h"),
                         Value::test_string("e"),
                         Value::test_string("l"),
-                        Value::test_string("l")],
+                        Value::test_string("l"),
+                    ].into(),
                 ))
             },
             Example {
@@ -83,36 +84,36 @@ impl Command for Flatten {
                 description: "Flatten inner table",
                 example: "{ a: b, d: [ 1 2 3 4 ],  e: [ 4 3  ] } | flatten d --all",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_record(record! {
                                 "a" => Value::test_string("b"),
                                 "d" => Value::test_int(1),
                                 "e" => Value::test_list(
-                                    vec![Value::test_int(4), Value::test_int(3)],
+                                    [Value::test_int(4), Value::test_int(3)].into(),
                                 ),
                         }),
                         Value::test_record(record! {
                                 "a" => Value::test_string("b"),
                                 "d" => Value::test_int(2),
                                 "e" => Value::test_list(
-                                    vec![Value::test_int(4), Value::test_int(3)],
+                                    [Value::test_int(4), Value::test_int(3)].into(),
                                 ),
                         }),
                         Value::test_record(record! {
                                 "a" => Value::test_string("b"),
                                 "d" => Value::test_int(3),
                                 "e" => Value::test_list(
-                                    vec![Value::test_int(4), Value::test_int(3)],
+                                    [Value::test_int(4), Value::test_int(3)].into(),
                                 ),
                         }),
                         Value::test_record(record! {
                                 "a" => Value::test_string("b"),
                                 "d" => Value::test_int(4),
                                 "e" => Value::test_list(
-                                    vec![Value::test_int(4), Value::test_int(3)],
+                                    [Value::test_int(4), Value::test_int(3)].into(),
                                 )
                         }),
-                    ],
+                    ].into(),
                     Span::test_data(),
                 )),
             }

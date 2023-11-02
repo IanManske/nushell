@@ -1,4 +1,5 @@
 use crate::math::utils::run_with_function;
+use ecow::EcoVec;
 use nu_protocol::ast::Call;
 use nu_protocol::engine::{Command, EngineState, Stack};
 use nu_protocol::{
@@ -82,18 +83,17 @@ impl Command for SubCommand {
             Example {
                 description: "Compute the mode(s) of a list of numbers",
                 example: "[3 3 9 12 12 15] | math mode",
-                result: Some(Value::test_list(vec![
-                    Value::test_int(3),
-                    Value::test_int(12),
-                ])),
+                result: Some(Value::test_list(
+                    [Value::test_int(3), Value::test_int(12)].into(),
+                )),
             },
             Example {
                 description: "Compute the mode(s) of the columns of a table",
                 example: "[{a: 1 b: 3} {a: 2 b: -1} {a: 1 b: 5}] | math mode",
                 result: Some(Value::test_record(record! {
-                        "a" => Value::list(vec![Value::test_int(1)], Span::test_data()),
+                        "a" => Value::list([Value::test_int(1)].into(), Span::test_data()),
                         "b" => Value::list(
-                            vec![Value::test_int(-1), Value::test_int(3), Value::test_int(5)],
+                            [Value::test_int(-1), Value::test_int(3), Value::test_int(5)].into(),
                             Span::test_data(),
                         ),
                 })),
@@ -154,7 +154,7 @@ pub fn mode(values: &[Value], _span: Span, head: Span) -> Result<Value, ShellErr
     }
 
     let mut max_freq = -1;
-    let mut modes = Vec::<Value>::new();
+    let mut modes = EcoVec::new();
     for (value, frequency) in &frequency_map {
         match max_freq.cmp(frequency) {
             Ordering::Less => {
@@ -169,7 +169,10 @@ pub fn mode(values: &[Value], _span: Span, head: Span) -> Result<Value, ShellErr
         }
     }
 
-    modes.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
+    modes
+        .make_mut()
+        .sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
+
     Ok(Value::list(modes, head))
 }
 

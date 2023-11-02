@@ -89,14 +89,14 @@ impl Command for Describe {
                         "fib" => Value::test_record(record!(
                             "type" => Value::test_string("list"),
                             "length" => Value::test_int(6),
-                            "values" => Value::test_list(vec![
+                            "values" => Value::test_list([
                                 Value::test_string("int"),
                                 Value::test_string("int"),
                                 Value::test_string("int"),
                                 Value::test_string("int"),
                                 Value::test_string("int"),
                                 Value::test_string("int"),
-                           ]),
+                           ].into()),
                         )),
                         "on_save" => Value::test_record(record!(
                             "type" => Value::test_string("closure"),
@@ -324,7 +324,7 @@ fn describe_value(
                         Ok(Value::Record {val, ..}) => if val.cols.as_slice() == ["type"] {Ok(val.vals[0].clone())} else {Ok(Value::record(val, head))},
                         x => x
                     }
-                ).collect::<Result<Vec<_>, _>>()?, head),
+                ).collect::<Result<_, _>>()?, head),
             ),
             head,
         ),

@@ -70,18 +70,18 @@ impl Command for Insert {
             description: "Insert a new column into a table, populating all rows",
             example: "[[project, lang]; ['Nushell', 'Rust']] | insert type 'shell'",
             result: Some(Value::test_list (
-                vec![Value::test_record(record! {
+                [Value::test_record(record! {
                     "project" => Value::test_string("Nushell"),
                     "lang" =>    Value::test_string("Rust"),
                     "type" =>    Value::test_string("shell"),
-                })],
+                })].into(),
             )),
         },
         Example {
             description: "Insert a column with values equal to their row index, plus the value of 'foo' in each row",
             example: "[[foo]; [7] [8] [9]] | enumerate | insert bar {|e| $e.item.foo + $e.index } | flatten",
             result: Some(Value::test_list (
-                vec![
+                [
                     Value::test_record(record! {
                         "index" => Value::test_int(0),
                         "foo" =>   Value::test_int(7),
@@ -97,7 +97,7 @@ impl Command for Insert {
                         "foo" =>   Value::test_int(9),
                         "bar" =>   Value::test_int(11),
                     }),
-                ],
+                ].into(),
             )),
         }]
     }

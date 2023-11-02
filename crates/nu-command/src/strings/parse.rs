@@ -43,10 +43,13 @@ impl Command for Parse {
     }
 
     fn examples(&self) -> Vec<Example> {
-        let result = Value::test_list(vec![Value::test_record(record! {
-            "foo" => Value::test_string("hi"),
-            "bar" => Value::test_string("there"),
-        })]);
+        let result = Value::test_list(
+            [Value::test_record(record! {
+                "foo" => Value::test_string("hi"),
+                "bar" => Value::test_string("there"),
+            })]
+            .into(),
+        );
 
         vec![
             Example {
@@ -63,16 +66,16 @@ impl Command for Parse {
                 description: "Parse a string using fancy-regex named capture group pattern",
                 example: "\"foo bar.\" | parse --regex '\\s*(?<name>\\w+)(?=\\.)'",
                 result: Some(Value::test_list(
-                    vec![Value::test_record(record! {
+                    [Value::test_record(record! {
                         "name" => Value::test_string("bar"),
-                    })],
+                    })].into(),
                 )),
             },
             Example {
                 description: "Parse a string using fancy-regex capture group pattern",
                 example: "\"foo! bar.\" | parse --regex '(\\w+)(?=\\.)|(\\w+)(?=!)'",
                 result: Some(Value::test_list(
-                    vec![
+                    [
                         Value::test_record(record! {
                             "capture0" => Value::test_string(""),
                             "capture1" => Value::test_string("foo"),
@@ -81,7 +84,7 @@ impl Command for Parse {
                             "capture0" => Value::test_string("bar"),
                             "capture1" => Value::test_string(""),
                         }),
-                    ],
+                    ].into(),
                 )),
             },
             Example {
@@ -89,19 +92,19 @@ impl Command for Parse {
                 example:
                     "\" @another(foo bar)   \" | parse --regex '\\s*(?<=[() ])(@\\w+)(\\([^)]*\\))?\\s*'",
                 result: Some(Value::test_list(
-                    vec![Value::test_record(record! {
+                    [Value::test_record(record! {
                         "capture0" => Value::test_string("@another"),
                         "capture1" => Value::test_string("(foo bar)"),
-                    })],
+                    })].into(),
                 )),
             },
             Example {
                 description: "Parse a string using fancy-regex look ahead atomic group pattern",
                 example: "\"abcd\" | parse --regex '^a(bc(?=d)|b)cd$'",
                 result: Some(Value::test_list(
-                    vec![Value::test_record(record! {
+                    [Value::test_record(record! {
                         "capture0" => Value::test_string("b"),
-                    })],
+                    })].into(),
                 )),
             },
         ]

@@ -61,13 +61,14 @@ impl Command for SubCommand {
                 description: "Apply the sine to a list of angles in degrees",
                 example: "[0 90 180 270 360] | math sin -d | math round --precision 4",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_float(0f64),
                         Value::test_float(1f64),
                         Value::test_float(0f64),
                         Value::test_float(-1f64),
                         Value::test_float(0f64),
-                    ],
+                    ]
+                    .into(),
                     Span::test_data(),
                 )),
             },

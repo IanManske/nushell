@@ -53,7 +53,7 @@ impl Command for Move {
                 description: "Move a column before the first column",
                 result:
                     Some(Value::test_list(
-                        vec![
+                        [
                             Value::test_record(record! {
                                 "index" => Value::test_int(1),
                                 "name" =>  Value::test_string("foo"),
@@ -69,7 +69,7 @@ impl Command for Move {
                                 "name" =>  Value::test_string("baz"),
                                 "value" => Value::test_string("c"),
                             }),
-                        ],
+                        ].into(),
                     ))
             },
             Example {
@@ -77,7 +77,7 @@ impl Command for Move {
                 description: "Move multiple columns after the last column and reorder them",
                 result:
                     Some(Value::test_list(
-                        vec![
+                        [
                             Value::test_record(record! {
                                 "index" => Value::test_int(1),
                                 "value" => Value::test_string("a"),
@@ -93,7 +93,7 @@ impl Command for Move {
                                 "value" => Value::test_string("c"),
                                 "name" =>  Value::test_string("baz"),
                             }),
-                        ],
+                        ].into(),
                     ))
             },
             Example {

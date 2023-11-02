@@ -60,34 +60,39 @@ impl Command for Compact {
             Example {
                 description: "Filter out all records where 'Hello' is null",
                 example: r#"[["Hello" "World"]; [null 3]] | compact Hello"#,
-                result: Some(Value::test_list(vec![])),
+                result: Some(Value::test_list([].into())),
             },
             Example {
                 description: "Filter out all records where 'World' is null",
                 example: r#"[["Hello" "World"]; [null 3]] | compact World"#,
-                result: Some(Value::test_list(vec![Value::test_record(record! {
-                    "Hello" => Value::nothing(Span::test_data()),
-                    "World" => Value::test_int(3),
-                })])),
+                result: Some(Value::test_list(
+                    [Value::test_record(record! {
+                        "Hello" => Value::nothing(Span::test_data()),
+                        "World" => Value::test_int(3),
+                    })]
+                    .into(),
+                )),
             },
             Example {
                 description: "Filter out all instances of null from a list",
                 example: r#"[1, null, 2] | compact"#,
-                result: Some(Value::test_list(vec![
-                    Value::test_int(1),
-                    Value::test_int(2),
-                ])),
+                result: Some(Value::test_list(
+                    [Value::test_int(1), Value::test_int(2)].into(),
+                )),
             },
             Example {
                 description: "Filter out all instances of null and empty items from a list",
                 example: r#"[1, null, 2, "", 3, [], 4, {}, 5] | compact --empty"#,
-                result: Some(Value::test_list(vec![
-                    Value::test_int(1),
-                    Value::test_int(2),
-                    Value::test_int(3),
-                    Value::test_int(4),
-                    Value::test_int(5),
-                ])),
+                result: Some(Value::test_list(
+                    [
+                        Value::test_int(1),
+                        Value::test_int(2),
+                        Value::test_int(3),
+                        Value::test_int(4),
+                        Value::test_int(5),
+                    ]
+                    .into(),
+                )),
             },
         ]
     }

@@ -1,3 +1,4 @@
+use ecow::EcoVec;
 use nu_engine::CallExt;
 use nu_protocol::ast::Call;
 use nu_protocol::engine::{Command, EngineState, Stack};
@@ -33,16 +34,17 @@ impl Command for Group {
     }
 
     fn examples(&self) -> Vec<Example> {
-        let stream_test_1 = vec![
+        let stream_test_1 = [
             Value::list(
-                vec![Value::test_int(1), Value::test_int(2)],
+                [Value::test_int(1), Value::test_int(2)].into(),
                 Span::test_data(),
             ),
             Value::list(
-                vec![Value::test_int(3), Value::test_int(4)],
+                [Value::test_int(3), Value::test_int(4)].into(),
                 Span::test_data(),
             ),
-        ];
+        ]
+        .into();
 
         vec![Example {
             example: "[1 2 3 4] | group 2",
@@ -86,7 +88,7 @@ impl Iterator for EachGroupIterator {
     type Item = Value;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut group = vec![];
+        let mut group = EcoVec::new();
         let mut current_count = 0;
 
         loop {

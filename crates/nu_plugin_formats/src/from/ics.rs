@@ -30,12 +30,11 @@ pub fn from_ics_call(call: &EvaluatedCall, input: &Value) -> Result<Value, Label
     let buf_reader = BufReader::new(input_bytes);
     let parser = ical::IcalParser::new(buf_reader);
 
-    let mut output = vec![];
-
-    for calendar in parser {
-        match calendar {
-            Ok(c) => output.push(calendar_to_value(c, head)),
-            Err(e) => output.push(Value::error(
+    let output = parser
+        .into_iter()
+        .map(|calendar| match calendar {
+            Ok(c) => calendar_to_value(c, head),
+            Err(e) => Value::error(
                 ShellError::UnsupportedInput(
                     format!("input cannot be parsed as .ics ({e})"),
                     "value originates from here".into(),
@@ -43,9 +42,10 @@ pub fn from_ics_call(call: &EvaluatedCall, input: &Value) -> Result<Value, Label
                     span,
                 ),
                 span,
-            )),
-        }
-    }
+            ),
+        })
+        .collect();
+
     Ok(Value::list(output, head))
 }
 
@@ -55,15 +55,18 @@ pub fn examples() -> Vec<PluginExample> {
             END:VCALENDAR' | from ics"
             .into(),
         description: "Converts ics formatted string to table".into(),
-        result: Some(Value::test_list(vec![Value::test_record(record! {
-                "properties" => Value::test_list(vec![]),
-                "events" =>     Value::test_list(vec![]),
-                "alarms" =>     Value::test_list(vec![]),
-                "to-Dos" =>     Value::test_list(vec![]),
-                "journals" =>   Value::test_list(vec![]),
-                "free-busys" => Value::test_list(vec![]),
-                "timezones" =>  Value::test_list(vec![]),
-        })])),
+        result: Some(Value::test_list(
+            [Value::test_record(record! {
+                    "properties" => Value::test_list([].into()),
+                    "events" =>     Value::test_list([].into()),
+                    "alarms" =>     Value::test_list([].into()),
+                    "to-Dos" =>     Value::test_list([].into()),
+                    "journals" =>   Value::test_list([].into()),
+                    "free-busys" => Value::test_list([].into()),
+                    "timezones" =>  Value::test_list([].into()),
+            })]
+            .into(),
+        )),
     }]
 }
 
@@ -95,7 +98,7 @@ fn events_to_value(events: Vec<IcalEvent>, span: Span) -> Value {
                     span,
                 )
             })
-            .collect::<Vec<Value>>(),
+            .collect(),
         span,
     )
 }
@@ -110,7 +113,7 @@ fn alarms_to_value(alarms: Vec<IcalAlarm>, span: Span) -> Value {
                     span,
                 )
             })
-            .collect::<Vec<Value>>(),
+            .collect(),
         span,
     )
 }
@@ -128,7 +131,7 @@ fn todos_to_value(todos: Vec<IcalTodo>, span: Span) -> Value {
                     span,
                 )
             })
-            .collect::<Vec<Value>>(),
+            .collect(),
         span,
     )
 }
@@ -143,7 +146,7 @@ fn journals_to_value(journals: Vec<IcalJournal>, span: Span) -> Value {
                     span,
                 )
             })
-            .collect::<Vec<Value>>(),
+            .collect(),
         span,
     )
 }
@@ -158,7 +161,7 @@ fn free_busys_to_value(free_busys: Vec<IcalFreeBusy>, span: Span) -> Value {
                     span,
                 )
             })
-            .collect::<Vec<Value>>(),
+            .collect(),
         span,
     )
 }
@@ -176,7 +179,7 @@ fn timezones_to_value(timezones: Vec<IcalTimeZone>, span: Span) -> Value {
                     span,
                 )
             })
-            .collect::<Vec<Value>>(),
+            .collect(),
         span,
     )
 }
@@ -191,7 +194,7 @@ fn timezone_transitions_to_value(transitions: Vec<IcalTimeZoneTransition>, span:
                     span,
                 )
             })
-            .collect::<Vec<Value>>(),
+            .collect(),
         span,
     )
 }
@@ -220,7 +223,7 @@ fn properties_to_value(properties: Vec<Property>, span: Span) -> Value {
                     span,
                 )
             })
-            .collect::<Vec<Value>>(),
+            .collect(),
         span,
     )
 }
@@ -229,12 +232,12 @@ fn params_to_value(params: Vec<(String, Vec<String>)>, span: Span) -> Value {
     let mut row = IndexMap::new();
 
     for (param_name, param_values) in params {
-        let values: Vec<Value> = param_values
+        let values = param_values
             .into_iter()
             .map(|val| Value::string(val, span))
             .collect();
-        let values = Value::list(values, span);
-        row.insert(param_name, values);
+
+        row.insert(param_name, Value::list(values, span));
     }
 
     Value::record(row.into_iter().collect(), span)

@@ -692,7 +692,7 @@ impl PipelineData {
                         }
                         _ => (),
                     }
-                    let range_values: Vec<Value> = val.into_range_iter(None)?.collect();
+                    let range_values = val.into_range_iter(None)?.collect();
                     PipelineData::Value(Value::list(range_values, span), None)
                 }
                 x => PipelineData::Value(x, metadata),

@@ -160,7 +160,7 @@ the output of 'path parse' and 'path split' subcommands."#
                 description: "Join a table of structured paths into a list of paths",
                 example: r"[[ parent stem extension ]; [ '/home/viking' 'spam' 'txt' ]] | path join",
                 result: Some(Value::list(
-                    vec![Value::test_string(r"/home/viking/spam.txt")],
+                    [Value::test_string(r"/home/viking/spam.txt")].into(),
                     Span::test_data(),
                 )),
             },

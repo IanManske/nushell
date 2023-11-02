@@ -65,10 +65,11 @@ impl Command for DropColumn {
             description: "Remove the last column of a table",
             example: "[[lib, extension]; [nu-lib, rs] [nu-core, rb]] | drop column",
             result: Some(Value::list(
-                vec![
+                [
                     Value::test_record(record!("lib" =>Value::test_string("nu-lib"))),
                     Value::test_record(record!("lib" =>Value::test_string("nu-core"))),
-                ],
+                ]
+                .into(),
                 Span::test_data(),
             )),
         }]
@@ -88,7 +89,7 @@ fn dropcol(
             let mut output = vec![];
 
             let v: Vec<_> = stream.into_iter().collect();
-            let input_cols = get_input_cols(v.clone());
+            let input_cols = get_input_cols(&v);
             let kc = get_keep_columns(input_cols, columns);
             keep_columns = get_cellpath_columns(kc, span);
 
@@ -113,7 +114,7 @@ fn dropcol(
             } = v
             {
                 let mut output = vec![];
-                let input_cols = get_input_cols(input_vals.clone());
+                let input_cols = get_input_cols(&input_vals);
                 let kc = get_keep_columns(input_cols, columns);
                 keep_columns = get_cellpath_columns(kc, val_span);
 
@@ -145,10 +146,9 @@ fn dropcol(
     }
 }
 
-fn get_input_cols(input: Vec<Value>) -> Vec<String> {
-    let rec = input.first();
-    match rec {
-        Some(Value::Record { val, .. }) => val.cols.to_vec(),
+fn get_input_cols(input: &[Value]) -> Vec<String> {
+    match input.first() {
+        Some(Value::Record { val, .. }) => val.cols.clone(),
         _ => vec!["".to_string()],
     }
 }

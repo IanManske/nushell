@@ -1,3 +1,4 @@
+use ecow::EcoVec;
 use nu_engine::CallExt;
 use nu_protocol::{
     ast::Call,
@@ -101,7 +102,7 @@ fn command(
 ) -> Result<PipelineData, ShellError> {
     let df = NuDataFrame::try_from_pipeline(input, call.head)?;
 
-    let columns: Option<Vec<Value>> = call.opt(engine_state, stack, 0)?;
+    let columns: Option<EcoVec<Value>> = call.opt(engine_state, stack, 0)?;
 
     let (subset, col_span) = match columns {
         Some(cols) => {

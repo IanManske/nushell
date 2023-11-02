@@ -103,7 +103,7 @@ impl Command for SubCommand {
                 description: "Return the lengths of multiple strings",
                 example: "['hi' 'there'] | str length",
                 result: Some(Value::list(
-                    vec![Value::test_int(2), Value::test_int(5)],
+                    [Value::test_int(2), Value::test_int(5)].into(),
                     Span::test_data(),
                 )),
             },

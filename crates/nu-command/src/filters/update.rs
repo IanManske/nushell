@@ -66,30 +66,30 @@ impl Command for Update {
                 description: "Use in closure form for more involved updating logic",
                 example: "[[count fruit]; [1 'apple']] | enumerate | update item.count {|e| ($e.item.fruit | str length) + $e.index } | get item",
                 result: Some(Value::test_list(
-                    vec![Value::test_record(record! {
+                    [Value::test_record(record! {
                         "count" => Value::test_int(5),
                         "fruit" => Value::test_string("apple"),
-                    })],
+                    })].into(),
                 )),
             },
             Example {
                 description: "Alter each value in the 'authors' column to use a single string instead of a list",
                 example: "[[project, authors]; ['nu', ['Andrés', 'JT', 'Yehuda']]] | update authors {|row| $row.authors | str join ','}",
                 result: Some(Value::test_list(
-                    vec![Value::test_record(record! {
+                    [Value::test_record(record! {
                         "project" => Value::test_string("nu"),
                         "authors" => Value::test_string("Andrés,JT,Yehuda"),
-                    })],
+                    })].into(),
                 )),
             },
             Example {
                 description: "You can also use a simple command to update 'authors' to a single string",
                 example: "[[project, authors]; ['nu', ['Andrés', 'JT', 'Yehuda']]] | update authors {|| str join ','}",
                 result: Some(Value::test_list(
-                    vec![Value::test_record(record! {
+                    [Value::test_record(record! {
                         "project" => Value::test_string("nu"),
                         "authors" => Value::test_string("Andrés,JT,Yehuda"),
-                    })],
+                    })].into(),
                 )),
             }
         ]

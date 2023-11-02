@@ -1,4 +1,5 @@
 use crate::web_tables::WebTable;
+use ecow::EcoVec;
 use nu_plugin::{EvaluatedCall, LabeledError};
 use nu_protocol::{Record, Span, Value};
 use scraper::{Html, Selector as ScraperSelector};
@@ -161,7 +162,7 @@ fn retrieve_table(mut table: WebTable, columns: &Value, span: Span) -> Value {
         }
     }
 
-    let mut table_out = Vec::new();
+    let mut table_out = EcoVec::new();
     // sometimes there are tables where the first column is the headers, kind of like
     // a table has ben rotated ccw 90 degrees, in these cases all columns will be missing
     // we keep track of this with this variable so we can deal with it later
@@ -224,7 +225,7 @@ fn execute_selector_query_with_attribute(
 ) -> Value {
     let doc = Html::parse_fragment(input_string);
 
-    let vals: Vec<Value> = doc
+    let vals = doc
         .select(&css(query_string, inspect))
         .map(|selection| {
             Value::string(
@@ -233,6 +234,7 @@ fn execute_selector_query_with_attribute(
             )
         })
         .collect();
+
     Value::list(vals, span)
 }
 
@@ -245,7 +247,7 @@ fn execute_selector_query(
 ) -> Value {
     let doc = Html::parse_fragment(input_string);
 
-    let vals: Vec<Value> = match as_html {
+    let vals = match as_html {
         true => doc
             .select(&css(query_string, inspect))
             .map(|selection| Value::string(selection.html(), span))

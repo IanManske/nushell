@@ -47,7 +47,7 @@ repeating this process with row 1, and so on."#
                 example: "[a b c] | wrap name | merge ( [1 2 3] | wrap index )",
                 description: "Add an 'index' column to the input table",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_record(record! {
                             "name" => Value::test_string("a"),
                             "index" => Value::test_int(1),
@@ -60,7 +60,8 @@ repeating this process with row 1, and so on."#
                             "name" => Value::test_string("c"),
                             "index" => Value::test_int(3),
                         }),
-                    ],
+                    ]
+                    .into(),
                     Span::test_data(),
                 )),
             },
@@ -76,10 +77,13 @@ repeating this process with row 1, and so on."#
             Example {
                 example: "[{columnA: A0 columnB: B0}] | merge [{columnA: 'A0*'}]",
                 description: "Merge two tables, overwriting overlapping columns",
-                result: Some(Value::test_list(vec![Value::test_record(record! {
-                    "columnA" => Value::test_string("A0*"),
-                    "columnB" => Value::test_string("B0"),
-                })])),
+                result: Some(Value::test_list(
+                    [Value::test_record(record! {
+                        "columnA" => Value::test_string("A0*"),
+                        "columnB" => Value::test_string("B0"),
+                    })]
+                    .into(),
+                )),
             },
         ]
     }

@@ -223,16 +223,19 @@ fn get_documentation(
         if let Some(decl_id) = engine_state.find_decl(b"table", &[]) {
             // FIXME: we may want to make this the span of the help command in the future
             let span = Span::unknown();
-            let mut vals = vec![];
-            for (input, output) in &sig.input_output_types {
-                vals.push(Value::record(
-                    record! {
-                        "input" => Value::string(input.to_string(), span),
-                        "output" => Value::string(output.to_string(), span),
-                    },
-                    span,
-                ));
-            }
+            let vals = sig
+                .input_output_types
+                .iter()
+                .map(|(input, output)| {
+                    Value::record(
+                        record! {
+                            "input" => Value::string(input.to_string(), span),
+                            "output" => Value::string(output.to_string(), span),
+                        },
+                        span,
+                    )
+                })
+                .collect();
 
             let mut caller_stack = Stack::new();
             if let Ok(result) = eval_call(

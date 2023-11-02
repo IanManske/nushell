@@ -38,7 +38,7 @@ impl Command for FromJson {
                 description: "Converts json formatted string to table",
                 result: Some(Value::test_record(record! {
                     "a" => Value::test_int(1),
-                    "b" => Value::test_list(vec![Value::test_int(1), Value::test_int(2)]),
+                    "b" => Value::test_list([Value::test_int(1), Value::test_int(2)].into()),
                 })),
             },
         ]
@@ -85,7 +85,7 @@ impl Command for FromJson {
 fn convert_nujson_to_value(value: &nu_json::Value, span: Span) -> Value {
     match value {
         nu_json::Value::Array(array) => {
-            let v: Vec<Value> = array
+            let v = array
                 .iter()
                 .map(|x| convert_nujson_to_value(x, span))
                 .collect();

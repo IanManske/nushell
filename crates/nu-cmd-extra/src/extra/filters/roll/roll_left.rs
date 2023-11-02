@@ -58,34 +58,40 @@ impl Command for RollLeft {
             Example {
                 description: "Rolls columns of a table to the left",
                 example: "[[a b c]; [1 2 3] [4 5 6]] | roll left",
-                result: Some(Value::test_list(vec![
-                    Value::test_record(record! {
-                        "b" => Value::test_int(2),
-                        "c" => Value::test_int(3),
-                        "a" => Value::test_int(1),
-                    }),
-                    Value::test_record(record! {
-                        "b" => Value::test_int(5),
-                        "c" => Value::test_int(6),
-                        "a" => Value::test_int(4),
-                    }),
-                ])),
+                result: Some(Value::test_list(
+                    [
+                        Value::test_record(record! {
+                            "b" => Value::test_int(2),
+                            "c" => Value::test_int(3),
+                            "a" => Value::test_int(1),
+                        }),
+                        Value::test_record(record! {
+                            "b" => Value::test_int(5),
+                            "c" => Value::test_int(6),
+                            "a" => Value::test_int(4),
+                        }),
+                    ]
+                    .into(),
+                )),
             },
             Example {
                 description: "Rolls columns to the left without changing column names",
                 example: "[[a b c]; [1 2 3] [4 5 6]] | roll left --cells-only",
-                result: Some(Value::test_list(vec![
-                    Value::test_record(record! {
-                        "a" => Value::test_int(2),
-                        "b" => Value::test_int(3),
-                        "c" => Value::test_int(1),
-                    }),
-                    Value::test_record(record! {
-                        "a" => Value::test_int(5),
-                        "b" => Value::test_int(6),
-                        "c" => Value::test_int(4),
-                    }),
-                ])),
+                result: Some(Value::test_list(
+                    [
+                        Value::test_record(record! {
+                            "a" => Value::test_int(2),
+                            "b" => Value::test_int(3),
+                            "c" => Value::test_int(1),
+                        }),
+                        Value::test_record(record! {
+                            "a" => Value::test_int(5),
+                            "b" => Value::test_int(6),
+                            "c" => Value::test_int(4),
+                        }),
+                    ]
+                    .into(),
+                )),
             },
         ]
     }

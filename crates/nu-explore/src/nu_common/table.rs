@@ -1,3 +1,4 @@
+use ecow::EcoVec;
 use nu_color_config::StyleComputer;
 use nu_protocol::{Record, Span, Value};
 use nu_table::{
@@ -52,7 +53,7 @@ fn try_build_map(
 }
 
 fn try_build_list(
-    vals: Vec<Value>,
+    vals: EcoVec<Value>,
     ctrlc: Option<Arc<AtomicBool>>,
     config: &NuConfig,
     span: Span,

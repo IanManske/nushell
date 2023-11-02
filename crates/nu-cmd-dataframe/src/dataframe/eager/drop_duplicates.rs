@@ -1,3 +1,4 @@
+use ecow::EcoVec;
 use nu_engine::CallExt;
 use nu_protocol::{
     ast::Call,
@@ -79,7 +80,7 @@ fn command(
     call: &Call,
     input: PipelineData,
 ) -> Result<PipelineData, ShellError> {
-    let columns: Option<Vec<Value>> = call.opt(engine_state, stack, 0)?;
+    let columns: Option<EcoVec<Value>> = call.opt(engine_state, stack, 0)?;
     let (subset, col_span) = match columns {
         Some(cols) => {
             let (agg_string, col_span) = convert_columns_string(cols, call.head)?;

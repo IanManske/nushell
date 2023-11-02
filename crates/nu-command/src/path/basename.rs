@@ -127,10 +127,9 @@ impl Command for SubCommand {
             Example {
                 description: "Get basename of a list of paths",
                 example: "[ /home/joe, /home/doe ] | path basename",
-                result: Some(Value::test_list(vec![
-                    Value::test_string("joe"),
-                    Value::test_string("doe"),
-                ])),
+                result: Some(Value::test_list(
+                    [Value::test_string("joe"), Value::test_string("doe")].into(),
+                )),
             },
             Example {
                 description: "Replace basename of a path",

@@ -40,30 +40,31 @@ impl Command for TakeWhile {
             Example {
                 description: "Take while the element is negative",
                 example: "[-1 -2 9 1] | take while {|x| $x < 0 }",
-                result: Some(Value::test_list(vec![
-                    Value::test_int(-1),
-                    Value::test_int(-2),
-                ])),
+                result: Some(Value::test_list(
+                    [Value::test_int(-1), Value::test_int(-2)].into(),
+                )),
             },
             Example {
                 description: "Take while the element is negative using stored condition",
                 example: "let cond = {|x| $x < 0 }; [-1 -2 9 1] | take while $cond",
-                result: Some(Value::test_list(vec![
-                    Value::test_int(-1),
-                    Value::test_int(-2),
-                ])),
+                result: Some(Value::test_list(
+                    [Value::test_int(-1), Value::test_int(-2)].into(),
+                )),
             },
             Example {
                 description: "Take while the field value is negative",
                 example: "[{a: -1} {a: -2} {a: 9} {a: 1}] | take while {|x| $x.a < 0 }",
-                result: Some(Value::test_list(vec![
-                    Value::test_record(record! {
-                        "a" => Value::test_int(-1),
-                    }),
-                    Value::test_record(record! {
-                        "a" => Value::test_int(-2),
-                    }),
-                ])),
+                result: Some(Value::test_list(
+                    [
+                        Value::test_record(record! {
+                            "a" => Value::test_int(-1),
+                        }),
+                        Value::test_record(record! {
+                            "a" => Value::test_int(-2),
+                        }),
+                    ]
+                    .into(),
+                )),
             },
         ]
     }

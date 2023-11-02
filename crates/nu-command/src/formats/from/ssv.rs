@@ -45,10 +45,10 @@ impl Command for FromSsv {
 1   2' | from ssv"#,
             description: "Converts ssv formatted string to table",
             result: Some(Value::test_list(
-                vec![Value::test_record(record! {
+                [Value::test_record(record! {
                     "FOO" => Value::test_string("1"),
                     "BAR" => Value::test_string("2"),
-                })],
+                })].into(),
             )),
         }, Example {
             example: r#"'FOO   BAR
@@ -56,7 +56,7 @@ impl Command for FromSsv {
             description: "Converts ssv formatted string to table but not treating the first row as column names",
             result: Some(
                 Value::test_list(
-                    vec![
+                    [
                         Value::test_record(record! {
                             "column1" => Value::test_string("FOO"),
                             "column2" => Value::test_string("BAR"),
@@ -65,7 +65,7 @@ impl Command for FromSsv {
                             "column1" => Value::test_string("1"),
                             "column2" => Value::test_string("2"),
                         }),
-                    ],
+                    ].into(),
                 )
             ),
         }]

@@ -1,5 +1,6 @@
 use super::super::values::{Column, NuDataFrame};
 
+use ecow::EcoVec;
 use nu_engine::CallExt;
 use nu_protocol::{
     ast::Call,
@@ -116,7 +117,7 @@ fn command(
     call: &Call,
     input: PipelineData,
 ) -> Result<PipelineData, ShellError> {
-    let quantiles: Option<Vec<Value>> = call.get_flag(engine_state, stack, "quantiles")?;
+    let quantiles: Option<EcoVec<Value>> = call.get_flag(engine_state, stack, "quantiles")?;
     let quantiles = quantiles.map(|values| {
         values
             .iter()

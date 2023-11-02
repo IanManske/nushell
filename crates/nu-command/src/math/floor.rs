@@ -54,7 +54,7 @@ impl Command for SubCommand {
             description: "Apply the floor function to a list of numbers",
             example: "[1.5 2.3 -3.1] | math floor",
             result: Some(Value::list(
-                vec![Value::test_int(1), Value::test_int(2), Value::test_int(-4)],
+                [Value::test_int(1), Value::test_int(2), Value::test_int(-4)].into(),
                 Span::test_data(),
             )),
         }]

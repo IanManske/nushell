@@ -1,5 +1,6 @@
 use chrono::naive::NaiveDate;
 use chrono::{Duration, Local};
+use ecow::EcoVec;
 use nu_engine::CallExt;
 use nu_protocol::ast::Call;
 use nu_protocol::engine::{Command, EngineState, Stack};
@@ -79,7 +80,7 @@ impl Command for SeqDate {
                 description: "print the first 10 days in January, 2020",
                 example: "seq date --begin-date '2020-01-01' --end-date '2020-01-10'",
                 result: Some(Value::list(
-                     vec![
+                    [
                         Value::test_string("2020-01-01"),
                         Value::test_string("2020-01-02"),
                         Value::test_string("2020-01-03"),
@@ -90,24 +91,24 @@ impl Command for SeqDate {
                         Value::test_string("2020-01-08"),
                         Value::test_string("2020-01-09"),
                         Value::test_string("2020-01-10"),
-                    ],
-                     Span::test_data(),
+                    ].into(),
+                    Span::test_data(),
                 )),
             },
             Example {
                 description: "print every fifth day between January 1st 2020 and January 31st 2020",
                 example: "seq date --begin-date '2020-01-01' --end-date '2020-01-31' --increment 5",
                 result: Some(Value::list(
-                    vec![
-                    Value::test_string("2020-01-01"),
-                    Value::test_string("2020-01-06"),
-                    Value::test_string("2020-01-11"),
-                    Value::test_string("2020-01-16"),
-                    Value::test_string("2020-01-21"),
-                    Value::test_string("2020-01-26"),
-                    Value::test_string("2020-01-31"),
-                    ],
-                     Span::test_data(),
+                    [
+                        Value::test_string("2020-01-01"),
+                        Value::test_string("2020-01-06"),
+                        Value::test_string("2020-01-11"),
+                        Value::test_string("2020-01-16"),
+                        Value::test_string("2020-01-21"),
+                        Value::test_string("2020-01-26"),
+                        Value::test_string("2020-01-31"),
+                    ].into(),
+                    Span::test_data(),
                 )),
             },
         ]
@@ -313,7 +314,7 @@ pub fn run_seq_dates(
         ));
     }
 
-    let mut ret = vec![];
+    let mut ret = EcoVec::new();
     loop {
         let date_string = &next.format(&out_format).to_string();
         ret.push(Value::string(date_string, call_span));

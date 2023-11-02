@@ -17,6 +17,7 @@ use byte_unit::ByteUnit;
 use chrono::{DateTime, Datelike, Duration, FixedOffset, Locale, TimeZone};
 use chrono_humanize::HumanTime;
 pub use custom_value::CustomValue;
+use ecow::EcoVec;
 use fancy_regex::Regex;
 pub use from_value::FromValue;
 pub use lazy_record::LazyRecord;
@@ -96,7 +97,7 @@ pub enum Value {
         internal_span: Span,
     },
     List {
-        vals: Vec<Value>,
+        vals: EcoVec<Value>,
         // note: spans are being refactored out of Value
         // please use .span() instead of matching this span value
         internal_span: Span,
@@ -633,7 +634,7 @@ impl Value {
                 .find(|(col, _)| col == &name)
                 .map(|(_, val)| val.clone()),
             Value::List { vals, .. } => {
-                let mut out = vec![];
+                let mut out = EcoVec::new();
                 for item in vals {
                     match item {
                         Value::Record { .. } => match item.get_data_by_key(name) {
@@ -1081,8 +1082,8 @@ impl Value {
                         // records in the source list.
                         Value::List { vals, .. } => {
                             // TODO: this should stream instead of collecting
-                            let mut output = vec![];
-                            for val in vals {
+                            let mut output = EcoVec::new();
+                            for val in &*vals {
                                 // only look in records; this avoids unintentionally recursing into deeply nested tables
                                 if matches!(val, Value::Record { .. }) {
                                     if let Ok(result) = val.clone().follow_cell_path(
@@ -1169,7 +1170,7 @@ impl Value {
                     ..
                 } => match self {
                     Value::List { vals, .. } => {
-                        for val in vals.iter_mut() {
+                        for val in vals.make_mut() {
                             match val {
                                 Value::Record { val: record, .. } => {
                                     let mut found = false;
@@ -1249,7 +1250,7 @@ impl Value {
                     val: row_num, span, ..
                 } => match self {
                     Value::List { vals, .. } => {
-                        if let Some(v) = vals.get_mut(*row_num) {
+                        if let Some(v) = vals.make_mut().get_mut(*row_num) {
                             v.upsert_data_at_cell_path(&cell_path[1..], new_val)?
                         } else if vals.len() == *row_num && cell_path.len() == 1 {
                             // If the upsert is at 1 + the end of the list, it's OK.
@@ -1310,7 +1311,7 @@ impl Value {
                     ..
                 } => match self {
                     Value::List { vals, .. } => {
-                        for val in vals.iter_mut() {
+                        for val in vals.make_mut() {
                             let v_span = val.span();
                             match val {
                                 Value::Record { val: record, .. } => {
@@ -1379,7 +1380,7 @@ impl Value {
                     val: row_num, span, ..
                 } => match self {
                     Value::List { vals, .. } => {
-                        if let Some(v) = vals.get_mut(*row_num) {
+                        if let Some(v) = vals.make_mut().get_mut(*row_num) {
                             v.update_data_at_cell_path(&cell_path[1..], new_val)?
                         } else if vals.is_empty() {
                             return Err(ShellError::AccessEmptyContent { span: *span });
@@ -1419,7 +1420,7 @@ impl Value {
                         optional,
                     } => match self {
                         Value::List { vals, .. } => {
-                            for val in vals.iter_mut() {
+                            for val in vals.make_mut() {
                                 let v_span = val.span();
 
                                 match val {
@@ -1496,7 +1497,7 @@ impl Value {
                         optional,
                     } => match self {
                         Value::List { vals, .. } => {
-                            if vals.get_mut(*row_num).is_some() {
+                            if vals.make_mut().get_mut(*row_num).is_some() {
                                 vals.remove(*row_num);
                                 Ok(())
                             } else if *optional {
@@ -1527,7 +1528,7 @@ impl Value {
                         optional,
                     } => match self {
                         Value::List { vals, .. } => {
-                            for val in vals.iter_mut() {
+                            for val in vals.make_mut() {
                                 let v_span = val.span();
                                 match val {
                                     Value::Record { val: record, .. } => {
@@ -1594,7 +1595,7 @@ impl Value {
                         optional,
                     } => match self {
                         Value::List { vals, .. } => {
-                            if let Some(v) = vals.get_mut(*row_num) {
+                            if let Some(v) = vals.make_mut().get_mut(*row_num) {
                                 v.remove_data_at_cell_path(&cell_path[1..])
                             } else if *optional {
                                 Ok(())
@@ -1632,7 +1633,7 @@ impl Value {
                     ..
                 } => match self {
                     Value::List { vals, .. } => {
-                        for val in vals.iter_mut() {
+                        for val in vals.make_mut() {
                             let v_span = val.span();
                             match val {
                                 Value::Record { val: record, .. } => {
@@ -1709,7 +1710,7 @@ impl Value {
                     val: row_num, span, ..
                 } => match self {
                     Value::List { vals, .. } => {
-                        if let Some(v) = vals.get_mut(*row_num) {
+                        if let Some(v) = vals.make_mut().get_mut(*row_num) {
                             v.insert_data_at_cell_path(&cell_path[1..], new_val, head_span)?
                         } else if vals.len() == *row_num && cell_path.len() == 1 {
                             // If the insert is at 1 + the end of the list, it's OK.
@@ -1815,7 +1816,7 @@ impl Value {
         }
     }
 
-    pub fn list(vals: Vec<Value>, span: Span) -> Value {
+    pub fn list(vals: EcoVec<Value>, span: Span) -> Value {
         Value::List {
             vals,
             internal_span: span,
@@ -1941,7 +1942,7 @@ impl Value {
 
     /// Note: Only use this for test data, *not* live data, as it will point into unknown source
     /// when used in errors.
-    pub fn test_list(vals: Vec<Value>) -> Value {
+    pub fn test_list(vals: EcoVec<Value>) -> Value {
         Value::list(vals, Span::test_data())
     }
 
@@ -2486,8 +2487,7 @@ impl Value {
         match (self, rhs) {
             (Value::List { vals: lhs, .. }, Value::List { vals: rhs, .. }) => {
                 let mut lhs = lhs.clone();
-                let mut rhs = rhs.clone();
-                lhs.append(&mut rhs);
+                lhs.extend(rhs.clone());
                 Ok(Value::list(lhs, span))
             }
             (Value::List { vals: lhs, .. }, val) => {
@@ -3840,8 +3840,10 @@ fn get_filesize_format(format_value: &str, filesize_metric: Option<bool>) -> (By
 mod tests {
     use super::{Record, Value};
     use crate::record;
+    use ecow::eco_vec;
 
     mod is_empty {
+
         use super::*;
 
         #[test]
@@ -3852,8 +3854,8 @@ mod tests {
 
         #[test]
         fn test_list() {
-            let list_with_no_values = Value::test_list(vec![]);
-            let list_with_one_empty_string = Value::test_list(vec![Value::test_string("")]);
+            let list_with_no_values = Value::test_list(eco_vec![]);
+            let list_with_one_empty_string = Value::test_list(eco_vec![Value::test_string("")]);
 
             assert!(list_with_no_values.is_empty());
             assert!(!list_with_one_empty_string.is_empty());
@@ -3891,11 +3893,11 @@ mod tests {
 
         #[test]
         fn test_list() {
-            let list_of_ints = Value::test_list(vec![Value::test_int(0)]);
-            let list_of_floats = Value::test_list(vec![Value::test_float(0.0)]);
+            let list_of_ints = Value::test_list(eco_vec![Value::test_int(0)]);
+            let list_of_floats = Value::test_list(eco_vec![Value::test_float(0.0)]);
             let list_of_ints_and_floats =
-                Value::test_list(vec![Value::test_int(0), Value::test_float(0.0)]);
-            let list_of_ints_and_floats_and_bools = Value::test_list(vec![
+                Value::test_list(eco_vec![Value::test_int(0), Value::test_float(0.0)]);
+            let list_of_ints_and_floats_and_bools = Value::test_list(eco_vec![
                 Value::test_int(0),
                 Value::test_float(0.0),
                 Value::test_bool(false),

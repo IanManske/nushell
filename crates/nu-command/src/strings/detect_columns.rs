@@ -62,11 +62,14 @@ impl Command for DetectColumns {
             Example {
                 description: "Splits string across multiple columns",
                 example: "'a b c' | detect columns --no-headers",
-                result: Some(Value::test_list(vec![Value::test_record(record! {
+                result: Some(Value::test_list(
+                    [Value::test_record(record! {
                         "column0" => Value::test_string("a"),
                         "column1" => Value::test_string("b"),
                         "column2" => Value::test_string("c"),
-                })])),
+                    })]
+                    .into(),
+                )),
             },
             Example {
                 description: "",

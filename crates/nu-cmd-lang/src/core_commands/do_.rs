@@ -1,5 +1,6 @@
 use std::thread;
 
+use ecow::EcoVec;
 use nu_engine::{eval_block_with_early_return, redirect_env, CallExt};
 use nu_protocol::ast::Call;
 use nu_protocol::engine::{Closure, Command, EngineState, Stack};
@@ -90,11 +91,7 @@ impl Command for Do {
 
         if let Some(param) = &block.signature.rest_positional {
             if rest.len() > params.len() {
-                let mut rest_items = vec![];
-
-                for r in rest.into_iter().skip(params.len()) {
-                    rest_items.push(r);
-                }
+                let rest_items = rest.into_iter().skip(params.len()).collect::<EcoVec<_>>();
 
                 let span = if let Some(rest_item) = rest_items.first() {
                     rest_item.span()

@@ -75,7 +75,7 @@ impl Example {
                     call.head,
                 )
             })
-            .collect::<Vec<Value>>();
+            .collect();
 
         Ok(Value::list(vals, call.head))
     }

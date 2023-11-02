@@ -64,7 +64,7 @@ fn command(
     input: PipelineData,
 ) -> Result<PipelineData, ShellError> {
     let columns: Vec<Value> = call.rest(engine_state, stack, 0)?;
-    let (col_string, col_span) = convert_columns_string(columns, call.head)?;
+    let (col_string, col_span) = convert_columns_string(columns.into(), call.head)?;
 
     let df = NuDataFrame::try_from_pipeline(input, call.head)?;
 

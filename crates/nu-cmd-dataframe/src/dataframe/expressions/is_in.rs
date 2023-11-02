@@ -1,4 +1,5 @@
 use crate::dataframe::values::{Column, NuDataFrame, NuExpression};
+use ecow::EcoVec;
 use nu_engine::CallExt;
 use nu_protocol::{
     ast::Call,
@@ -78,10 +79,11 @@ impl Command for ExprIsIn {
         call: &Call,
         input: PipelineData,
     ) -> Result<PipelineData, ShellError> {
-        let list: Vec<Value> = call.req(engine_state, stack, 0)?;
+        let list: EcoVec<Value> = call.req(engine_state, stack, 0)?;
         let expr = NuExpression::try_from_pipeline(input, call.head)?;
 
-        let values = NuDataFrame::try_from_columns(vec![Column::new("list".to_string(), list)])?;
+        let values =
+            NuDataFrame::try_from_columns(vec![Column::new("list".to_string(), list.to_vec())])?;
         let list = values.as_series(call.head)?;
 
         if matches!(list.dtype(), DataType::Object(..)) {

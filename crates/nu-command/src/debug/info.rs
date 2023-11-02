@@ -162,10 +162,10 @@ impl LazySystemInfoRecord {
                                                 }
                                             };
                                             if is_env_var_a_list {
-                                                let items = value.split(ENV_PATH_SEPARATOR_CHAR).map(|r| Value::string(r.to_string(), self.span)).collect::<Vec<_>>();
+                                                let items = value.split(ENV_PATH_SEPARATOR_CHAR).map(|r| Value::string(r.to_string(), self.span)).collect();
                                                 env_rec.push(key.to_string(), Value::list(items, self.span));
                                             } else if key == "LS_COLORS" { // LS_COLORS is a special case, it's a colon separated list of key=value pairs
-                                                let items = value.split(':').map(|r| Value::string(r.to_string(), self.span)).collect::<Vec<_>>();
+                                                let items = value.split(':').map(|r| Value::string(r.to_string(), self.span)).collect();
                                                 env_rec.push(key.to_string(), Value::list(items, self.span));
                                             } else {
                                                 env_rec.push(key.to_string(), Value::string(value.to_string(), self.span));

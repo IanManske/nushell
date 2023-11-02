@@ -62,9 +62,12 @@ impl Command for SubCommand {
             Example {
                 description: "Convert string to float in table",
                 example: "[[num]; ['5.01']] | into float num",
-                result: Some(Value::test_list(vec![Value::test_record(record! {
-                    "num" => Value::test_float(5.01),
-                })])),
+                result: Some(Value::test_list(
+                    [Value::test_record(record! {
+                        "num" => Value::test_float(5.01),
+                    })]
+                    .into(),
+                )),
             },
             Example {
                 description: "Convert string to floating point number",
@@ -74,10 +77,9 @@ impl Command for SubCommand {
             Example {
                 description: "Coerce list of ints and floats to float",
                 example: "[4 -5.9] | into float",
-                result: Some(Value::test_list(vec![
-                    Value::test_float(4.0),
-                    Value::test_float(-5.9),
-                ])),
+                result: Some(Value::test_list(
+                    [Value::test_float(4.0), Value::test_float(-5.9)].into(),
+                )),
             },
             Example {
                 description: "Convert boolean to float",

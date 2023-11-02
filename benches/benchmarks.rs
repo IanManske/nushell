@@ -120,7 +120,7 @@ fn encoding_test_data(row_cnt: usize, col_cnt: usize) -> Value {
             .collect(),
     );
 
-    Value::list(vec![record; row_cnt], Span::test_data())
+    Value::list(vec![record; row_cnt].into(), Span::test_data())
 }
 
 fn encoding_benchmarks(c: &mut Criterion) {

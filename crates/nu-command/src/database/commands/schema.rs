@@ -1,5 +1,6 @@
 use super::super::SQLiteDatabase;
 use crate::database::values::definitions::{db_row::DbRow, db_table::DbTable};
+use ecow::EcoVec;
 use nu_protocol::{
     ast::Call,
     engine::{Command, EngineState, Stack},
@@ -103,7 +104,7 @@ fn get_table_columns(
     conn: &Connection,
     table: &DbTable,
     span: Span,
-) -> Result<Vec<Value>, ShellError> {
+) -> Result<EcoVec<Value>, ShellError> {
     let columns = db.get_columns(conn, table).map_err(|e| {
         ShellError::GenericError(
             "Error getting database columns".into(),
@@ -114,20 +115,19 @@ fn get_table_columns(
         )
     })?;
 
-    // a record of column name = column value
-    let mut column_info = vec![];
-    for t in columns {
-        column_info.push(Value::record(
-            t.fields()
-                .into_iter()
-                .zip(t.columns())
-                .map(|(k, v)| (k, Value::string(v, span)))
-                .collect(),
-            span,
-        ));
-    }
-
-    Ok(column_info)
+    Ok(columns
+        .into_iter()
+        .map(|t| {
+            Value::record(
+                t.fields()
+                    .into_iter()
+                    .zip(t.columns())
+                    .map(|(k, v)| (k, Value::string(v, span)))
+                    .collect(),
+                span,
+            )
+        })
+        .collect())
 }
 
 fn get_table_constraints(
@@ -135,7 +135,7 @@ fn get_table_constraints(
     conn: &Connection,
     table: &DbTable,
     span: Span,
-) -> Result<Vec<Value>, ShellError> {
+) -> Result<EcoVec<Value>, ShellError> {
     let constraints = db.get_constraints(conn, table).map_err(|e| {
         ShellError::GenericError(
             "Error getting DB constraints".into(),
@@ -145,20 +145,21 @@ fn get_table_constraints(
             Vec::new(),
         )
     })?;
-    let mut constraint_info = vec![];
-    for constraint in constraints {
-        constraint_info.push(Value::record(
-            constraint
-                .fields()
-                .into_iter()
-                .zip(constraint.columns())
-                .map(|(k, v)| (k, Value::string(v, span)))
-                .collect(),
-            span,
-        ));
-    }
 
-    Ok(constraint_info)
+    Ok(constraints
+        .into_iter()
+        .map(|constraint| {
+            Value::record(
+                constraint
+                    .fields()
+                    .into_iter()
+                    .zip(constraint.columns())
+                    .map(|(k, v)| (k, Value::string(v, span)))
+                    .collect(),
+                span,
+            )
+        })
+        .collect())
 }
 
 fn get_table_foreign_keys(
@@ -166,7 +167,7 @@ fn get_table_foreign_keys(
     conn: &Connection,
     table: &DbTable,
     span: Span,
-) -> Result<Vec<Value>, ShellError> {
+) -> Result<EcoVec<Value>, ShellError> {
     let foreign_keys = db.get_foreign_keys(conn, table).map_err(|e| {
         ShellError::GenericError(
             "Error getting DB Foreign Keys".into(),
@@ -176,19 +177,20 @@ fn get_table_foreign_keys(
             Vec::new(),
         )
     })?;
-    let mut foreign_key_info = vec![];
-    for fk in foreign_keys {
-        foreign_key_info.push(Value::record(
-            fk.fields()
-                .into_iter()
-                .zip(fk.columns())
-                .map(|(k, v)| (k, Value::string(v, span)))
-                .collect(),
-            span,
-        ));
-    }
 
-    Ok(foreign_key_info)
+    Ok(foreign_keys
+        .into_iter()
+        .map(|fk| {
+            Value::record(
+                fk.fields()
+                    .into_iter()
+                    .zip(fk.columns())
+                    .map(|(k, v)| (k, Value::string(v, span)))
+                    .collect(),
+                span,
+            )
+        })
+        .collect())
 }
 
 fn get_table_indexes(
@@ -196,7 +198,7 @@ fn get_table_indexes(
     conn: &Connection,
     table: &DbTable,
     span: Span,
-) -> Result<Vec<Value>, ShellError> {
+) -> Result<EcoVec<Value>, ShellError> {
     let indexes = db.get_indexes(conn, table).map_err(|e| {
         ShellError::GenericError(
             "Error getting DB Indexes".into(),
@@ -206,18 +208,19 @@ fn get_table_indexes(
             Vec::new(),
         )
     })?;
-    let mut index_info = vec![];
-    for index in indexes {
-        index_info.push(Value::record(
-            index
-                .fields()
-                .into_iter()
-                .zip(index.columns())
-                .map(|(k, v)| (k, Value::string(v, span)))
-                .collect(),
-            span,
-        ));
-    }
 
-    Ok(index_info)
+    Ok(indexes
+        .into_iter()
+        .map(|index| {
+            Value::record(
+                index
+                    .fields()
+                    .into_iter()
+                    .zip(index.columns())
+                    .map(|(k, v)| (k, Value::string(v, span)))
+                    .collect(),
+                span,
+            )
+        })
+        .collect())
 }

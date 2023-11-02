@@ -534,14 +534,16 @@ pub fn evaluate_repl(
                     stack.add_env_var("PWD".into(), Value::string(path.clone(), Span::unknown()));
                     let cwd = Value::string(cwd, span);
 
-                    let shells = stack.get_env_var(engine_state, "NUSHELL_SHELLS");
-                    let mut shells = if let Some(v) = shells {
-                        v.as_list()
-                            .map(|x| x.to_vec())
-                            .unwrap_or_else(|_| vec![cwd])
-                    } else {
-                        vec![cwd]
-                    };
+                    let mut shells = stack
+                        .get_env_var(engine_state, "NUSHELL_SHELLS")
+                        .and_then(|val| {
+                            if let Value::List { vals, .. } = val {
+                                Some(vals)
+                            } else {
+                                None
+                            }
+                        })
+                        .unwrap_or_else(|| [cwd].into());
 
                     let current_shell = stack.get_env_var(engine_state, "NUSHELL_CURRENT_SHELL");
                     let current_shell = if let Some(v) = current_shell {
@@ -557,7 +559,7 @@ pub fn evaluate_repl(
                         0
                     };
 
-                    shells[current_shell] = Value::string(path, span);
+                    shells.make_mut()[current_shell] = Value::string(path, span);
 
                     stack.add_env_var("NUSHELL_SHELLS".into(), Value::list(shells, span));
                     stack.add_env_var(

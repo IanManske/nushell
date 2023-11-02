@@ -63,30 +63,36 @@ impl Command for SubCommand {
             Example {
                 description: "Convert a given date into a table.",
                 example: "2020-04-12T22:10:57.000000789+02:00 | date to-table",
-                result: Some(Value::test_list(vec![Value::test_record(record!(
-                    "year" =>       Value::test_int(2020),
-                    "month" =>      Value::test_int(4),
-                    "day" =>        Value::test_int(12),
-                    "hour" =>       Value::test_int(22),
-                    "minute" =>     Value::test_int(10),
-                    "second" =>     Value::test_int(57),
-                    "nanosecond" => Value::test_int(789),
-                    "timezone" =>   Value::test_string("+02:00".to_string()),
-                ))])),
+                result: Some(Value::test_list(
+                    [Value::test_record(record!(
+                        "year" =>       Value::test_int(2020),
+                        "month" =>      Value::test_int(4),
+                        "day" =>        Value::test_int(12),
+                        "hour" =>       Value::test_int(22),
+                        "minute" =>     Value::test_int(10),
+                        "second" =>     Value::test_int(57),
+                        "nanosecond" => Value::test_int(789),
+                        "timezone" =>   Value::test_string("+02:00".to_string()),
+                    ))]
+                    .into(),
+                )),
             },
             Example {
                 description: "Convert a given date into a table.",
                 example: "'2020-04-12 22:10:57 +0200' | into datetime | date to-table",
-                result: Some(Value::test_list(vec![Value::test_record(record!(
-                    "year" =>       Value::test_int(2020),
-                    "month" =>      Value::test_int(4),
-                    "day" =>        Value::test_int(12),
-                    "hour" =>       Value::test_int(22),
-                    "minute" =>     Value::test_int(10),
-                    "second" =>     Value::test_int(57),
-                    "nanosecond" => Value::test_int(0),
-                    "timezone" =>   Value::test_string("+02:00".to_string()),
-                ))])),
+                result: Some(Value::test_list(
+                    [Value::test_record(record!(
+                        "year" =>       Value::test_int(2020),
+                        "month" =>      Value::test_int(4),
+                        "day" =>        Value::test_int(12),
+                        "hour" =>       Value::test_int(22),
+                        "minute" =>     Value::test_int(10),
+                        "second" =>     Value::test_int(57),
+                        "nanosecond" => Value::test_int(0),
+                        "timezone" =>   Value::test_string("+02:00".to_string()),
+                    ))]
+                    .into(),
+                )),
             },
         ]
     }
@@ -104,7 +110,7 @@ fn parse_date_into_table(date: DateTime<FixedOffset>, head: Span) -> Value {
         "timezone" => Value::string(date.offset().to_string(), head),
     };
 
-    Value::list(vec![Value::record(record, head)], head)
+    Value::list([Value::record(record, head)].into(), head)
 }
 
 fn helper(val: Value, head: Span) -> Value {

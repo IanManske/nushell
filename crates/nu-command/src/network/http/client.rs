@@ -2,6 +2,7 @@ use crate::formats::value_to_json_value;
 use base64::engine::general_purpose::PAD;
 use base64::engine::GeneralPurpose;
 use base64::{alphabet, Engine};
+use ecow::EcoVec;
 use nu_protocol::ast::Call;
 use nu_protocol::engine::{EngineState, Stack};
 use nu_protocol::{
@@ -602,7 +603,7 @@ fn extract_response_headers(response: &Response) -> Headers {
 }
 
 fn headers_to_nu(headers: &Headers, span: Span) -> Result<PipelineData, ShellError> {
-    let mut vals = Vec::with_capacity(headers.len());
+    let mut vals = EcoVec::with_capacity(headers.len());
 
     for (name, values) in headers {
         let is_duplicate = vals.iter().any(|val| {

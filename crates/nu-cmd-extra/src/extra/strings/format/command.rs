@@ -87,7 +87,7 @@ impl Command for Format {
                 description: "Print elements from some columns of a table",
                 example: "[[col1, col2]; [v1, v2] [v3, v4]] | format '{col2}'",
                 result: Some(Value::list(
-                    vec![Value::test_string("v2"), Value::test_string("v4")],
+                    [Value::test_string("v2"), Value::test_string("v4")].into(),
                     Span::test_data(),
                 )),
             },

@@ -1,3 +1,4 @@
+use ecow::EcoVec;
 use nu_engine::CallExt;
 use nu_protocol::{
     ast::Call,
@@ -130,10 +131,10 @@ fn command(
     call: &Call,
     input: PipelineData,
 ) -> Result<PipelineData, ShellError> {
-    let id_col: Vec<Value> = call
+    let id_col: EcoVec<Value> = call
         .get_flag(engine_state, stack, "columns")?
         .expect("required value");
-    let val_col: Vec<Value> = call
+    let val_col: EcoVec<Value> = call
         .get_flag(engine_state, stack, "values")?
         .expect("required value");
 

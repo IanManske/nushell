@@ -107,7 +107,7 @@ If multiple cell paths are given, this will produce a list of values."#
                 description: "Get a column from a table",
                 example: "[{A: A0}] | get A",
                 result: Some(Value::list(
-                    vec![Value::test_string("A0")],
+                    [Value::test_string("A0")].into(),
                     Span::test_data(),
                 )),
             },

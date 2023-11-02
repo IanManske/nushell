@@ -1,3 +1,4 @@
+use ecow::EcoVec;
 use nu_engine::{eval_block, CallExt};
 use nu_protocol::ast::{Call, CellPath};
 use nu_protocol::engine::{Closure, Command, EngineState, Stack};
@@ -75,13 +76,13 @@ impl Command for GroupBy {
                 example: "[foo.txt bar.csv baz.txt] | group-by { path parse | get extension }",
                 result: Some(Value::test_record(record! {
                     "txt" =>  Value::test_list(
-                            vec![
+                            [
                                 Value::test_string("foo.txt"),
                                 Value::test_string("baz.txt"),
-                            ],
+                            ].into(),
                         ),
                     "csv" => Value::test_list(
-                            vec![Value::test_string("bar.csv")],
+                            [Value::test_string("bar.csv")].into(),
                         ),
                 })),
             },
@@ -90,35 +91,35 @@ impl Command for GroupBy {
                 example: "['1' '3' '1' '3' '2' '1' '1'] | group-by",
                 result: Some(Value::test_record(record! {
                     "1" =>  Value::test_list(
-                            vec![
+                            [
                                 Value::test_string("1"),
                                 Value::test_string("1"),
                                 Value::test_string("1"),
                                 Value::test_string("1"),
-                            ],
+                            ].into(),
                         ),
                     "3" =>  Value::test_list(
-                            vec![Value::test_string("3"), Value::test_string("3")],
+                            [Value::test_string("3"), Value::test_string("3")].into(),
                         ),
                     "2" => Value::test_list(
-                            vec![Value::test_string("2")],
+                            [Value::test_string("2")].into(),
                         ),
                 })),
             },
             Example {
                 description: "You can also output a table instead of a record",
                 example: "['1' '3' '1' '3' '2' '1' '1'] | group-by --to-table",
-                result: Some(Value::test_list(vec![
+                result: Some(Value::test_list([
                     Value::test_record(
                         record! {
                             "group" => Value::test_string("1"),
                             "items" => Value::test_list(
-                                vec![
+                                [
                                     Value::test_string("1"),
                                     Value::test_string("1"),
                                     Value::test_string("1"),
                                     Value::test_string("1"),
-                                ]
+                                ].into()
                             )
                         }
                     ),
@@ -126,10 +127,10 @@ impl Command for GroupBy {
                         record! {
                             "group" => Value::test_string("3"),
                             "items" => Value::test_list(
-                                vec![
+                                [
                                     Value::test_string("3"),
                                     Value::test_string("3"),
-                                ]
+                                ].into()
                             )
                         }
                     ),
@@ -137,19 +138,19 @@ impl Command for GroupBy {
                         record! {
                             "group" => Value::test_string("2"),
                             "items" => Value::test_list(
-                                vec![
+                                [
                                     Value::test_string("2"),
-                                ]
+                                ].into()
                             )
                         }
                     ),
-                ])),
+                ].into())),
             },
         ]
     }
 }
 
-pub fn group_by(
+fn group_by(
     engine_state: &EngineState,
     stack: &mut Stack,
     call: &Call,
@@ -197,11 +198,11 @@ pub fn group_by(
     Ok(PipelineData::Value(value, None))
 }
 
-pub fn group_cell_path(
+fn group_cell_path(
     column_name: CellPath,
     values: Vec<Value>,
-) -> Result<IndexMap<String, Vec<Value>>, ShellError> {
-    let mut groups: IndexMap<String, Vec<Value>> = IndexMap::new();
+) -> Result<IndexMap<String, EcoVec<Value>>, ShellError> {
+    let mut groups: IndexMap<String, EcoVec<Value>> = IndexMap::new();
 
     for value in values.into_iter() {
         let group_key = value
@@ -219,8 +220,8 @@ pub fn group_cell_path(
     Ok(groups)
 }
 
-pub fn group_no_grouper(values: Vec<Value>) -> Result<IndexMap<String, Vec<Value>>, ShellError> {
-    let mut groups: IndexMap<String, Vec<Value>> = IndexMap::new();
+fn group_no_grouper(values: Vec<Value>) -> Result<IndexMap<String, EcoVec<Value>>, ShellError> {
+    let mut groups: IndexMap<String, EcoVec<Value>> = IndexMap::new();
 
     for value in values.into_iter() {
         let group_key = value.as_string()?;
@@ -239,10 +240,10 @@ fn group_closure(
     stack: &mut Stack,
     engine_state: &EngineState,
     call: &Call,
-) -> Result<IndexMap<String, Vec<Value>>, ShellError> {
+) -> Result<IndexMap<String, EcoVec<Value>>, ShellError> {
     let error_key = "error";
     let mut keys: Vec<Result<String, ShellError>> = vec![];
-    let value_list = Value::list(values.to_vec(), span);
+    let value_list = Value::list(values.into(), span);
 
     for value in values {
         if let Some(capture_block) = &block {
@@ -292,7 +293,7 @@ fn group_closure(
     });
 
     let grouper = &Some(block);
-    let mut groups: IndexMap<String, Vec<Value>> = IndexMap::new();
+    let mut groups: IndexMap<String, EcoVec<Value>> = IndexMap::new();
 
     for (idx, value) in value_list.into_pipeline_data().into_iter().enumerate() {
         let group_key = if let Some(ref grouper) = grouper {
@@ -308,7 +309,7 @@ fn group_closure(
     Ok(groups)
 }
 
-fn groups_to_record(groups: IndexMap<String, Vec<Value>>, span: Span) -> Value {
+fn groups_to_record(groups: IndexMap<String, EcoVec<Value>>, span: Span) -> Value {
     Value::record(
         groups
             .into_iter()
@@ -318,7 +319,7 @@ fn groups_to_record(groups: IndexMap<String, Vec<Value>>, span: Span) -> Value {
     )
 }
 
-fn groups_to_table(groups: IndexMap<String, Vec<Value>>, span: Span) -> Value {
+fn groups_to_table(groups: IndexMap<String, EcoVec<Value>>, span: Span) -> Value {
     Value::list(
         groups
             .into_iter()

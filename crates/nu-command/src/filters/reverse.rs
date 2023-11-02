@@ -38,24 +38,30 @@ impl Command for Reverse {
             Example {
                 example: "[0,1,2,3] | reverse",
                 description: "Reverse a list",
-                result: Some(Value::test_list(vec![
-                    Value::test_int(3),
-                    Value::test_int(2),
-                    Value::test_int(1),
-                    Value::test_int(0),
-                ])),
+                result: Some(Value::test_list(
+                    [
+                        Value::test_int(3),
+                        Value::test_int(2),
+                        Value::test_int(1),
+                        Value::test_int(0),
+                    ]
+                    .into(),
+                )),
             },
             Example {
                 example: "[{a: 1} {a: 2}] | reverse",
                 description: "Reverse a table",
-                result: Some(Value::test_list(vec![
-                    Value::test_record(record! {
-                        "a" => Value::test_int(2),
-                    }),
-                    Value::test_record(record! {
-                        "a" => Value::test_int(1),
-                    }),
-                ])),
+                result: Some(Value::test_list(
+                    [
+                        Value::test_record(record! {
+                            "a" => Value::test_int(2),
+                        }),
+                        Value::test_record(record! {
+                            "a" => Value::test_int(1),
+                        }),
+                    ]
+                    .into(),
+                )),
             },
         ]
     }

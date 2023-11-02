@@ -21,10 +21,12 @@ pub fn sort_value(
     match val {
         Value::List { vals, .. } => {
             let mut vals = vals.clone();
-            sort(&mut vals, sort_columns, span, insensitive, natural)?;
-
-            if !ascending {
-                vals.reverse();
+            {
+                let vals = vals.make_mut();
+                sort(vals, sort_columns, span, insensitive, natural)?;
+                if !ascending {
+                    vals.reverse();
+                }
             }
 
             Ok(Value::list(vals, span))
@@ -48,6 +50,7 @@ pub fn sort_value_in_place(
 ) -> Result<(), ShellError> {
     let span = val.span();
     if let Value::List { vals, .. } = val {
+        let vals = vals.make_mut();
         sort(vals, sort_columns, span, insensitive, natural)?;
         if !ascending {
             vals.reverse();
@@ -231,115 +234,133 @@ mod tests {
 
     #[test]
     fn test_sort_value() {
-        let val = Value::test_list(vec![
-            Value::test_record(record! {
-            "fruit" => Value::test_string("pear"),
-            "count" => Value::test_int(3),
-            }),
-            Value::test_record(record! {
-            "fruit" => Value::test_string("orange"),
-            "count" => Value::test_int(7),
-            }),
-            Value::test_record(record! {
-            "fruit" => Value::test_string("apple"),
-            "count" => Value::test_int(9),
-            }),
-        ]);
+        let val = Value::test_list(
+            [
+                Value::test_record(record! {
+                    "fruit" => Value::test_string("pear"),
+                    "count" => Value::test_int(3),
+                }),
+                Value::test_record(record! {
+                    "fruit" => Value::test_string("orange"),
+                    "count" => Value::test_int(7),
+                }),
+                Value::test_record(record! {
+                    "fruit" => Value::test_string("apple"),
+                    "count" => Value::test_int(9),
+                }),
+            ]
+            .into(),
+        );
 
         let sorted_alphabetically =
             sort_value(&val, vec!["fruit".to_string()], true, false, false).unwrap();
         assert_eq!(
             sorted_alphabetically,
-            Value::test_list(vec![
-                Value::test_record(record! {
-                "fruit" => Value::test_string("apple"),
-                "count" => Value::test_int(9),
-                            }),
-                Value::test_record(record! {
-                "fruit" => Value::test_string("orange"),
-                "count" => Value::test_int(7),
-                            }),
-                Value::test_record(record! {
-                "fruit" => Value::test_string("pear"),
-                "count" => Value::test_int(3),
-                            }),
-            ],)
+            Value::test_list(
+                [
+                    Value::test_record(record! {
+                        "fruit" => Value::test_string("apple"),
+                        "count" => Value::test_int(9),
+                    }),
+                    Value::test_record(record! {
+                        "fruit" => Value::test_string("orange"),
+                        "count" => Value::test_int(7),
+                    }),
+                    Value::test_record(record! {
+                        "fruit" => Value::test_string("pear"),
+                        "count" => Value::test_int(3),
+                    }),
+                ]
+                .into()
+            )
         );
 
         let sorted_by_count_desc =
             sort_value(&val, vec!["count".to_string()], false, false, false).unwrap();
         assert_eq!(
             sorted_by_count_desc,
-            Value::test_list(vec![
-                Value::test_record(record! {
-                "fruit" => Value::test_string("apple"),
-                "count" => Value::test_int(9),
-                            }),
-                Value::test_record(record! {
-                "fruit" => Value::test_string("orange"),
-                "count" => Value::test_int(7),
-                            }),
-                Value::test_record(record! {
-                "fruit" => Value::test_string("pear"),
-                "count" => Value::test_int(3),
-                            }),
-            ],)
+            Value::test_list(
+                [
+                    Value::test_record(record! {
+                        "fruit" => Value::test_string("apple"),
+                        "count" => Value::test_int(9),
+                    }),
+                    Value::test_record(record! {
+                        "fruit" => Value::test_string("orange"),
+                        "count" => Value::test_int(7),
+                    }),
+                    Value::test_record(record! {
+                        "fruit" => Value::test_string("pear"),
+                        "count" => Value::test_int(3),
+                    }),
+                ]
+                .into(),
+            )
         );
     }
 
     #[test]
     fn test_sort_value_in_place() {
-        let mut val = Value::test_list(vec![
-            Value::test_record(record! {
-            "fruit" => Value::test_string("pear"),
-            "count" => Value::test_int(3),
-            }),
-            Value::test_record(record! {
-            "fruit" => Value::test_string("orange"),
-            "count" => Value::test_int(7),
-            }),
-            Value::test_record(record! {
-            "fruit" => Value::test_string("apple"),
-            "count" => Value::test_int(9),
-            }),
-        ]);
+        let mut val = Value::test_list(
+            [
+                Value::test_record(record! {
+                    "fruit" => Value::test_string("pear"),
+                    "count" => Value::test_int(3),
+                }),
+                Value::test_record(record! {
+                    "fruit" => Value::test_string("orange"),
+                    "count" => Value::test_int(7),
+                }),
+                Value::test_record(record! {
+                    "fruit" => Value::test_string("apple"),
+                    "count" => Value::test_int(9),
+                }),
+            ]
+            .into(),
+        );
 
         sort_value_in_place(&mut val, vec!["fruit".to_string()], true, false, false).unwrap();
         assert_eq!(
             val,
-            Value::test_list(vec![
-                Value::test_record(record! {
-                "fruit" => Value::test_string("apple"),
-                "count" => Value::test_int(9),
-                            }),
-                Value::test_record(record! {
-                "fruit" => Value::test_string("orange"),
-                "count" => Value::test_int(7),
-                            }),
-                Value::test_record(record! {
-                "fruit" => Value::test_string("pear"),
-                "count" => Value::test_int(3),
-                            }),
-            ],)
+            Value::test_list(
+                [
+                    Value::test_record(record! {
+                        "fruit" => Value::test_string("apple"),
+                        "count" => Value::test_int(9),
+                    }),
+                    Value::test_record(record! {
+                        "fruit" => Value::test_string("orange"),
+                        "count" => Value::test_int(7),
+                    }),
+                    Value::test_record(record! {
+                        "fruit" => Value::test_string("pear"),
+                        "count" => Value::test_int(3),
+                    }),
+                ]
+                .into()
+            )
         );
 
         sort_value_in_place(&mut val, vec!["count".to_string()], false, false, false).unwrap();
         assert_eq!(
             val,
-            Value::test_list(vec![
-                Value::test_record(record! {
-                "fruit" => Value::test_string("apple"),
-                "count" => Value::test_int(9),
-                            }),
-                Value::test_record(record! {
-                "fruit" => Value::test_string("orange"),
-                "count" => Value::test_int(7),
-                            }),
-                Value::test_record(record! {
-                "fruit" => Value::test_string("pear"),
-                "count" => Value::test_int(3),
-                            }),
-            ],)
+            Value::test_list(
+                [
+                    Value::test_record(record! {
+                        "fruit" => Value::test_string("apple"),
+                        "count" => Value::test_int(9),
+                    }),
+                    Value::test_record(record! {
+                        "fruit" => Value::test_string("orange"),
+                        "count" => Value::test_int(7),
+                    }),
+                    Value::test_record(record! {
+                        "fruit" => Value::test_string("pear"),
+                        "count" => Value::test_int(3),
+                    }),
+                ]
+                .into()
+            )
         );
     }
 }

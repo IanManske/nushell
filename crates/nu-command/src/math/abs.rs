@@ -55,11 +55,12 @@ impl Command for SubCommand {
             description: "Compute absolute value of each number in a list of numbers",
             example: "[-50 -100.0 25] | math abs",
             result: Some(Value::list(
-                vec![
+                [
                     Value::test_int(50),
                     Value::test_float(100.0),
                     Value::test_int(25),
-                ],
+                ]
+                .into(),
                 Span::test_data(),
             )),
         }]

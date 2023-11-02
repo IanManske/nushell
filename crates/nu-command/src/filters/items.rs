@@ -127,10 +127,11 @@ impl Command for Items {
                 "{ new: york, san: francisco } | items {|key, value| echo $'($key) ($value)' }",
             description: "Iterate over each key-value pair of a record",
             result: Some(Value::list(
-                vec![
+                [
                     Value::test_string("new york"),
                     Value::test_string("san francisco"),
-                ],
+                ]
+                .into(),
                 Span::test_data(),
             )),
         }]

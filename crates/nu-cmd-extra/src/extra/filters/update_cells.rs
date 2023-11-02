@@ -51,15 +51,18 @@ impl Command for UpdateCells {
             $value
           }
     }"#,
-                result: Some(Value::test_list(vec![Value::test_record(record! {
-                    "2021-04-16" => Value::test_int(37),
-                    "2021-06-10" => Value::test_string(""),
-                    "2021-09-18" => Value::test_string(""),
-                    "2021-10-15" => Value::test_string(""),
-                    "2021-11-16" => Value::test_int(37),
-                    "2021-11-17" => Value::test_string(""),
-                    "2021-11-18" => Value::test_string(""),
-                })])),
+                result: Some(Value::test_list(
+                    [Value::test_record(record! {
+                        "2021-04-16" => Value::test_int(37),
+                        "2021-06-10" => Value::test_string(""),
+                        "2021-09-18" => Value::test_string(""),
+                        "2021-10-15" => Value::test_string(""),
+                        "2021-11-16" => Value::test_int(37),
+                        "2021-11-17" => Value::test_string(""),
+                        "2021-11-18" => Value::test_string(""),
+                    })]
+                    .into(),
+                )),
             },
             Example {
                 description: "Update the zero value cells to empty strings in 2 last columns.",
@@ -73,15 +76,18 @@ impl Command for UpdateCells {
               $value
             }
     }"#,
-                result: Some(Value::test_list(vec![Value::test_record(record! {
-                    "2021-04-16" => Value::test_int(37),
-                    "2021-06-10" => Value::test_int(0),
-                    "2021-09-18" => Value::test_int(0),
-                    "2021-10-15" => Value::test_int(0),
-                    "2021-11-16" => Value::test_int(37),
-                    "2021-11-17" => Value::test_string(""),
-                    "2021-11-18" => Value::test_string(""),
-                })])),
+                result: Some(Value::test_list(
+                    [Value::test_record(record! {
+                        "2021-04-16" => Value::test_int(37),
+                        "2021-06-10" => Value::test_int(0),
+                        "2021-09-18" => Value::test_int(0),
+                        "2021-10-15" => Value::test_int(0),
+                        "2021-11-16" => Value::test_int(37),
+                        "2021-11-17" => Value::test_string(""),
+                        "2021-11-18" => Value::test_string(""),
+                    })]
+                    .into(),
+                )),
             },
         ]
     }

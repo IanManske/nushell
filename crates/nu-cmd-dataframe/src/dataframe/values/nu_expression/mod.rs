@@ -311,9 +311,12 @@ pub fn expr_to_value(expr: &Expr, span: Span) -> Result<Value, ShellError> {
             by,
             descending,
         } => {
-            let by: Result<Vec<Value>, ShellError> =
-                by.iter().map(|b| expr_to_value(b, span)).collect();
-            let descending: Vec<Value> = descending.iter().map(|r| Value::bool(*r, span)).collect();
+            let by = by
+                .iter()
+                .map(|b| expr_to_value(b, span))
+                .collect::<Result<_, _>>();
+
+            let descending = descending.iter().map(|r| Value::bool(*r, span)).collect();
 
             Ok(Value::record(
                 record! {
@@ -370,11 +373,14 @@ pub fn expr_to_value(expr: &Expr, span: Span) -> Result<Value, ShellError> {
             output_type,
             options,
         } => {
-            let input: Result<Vec<Value>, ShellError> =
-                input.iter().map(|e| expr_to_value(e, span)).collect();
+            let input = input
+                .iter()
+                .map(|e| expr_to_value(e, span))
+                .collect::<Result<_, _>>()?;
+
             Ok(Value::record(
                 record! {
-                    "input" => Value::list(input?, span),
+                    "input" => Value::list(input, span),
                     "function" => Value::string(format!("{function:?}"), span),
                     "output_type" => Value::string(format!("{output_type:?}"), span),
                     "options" => Value::string(format!("{options:?}"), span),
@@ -387,11 +393,14 @@ pub fn expr_to_value(expr: &Expr, span: Span) -> Result<Value, ShellError> {
             function,
             options,
         } => {
-            let input: Result<Vec<Value>, ShellError> =
-                input.iter().map(|e| expr_to_value(e, span)).collect();
+            let input = input
+                .iter()
+                .map(|e| expr_to_value(e, span))
+                .collect::<Result<_, _>>()?;
+
             Ok(Value::record(
                 record! {
-                    "input" => Value::list(input?, span),
+                    "input" => Value::list(input, span),
                     "function" => Value::string(format!("{function:?}"), span),
                     "options" => Value::string(format!("{options:?}"), span),
                 },
@@ -404,10 +413,10 @@ pub fn expr_to_value(expr: &Expr, span: Span) -> Result<Value, ShellError> {
             order_by,
             options,
         } => {
-            let partition_by: Result<Vec<Value>, ShellError> = partition_by
+            let partition_by = partition_by
                 .iter()
                 .map(|e| expr_to_value(e, span))
-                .collect();
+                .collect::<Result<_, _>>()?;
 
             let order_by = order_by
                 .as_ref()
@@ -418,7 +427,7 @@ pub fn expr_to_value(expr: &Expr, span: Span) -> Result<Value, ShellError> {
             Ok(Value::record(
                 record! {
                     "function" => expr_to_value(function, span)?,
-                    "partition_by" => Value::list(partition_by?, span),
+                    "partition_by" => Value::list(partition_by, span),
                     "order_by" => order_by,
                     "options" => Value::string(format!("{options:?}"), span),
                 },

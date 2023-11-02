@@ -65,11 +65,12 @@ impl Command for SubCommand {
                 description: "Reverse multiple strings in a list",
                 example: "['Nushell' 'is' 'cool'] | str reverse",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_string("llehsuN"),
                         Value::test_string("si"),
                         Value::test_string("looc"),
-                    ],
+                    ]
+                    .into(),
                     Span::test_data(),
                 )),
             },

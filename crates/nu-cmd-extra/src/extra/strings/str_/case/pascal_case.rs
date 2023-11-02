@@ -79,10 +79,13 @@ impl Command for SubCommand {
             Example {
                 description: "convert a column from a table to PascalCase",
                 example: r#"[[lang, gems]; [nu_test, 100]] | str pascal-case lang"#,
-                result: Some(Value::test_list(vec![Value::test_record(record! {
-                    "lang" => Value::test_string("NuTest"),
-                    "gems" => Value::test_int(100),
-                })])),
+                result: Some(Value::test_list(
+                    [Value::test_record(record! {
+                        "lang" => Value::test_string("NuTest"),
+                        "gems" => Value::test_int(100),
+                    })]
+                    .into(),
+                )),
             },
         ]
     }

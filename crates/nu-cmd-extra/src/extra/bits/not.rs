@@ -85,11 +85,12 @@ impl Command for BitsNot {
                 description: "Apply logical negation to a list of numbers",
                 example: "[4 3 2] | bits not",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_int(140737488355323),
                         Value::test_int(140737488355324),
                         Value::test_int(140737488355325),
-                    ],
+                    ]
+                    .into(),
                     Span::test_data(),
                 )),
             },
@@ -98,11 +99,12 @@ impl Command for BitsNot {
                     "Apply logical negation to a list of numbers, treat input as 2 bytes number",
                 example: "[4 3 2] | bits not --number-bytes '2'",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_int(65531),
                         Value::test_int(65532),
                         Value::test_int(65533),
-                    ],
+                    ]
+                    .into(),
                     Span::test_data(),
                 )),
             },
@@ -111,11 +113,12 @@ impl Command for BitsNot {
                     "Apply logical negation to a list of numbers, treat input as signed number",
                 example: "[4 3 2] | bits not --signed",
                 result: Some(Value::list(
-                    vec![
+                    [
                         Value::test_int(-5),
                         Value::test_int(-4),
                         Value::test_int(-3),
-                    ],
+                    ]
+                    .into(),
                     Span::test_data(),
                 )),
             },

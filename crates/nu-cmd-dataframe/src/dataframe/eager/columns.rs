@@ -28,7 +28,7 @@ impl Command for ColumnsDF {
             description: "Dataframe columns",
             example: "[[a b]; [1 2] [3 4]] | dfr into-df | dfr columns",
             result: Some(Value::list(
-                vec![Value::test_string("a"), Value::test_string("b")],
+                [Value::test_string("a"), Value::test_string("b")].into(),
                 Span::test_data(),
             )),
         }]
@@ -53,7 +53,7 @@ fn command(
 ) -> Result<PipelineData, ShellError> {
     let df = NuDataFrame::try_from_pipeline(input, call.head)?;
 
-    let names: Vec<Value> = df
+    let names = df
         .as_ref()
         .get_column_names()
         .iter()

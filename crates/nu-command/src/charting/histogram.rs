@@ -52,7 +52,7 @@ impl Command for Histogram {
                 description: "Compute a histogram for a list of numbers",
                 example: "[1 2 1] | histogram",
                 result: Some(Value::test_list (
-                        vec![Value::test_record(record! {
+                        [Value::test_record(record! {
                             "value" =>      Value::test_int(1),
                             "count" =>      Value::test_int(2),
                             "quantile" =>   Value::test_float(0.6666666666666666),
@@ -65,7 +65,7 @@ impl Command for Histogram {
                             "quantile" =>   Value::test_float(0.3333333333333333),
                             "percentage" => Value::test_string("33.33%"),
                             "frequency" =>  Value::test_string("*********************************"),
-                        })],
+                        })].into(),
                     )
                  ),
             },

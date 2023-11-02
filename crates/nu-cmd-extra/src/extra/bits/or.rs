@@ -65,7 +65,7 @@ impl Command for BitsOr {
                 description: "Apply logical or to a list of numbers",
                 example: "[8 3 2] | bits or 2",
                 result: Some(Value::list(
-                    vec![Value::test_int(10), Value::test_int(3), Value::test_int(2)],
+                    [Value::test_int(10), Value::test_int(3), Value::test_int(2)].into(),
                     Span::test_data(),
                 )),
             },
