@@ -1,3 +1,4 @@
+use ecow::{EcoString, EcoVec};
 use nu_engine::CallExt;
 use nu_protocol::ast::{Call, CellPath};
 use nu_protocol::engine::{Command, EngineState, Stack};
@@ -146,14 +147,14 @@ fn dropcol(
     }
 }
 
-fn get_input_cols(input: &[Value]) -> Vec<String> {
+fn get_input_cols(input: &[Value]) -> EcoVec<EcoString> {
     match input.first() {
         Some(Value::Record { val, .. }) => val.cols.clone(),
-        _ => vec!["".to_string()],
+        _ => ["".into()].into(),
     }
 }
 
-fn get_cellpath_columns(keep_cols: Vec<String>, span: Span) -> Vec<CellPath> {
+fn get_cellpath_columns(keep_cols: Vec<EcoString>, span: Span) -> Vec<CellPath> {
     let mut output = vec![];
     for keep_col in keep_cols {
         let val = Value::string(keep_col, span);
@@ -166,7 +167,7 @@ fn get_cellpath_columns(keep_cols: Vec<String>, span: Span) -> Vec<CellPath> {
     output
 }
 
-fn get_keep_columns(input: Vec<String>, mut num_of_columns_to_drop: i64) -> Vec<String> {
+fn get_keep_columns(input: EcoVec<EcoString>, mut num_of_columns_to_drop: i64) -> Vec<EcoString> {
     let vlen: i64 = input.len() as i64;
 
     if num_of_columns_to_drop > vlen {

@@ -1,4 +1,4 @@
-use ecow::EcoVec;
+use ecow::{EcoString, EcoVec};
 use indexmap::map::IndexMap;
 use nu_cmd_base::formats::to::delimited::merge_descriptors;
 use nu_protocol::ast::Call;
@@ -135,7 +135,7 @@ fn fragment(input: Value, pretty: bool, config: &Config) -> String {
     out
 }
 
-fn collect_headers(headers: &[String]) -> (Vec<String>, Vec<usize>) {
+fn collect_headers(headers: &[EcoString]) -> (Vec<String>, Vec<usize>) {
     let mut escaped_headers: Vec<String> = Vec::new();
     let mut column_widths: Vec<usize> = Vec::new();
 

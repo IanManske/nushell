@@ -80,23 +80,20 @@ pub fn calculate(
             ),
             _ => mf(vals, span, name),
         },
-        PipelineData::Value(Value::Record { val: record, .. }, ..) => {
-            let new_vals: Result<Vec<Value>, ShellError> = record
-                .vals
-                .into_iter()
-                .map(|val| mf(&[val], span, name))
-                .collect();
-            match new_vals {
-                Ok(vec) => Ok(Value::record(
+        PipelineData::Value(Value::Record { val: record, .. }, ..) => record
+            .vals
+            .into_iter()
+            .map(|val| mf(&[val], span, name))
+            .collect::<Result<_, _>>()
+            .map(|vals| {
+                Value::record(
                     Record {
                         cols: record.cols,
-                        vals: vec,
+                        vals,
                     },
                     span,
-                )),
-                Err(err) => Err(err),
-            }
-        }
+                )
+            }),
         PipelineData::Value(Value::Range { val, .. }, ..) => {
             let new_vals: Result<Vec<Value>, ShellError> = val
                 .into_range_iter(None)?

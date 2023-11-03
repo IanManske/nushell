@@ -41,7 +41,7 @@ impl Command for Clear {
             let mut cmd = CommandSys::new("/bin/sh");
 
             if let Some(Value::String { val, .. }) = stack.get_env_var(engine_state, "TERM") {
-                cmd.env("TERM", val);
+                cmd.env("TERM", val.as_str());
             }
 
             cmd.args(["-c", "clear"])

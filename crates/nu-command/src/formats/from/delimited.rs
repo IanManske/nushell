@@ -1,4 +1,5 @@
 use csv::{ReaderBuilder, Trim};
+use ecow::EcoVec;
 use nu_protocol::{IntoPipelineData, PipelineData, Record, ShellError, Span, Value};
 
 fn from_delimited_string_to_value(
@@ -27,10 +28,10 @@ fn from_delimited_string_to_value(
 
     let headers = if noheaders {
         (1..=reader.headers()?.len())
-            .map(|i| format!("column{i}"))
-            .collect::<Vec<String>>()
+            .map(|i| format!("column{i}").into())
+            .collect::<EcoVec<_>>()
     } else {
-        reader.headers()?.iter().map(String::from).collect()
+        reader.headers()?.iter().map(Into::into).collect()
     };
 
     let rows = reader

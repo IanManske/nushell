@@ -1,3 +1,4 @@
+use ecow::{EcoString, EcoVec};
 use indexmap::IndexMap;
 use nu_engine::CallExt;
 use nu_protocol::ast::{Call, CellPath, PathMember};
@@ -152,9 +153,9 @@ enum TableInside<'a> {
     // to outer level, for that case, the output column name should be f"{parent_column_name}_{inner_column_name}".
     // `parent_column_index` is the column index in original table.
     FlattenedRows {
-        columns: Vec<Vec<String>>,
+        columns: Vec<EcoVec<EcoString>>,
         _span: &'a Span,
-        values: Vec<Vec<Value>>,
+        values: Vec<EcoVec<Value>>,
         parent_column_name: &'a str,
         parent_column_index: usize,
     },
@@ -164,7 +165,7 @@ fn flat_value(columns: &[CellPath], item: &Value, name_tag: Span, all: bool) -> 
     let tag = item.span();
 
     if item.as_record().is_ok() {
-        let mut out = IndexMap::<String, Value>::new();
+        let mut out = IndexMap::new();
         let mut inner_table = None;
 
         let record = match item {
@@ -196,15 +197,15 @@ fn flat_value(columns: &[CellPath], item: &Value, name_tag: Span, all: bool) -> 
                     if need_flatten {
                         val.iter().for_each(|(col, val)| {
                             if out.contains_key(col) {
-                                out.insert(format!("{column}_{col}"), val.clone());
+                                out.insert(format!("{column}_{col}").into(), val.clone());
                             } else {
-                                out.insert(col.to_string(), val.clone());
+                                out.insert(col.clone(), val.clone());
                             }
                         })
                     } else if out.contains_key(column) {
-                        out.insert(format!("{column}_{column}"), value.clone());
+                        out.insert(format!("{column}_{column}").into(), value.clone());
                     } else {
-                        out.insert(column.to_string(), value.clone());
+                        out.insert(column.clone(), value.clone());
                     }
                 }
                 Value::List { vals, .. } if all && vals.iter().all(|f| f.as_record().is_ok()) => {
@@ -238,9 +239,9 @@ fn flat_value(columns: &[CellPath], item: &Value, name_tag: Span, all: bool) -> 
                             parent_column_index: column_index,
                         });
                     } else if out.contains_key(column) {
-                        out.insert(format!("{column}_{column}"), value.clone());
+                        out.insert(format!("{column}_{column}").into(), value.clone());
                     } else {
-                        out.insert(column.to_string(), value.clone());
+                        out.insert(column.clone(), value.clone());
                     }
                 }
                 Value::List { vals: values, .. } => {
@@ -264,11 +265,11 @@ fn flat_value(columns: &[CellPath], item: &Value, name_tag: Span, all: bool) -> 
                             inner_table = Some(TableInside::Entries(
                                 r,
                                 &s,
-                                values.iter().collect::<Vec<_>>(),
+                                values.iter().collect(),
                                 column_index,
                             ));
                         } else {
-                            out.insert(column.to_string(), value.clone());
+                            out.insert(column.clone(), value.clone());
                         }
                     } else {
                         inner_table = Some(TableInside::Entries(
@@ -280,7 +281,7 @@ fn flat_value(columns: &[CellPath], item: &Value, name_tag: Span, all: bool) -> 
                     }
                 }
                 _ => {
-                    out.insert(column.to_string(), value.clone());
+                    out.insert(column.clone(), value.clone());
                 }
             }
         }
@@ -328,7 +329,7 @@ fn flat_value(columns: &[CellPath], item: &Value, name_tag: Span, all: bool) -> 
                                 if record.cols.contains(col) {
                                     record.push(format!("{parent_column_name}_{col}"), val.clone());
                                 } else {
-                                    record.push(col, val.clone());
+                                    record.push(col.clone(), val.clone());
                                 };
                             }
                         }
@@ -343,7 +344,7 @@ fn flat_value(columns: &[CellPath], item: &Value, name_tag: Span, all: bool) -> 
                             if record.cols.contains(col) {
                                 record.push(format!("{parent_column_name}_{col}"), val.clone());
                             } else {
-                                record.push(col, val.clone());
+                                record.push(col.clone(), val.clone());
                             }
                         }
                     }

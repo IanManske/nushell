@@ -1,4 +1,5 @@
 use super::hashable_value::HashableValue;
+use ecow::eco_vec;
 use itertools::Itertools;
 use nu_engine::CallExt;
 use nu_protocol::ast::Call;
@@ -243,12 +244,12 @@ fn histogram_impl(
     }
 
     let mut result = vec![];
-    let result_cols = vec![
-        value_column_name.to_string(),
-        "count".to_string(),
-        "quantile".to_string(),
-        "percentage".to_string(),
-        freq_column.to_string(),
+    let result_cols = eco_vec![
+        value_column_name.into(),
+        "count".into(),
+        "quantile".into(),
+        "percentage".into(),
+        freq_column.into(),
     ];
     const MAX_FREQ_COUNT: f64 = 100.0;
     for (val, count) in counter.into_iter().sorted() {
@@ -265,13 +266,14 @@ fn histogram_impl(
             Value::record(
                 Record {
                     cols: result_cols.clone(),
-                    vals: vec![
+                    vals: [
                         val.into_value(),
                         Value::int(count, span),
                         Value::float(quantile, span),
                         Value::string(percentage, span),
                         Value::string(freq, span),
-                    ],
+                    ]
+                    .into(),
                 },
                 span,
             ),

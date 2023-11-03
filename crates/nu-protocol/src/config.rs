@@ -1,4 +1,5 @@
 use crate::{record, Record, ShellError, Span, Value};
+use ecow::EcoString;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -287,7 +288,7 @@ impl Value {
                 } else {
                     invalid!(Some($span), "should be a bool");
                     // Reconstruct
-                    $vals[$index] = Value::bool(config.$setting, $span);
+                    $vals.make_mut()[$index] = Value::bool(config.$setting, $span);
                 }
             };
         }
@@ -298,7 +299,7 @@ impl Value {
                 } else {
                     invalid!(Some($span), "should be an int");
                     // Reconstruct
-                    $vals[$index] = Value::int(config.$setting, $span);
+                    $vals.make_mut()[$index] = Value::int(config.$setting, $span);
                 }
             };
         }
@@ -339,7 +340,7 @@ impl Value {
                 match key {
                     // Grouped options
                     "ls" => {
-                        if let Value::Record { val, .. } = &mut vals[index] {
+                        if let Value::Record { val, .. } = &mut vals.make_mut()[index] {
                             let Record { cols, vals } = val;
                             for index in (0..cols.len()).rev() {
                                 let value = &vals[index];
@@ -369,7 +370,7 @@ impl Value {
                         } else {
                             invalid!(Some(vals[index].span()), "should be a record");
                             // Reconstruct
-                            vals[index] = Value::record(
+                            vals.make_mut()[index] = Value::record(
                                 record! {
                                     "use_ls_colors" => Value::bool(config.use_ls_colors, span),
                                     "clickable_links" => Value::bool(config.show_clickable_links_in_ls, span),
@@ -379,7 +380,7 @@ impl Value {
                         }
                     }
                     "cd" => {
-                        if let Value::Record { val, .. } = &mut vals[index] {
+                        if let Value::Record { val, .. } = &mut vals.make_mut()[index] {
                             let Record { cols, vals } = val;
                             for index in (0..cols.len()).rev() {
                                 let value = &vals[index];
@@ -397,7 +398,7 @@ impl Value {
                         } else {
                             invalid!(Some(vals[index].span()), "should be a record");
                             // Reconstruct
-                            vals[index] = Value::record(
+                            vals.make_mut()[index] = Value::record(
                                 record! {
                                     "use_ls_colors" => Value::bool(config.use_ls_colors, span),
                                     "clickable_links" => Value::bool(config.show_clickable_links_in_ls, span),
@@ -407,7 +408,7 @@ impl Value {
                         }
                     }
                     "rm" => {
-                        if let Value::Record { val, .. } = &mut vals[index] {
+                        if let Value::Record { val, .. } = &mut vals.make_mut()[index] {
                             let Record { cols, vals } = val;
                             for index in (0..cols.len()).rev() {
                                 let value = &vals[index];
@@ -430,7 +431,7 @@ impl Value {
                         } else {
                             invalid!(Some(vals[index].span()), "should be a record");
                             // Reconstruct
-                            vals[index] = Value::record(
+                            vals.make_mut()[index] = Value::record(
                                 record! {
                                     "always_trash" => Value::bool(config.rm_always_trash, span),
                                 },
@@ -449,7 +450,7 @@ impl Value {
                             )
                         }
 
-                        if let Value::Record { val, .. } = &mut vals[index] {
+                        if let Value::Record { val, .. } = &mut vals.make_mut()[index] {
                             let Record { cols, vals } = val;
                             for index in (0..cols.len()).rev() {
                                 let value = &vals[index];
@@ -481,15 +482,16 @@ impl Value {
                                                         "unrecognized $env.config.{key}.{key2} '{val_str}'; expected either 'sqlite' or 'plaintext'"
                                                     );
                                                     // Reconstruct
-                                                    vals[index] = reconstruct_history_file_format(
-                                                        &config, span,
-                                                    );
+                                                    vals.make_mut()[index] =
+                                                        reconstruct_history_file_format(
+                                                            &config, span,
+                                                        );
                                                 }
                                             };
                                         } else {
                                             invalid!(Some(span), "should be a string");
                                             // Reconstruct
-                                            vals[index] =
+                                            vals.make_mut()[index] =
                                                 reconstruct_history_file_format(&config, span);
                                         }
                                     }
@@ -507,7 +509,7 @@ impl Value {
                         } else {
                             invalid!(Some(vals[index].span()), "should be a record");
                             // Reconstruct
-                            vals[index] = Value::record(
+                            vals.make_mut()[index] = Value::record(
                                 record! {
                                     "sync_on_enter" => Value::bool(config.sync_history_on_enter, span),
                                     "max_size" => Value::int(config.max_history_size, span),
@@ -538,7 +540,7 @@ impl Value {
                             )
                         }
 
-                        if let Value::Record { val, .. } = &mut vals[index] {
+                        if let Value::Record { val, .. } = &mut vals.make_mut()[index] {
                             let Record { cols, vals } = val;
                             for index in (0..cols.len()).rev() {
                                 let value = &vals[index];
@@ -563,7 +565,7 @@ impl Value {
                                                         "unrecognized $env.config.{key}.{key2} '{val_str}'; expected either 'prefix' or 'fuzzy'"
                                                     );
                                                     // Reconstruct
-                                                    vals[index] = Value::string(
+                                                    vals.make_mut()[index] = Value::string(
                                                         config.completion_algorithm.clone(),
                                                         span,
                                                     );
@@ -572,7 +574,7 @@ impl Value {
                                         } else {
                                             invalid!(Some(span), "should be a string");
                                             // Reconstruct
-                                            vals[index] = Value::string(
+                                            vals.make_mut()[index] = Value::string(
                                                 config.completion_algorithm.clone(),
                                                 span,
                                             );
@@ -588,7 +590,9 @@ impl Value {
                                         )
                                     }
                                     "external" => {
-                                        if let Value::Record { val, .. } = &mut vals[index] {
+                                        if let Value::Record { val, .. } =
+                                            &mut vals.make_mut()[index]
+                                        {
                                             let Record { cols, vals } = val;
                                             for index in (0..cols.len()).rev() {
                                                 let value = &vals[index];
@@ -615,7 +619,7 @@ impl Value {
                                                                         "should be a block or null"
                                                                     );
                                                                     // Reconstruct
-                                                                    vals[index] = reconstruct_external_completer(&config,
+                                                                    vals.make_mut()[index] = reconstruct_external_completer(&config,
                                                                         span
                                                                     );
                                                                 }
@@ -645,7 +649,8 @@ impl Value {
                                         } else {
                                             invalid!(Some(span), "should be a record");
                                             // Reconstruct
-                                            vals[index] = reconstruct_external(&config, span);
+                                            vals.make_mut()[index] =
+                                                reconstruct_external(&config, span);
                                         }
                                     }
                                     x => {
@@ -662,7 +667,7 @@ impl Value {
                         } else {
                             invalid!(Some(vals[index].span()), "should be a record");
                             // Reconstruct record
-                            vals[index] = Value::record(
+                            vals.make_mut()[index] = Value::record(
                                 record! {
                                     "quick" => Value::bool(config.quick_completions, span),
                                     "partial" => Value::bool(config.partial_completions, span),
@@ -692,7 +697,7 @@ impl Value {
                                 span,
                             )
                         }
-                        if let Value::Record { val, .. } = &mut vals[index] {
+                        if let Value::Record { val, .. } = &mut vals.make_mut()[index] {
                             let Record { cols, vals } = val;
                             for index in (0..cols.len()).rev() {
                                 let value = &vals[index];
@@ -734,16 +739,17 @@ impl Value {
                                                         "unrecognized $env.config.{key}.{key2} '{val_str}'; expected either 'line', 'block', 'underscore', 'blink_line', 'blink_block', 'blink_underscore' or 'inherit'"
                                                     );
                                                     // Reconstruct
-                                                    vals[index] = reconstruct_cursor_shape(
-                                                        config.cursor_shape_vi_insert,
-                                                        span,
-                                                    );
+                                                    vals.make_mut()[index] =
+                                                        reconstruct_cursor_shape(
+                                                            config.cursor_shape_vi_insert,
+                                                            span,
+                                                        );
                                                 }
                                             };
                                         } else {
                                             invalid!(Some(span), "should be a string");
                                             // Reconstruct
-                                            vals[index] = reconstruct_cursor_shape(
+                                            vals.make_mut()[index] = reconstruct_cursor_shape(
                                                 config.cursor_shape_vi_insert,
                                                 span,
                                             );
@@ -785,16 +791,17 @@ impl Value {
                                                         "unrecognized $env.config.{key}.{key2} '{val_str}'; expected either 'line', 'block', 'underscore', 'blink_line', 'blink_block', 'blink_underscore' or 'inherit'"
                                                     );
                                                     // Reconstruct
-                                                    vals[index] = reconstruct_cursor_shape(
-                                                        config.cursor_shape_vi_normal,
-                                                        span,
-                                                    );
+                                                    vals.make_mut()[index] =
+                                                        reconstruct_cursor_shape(
+                                                            config.cursor_shape_vi_normal,
+                                                            span,
+                                                        );
                                                 }
                                             };
                                         } else {
                                             invalid!(Some(span), "should be a string");
                                             // Reconstruct
-                                            vals[index] = reconstruct_cursor_shape(
+                                            vals.make_mut()[index] = reconstruct_cursor_shape(
                                                 config.cursor_shape_vi_normal,
                                                 span,
                                             );
@@ -836,16 +843,17 @@ impl Value {
                                                         "unrecognized $env.config.{key}.{key2} '{val_str}'; expected either 'line', 'block', 'underscore', 'blink_line', 'blink_block', 'blink_underscore' or 'inherit'"
                                                     );
                                                     // Reconstruct
-                                                    vals[index] = reconstruct_cursor_shape(
-                                                        config.cursor_shape_emacs,
-                                                        span,
-                                                    );
+                                                    vals.make_mut()[index] =
+                                                        reconstruct_cursor_shape(
+                                                            config.cursor_shape_emacs,
+                                                            span,
+                                                        );
                                                 }
                                             };
                                         } else {
                                             invalid!(Some(span), "should be a string");
                                             // Reconstruct
-                                            vals[index] = reconstruct_cursor_shape(
+                                            vals.make_mut()[index] = reconstruct_cursor_shape(
                                                 config.cursor_shape_emacs,
                                                 span,
                                             );
@@ -865,7 +873,7 @@ impl Value {
                         } else {
                             invalid!(Some(vals[index].span()), "should be a record");
                             // Reconstruct
-                            vals[index] = Value::record(
+                            vals.make_mut()[index] = Value::record(
                                 record! {
                                     "vi_insert" => reconstruct_cursor_shape(config.cursor_shape_vi_insert, span),
                                     "vi_normal" => reconstruct_cursor_shape(config.cursor_shape_vi_normal, span),
@@ -911,7 +919,7 @@ impl Value {
                             }
                         }
 
-                        if let Value::Record { val, .. } = &mut vals[index] {
+                        if let Value::Record { val, .. } = &mut vals.make_mut()[index] {
                             let Record { cols, vals } = val;
                             for index in (0..cols.len()).rev() {
                                 let value = &vals[index];
@@ -922,7 +930,7 @@ impl Value {
                                             config.table_mode = v;
                                         } else {
                                             invalid!(Some(span), "should be a string");
-                                            vals[index] =
+                                            vals.make_mut()[index] =
                                                 Value::string(config.table_mode.clone(), span);
                                         }
                                     }
@@ -996,13 +1004,14 @@ impl Value {
                                                     invalid!( Some(span),
                                                         "unrecognized $env.config.{key}.{key2} '{val_str}'; expected either 'never', 'always' or 'auto'"
                                                     );
-                                                    vals[index] =
+                                                    vals.make_mut()[index] =
                                                         reconstruct_index_mode(&config, span);
                                                 }
                                             }
                                         } else {
                                             invalid!(Some(span), "should be a string");
-                                            vals[index] = reconstruct_index_mode(&config, span);
+                                            vals.make_mut()[index] =
+                                                reconstruct_index_mode(&config, span);
                                         }
                                     }
                                     "trim" => {
@@ -1011,7 +1020,7 @@ impl Value {
                                             Err(e) => {
                                                 // try_parse_trim_strategy() already adds its own errors
                                                 errors.push(e);
-                                                vals[index] =
+                                                vals.make_mut()[index] =
                                                     reconstruct_trim_strategy(&config, span);
                                             }
                                         }
@@ -1044,7 +1053,7 @@ impl Value {
                         } else {
                             invalid!(Some(vals[index].span()), "should be a record");
                             // Reconstruct
-                            vals[index] = Value::record(
+                            vals.make_mut()[index] = Value::record(
                                 record! {
                                     "mode" => Value::string(config.table_mode.clone(), span),
                                     "index_mode" => reconstruct_index_mode(&config, span),
@@ -1056,7 +1065,7 @@ impl Value {
                         }
                     }
                     "filesize" => {
-                        if let Value::Record { val, .. } = &mut vals[index] {
+                        if let Value::Record { val, .. } = &mut vals.make_mut()[index] {
                             let Record { cols, vals } = val;
                             for index in (0..cols.len()).rev() {
                                 let value = &vals[index];
@@ -1071,7 +1080,7 @@ impl Value {
                                         } else {
                                             invalid!(Some(span), "should be a string");
                                             // Reconstruct
-                                            vals[index] =
+                                            vals.make_mut()[index] =
                                                 Value::string(config.filesize_format.clone(), span);
                                         }
                                     }
@@ -1089,7 +1098,7 @@ impl Value {
                         } else {
                             invalid!(Some(vals[index].span()), "should be a record");
                             // Reconstruct
-                            vals[index] = Value::record(
+                            vals.make_mut()[index] = Value::record(
                                 record! {
                                     "metric" => Value::bool(config.filesize_metric, span),
                                     "format" => Value::string(config.filesize_format.clone(), span),
@@ -1104,11 +1113,11 @@ impl Value {
                         } else {
                             invalid!(Some(vals[index].span()), "should be a record");
                             // Reconstruct
-                            vals[index] = Value::record(
+                            vals.make_mut()[index] = Value::record(
                                 config
                                     .explore
                                     .iter()
-                                    .map(|(k, v)| (k.clone(), v.clone()))
+                                    .map(|(k, v)| (EcoString::from(k.as_str()), v.clone()))
                                     .collect(),
                                 span,
                             );
@@ -1121,11 +1130,11 @@ impl Value {
                         } else {
                             invalid!(Some(vals[index].span()), "should be a record");
                             // Reconstruct
-                            vals[index] = Value::record(
+                            vals.make_mut()[index] = Value::record(
                                 config
                                     .color_config
                                     .iter()
-                                    .map(|(k, v)| (k.clone(), v.clone()))
+                                    .map(|(k, v)| (EcoString::from(k.as_str()), v.clone()))
                                     .collect(),
                                 span,
                             );
@@ -1149,7 +1158,7 @@ impl Value {
                         } else {
                             invalid!(Some(span), "should be a string");
                             // Reconstruct
-                            vals[index] = Value::string(
+                            vals.make_mut()[index] = Value::string(
                                 match config.footer_mode {
                                     FooterMode::Auto => "auto".into(),
                                     FooterMode::Never => "never".into(),
@@ -1172,7 +1181,7 @@ impl Value {
                         } else {
                             invalid!(Some(span), "should be a string");
                             // Reconstruct
-                            vals[index] = Value::string(config.edit_mode.clone(), span);
+                            vals.make_mut()[index] = Value::string(config.edit_mode.clone(), span);
                         }
                     }
                     "shell_integration" => {
@@ -1211,7 +1220,7 @@ impl Value {
                             invalid!(Some(span), "should be a valid list of menus");
                             errors.push(e);
                             // Reconstruct
-                            vals[index] = Value::list(config
+                            vals.make_mut()[index] = Value::list(config
                                     .menus
                                     .iter()
                                     .map(
@@ -1248,7 +1257,7 @@ impl Value {
                             invalid!(Some(span), "should be a valid keybindings list");
                             errors.push(e);
                             // Reconstruct
-                            vals[index] = Value::list(
+                            vals.make_mut()[index] = Value::list(
                                 config
                                     .keybindings
                                     .iter()
@@ -1299,7 +1308,7 @@ impl Value {
                         }
                     },
                     "datetime_format" => {
-                        if let Value::Record { val, .. } = &mut vals[index] {
+                        if let Value::Record { val, .. } = &mut vals.make_mut()[index] {
                             let Record { cols, vals } = val;
                             for index in (0..cols.len()).rev() {
                                 let value = &vals[index];
@@ -1333,7 +1342,7 @@ impl Value {
                         } else {
                             invalid!(Some(vals[index].span()), "should be a record");
                             // Reconstruct
-                            vals[index] = Value::record(
+                            vals.make_mut()[index] = Value::record(
                                 record! {
                                     "metric" => Value::bool(config.filesize_metric, span),
                                     "format" => Value::string(config.filesize_format.clone(), span),
@@ -1347,7 +1356,8 @@ impl Value {
                             config.error_style = style;
                         } else {
                             invalid!(Some(span), "should be a string");
-                            vals[index] = Value::string(config.error_style.clone(), span);
+                            vals.make_mut()[index] =
+                                Value::string(config.error_style.clone(), span);
                         }
                     }
                     // Catch all
@@ -1486,7 +1496,7 @@ fn create_map(value: &Value) -> Result<HashMap<String, Value>, ShellError> {
     Ok(value
         .as_record()?
         .iter()
-        .map(|(k, v)| (k.clone(), v.clone()))
+        .map(|(k, v)| (k.into(), v.clone()))
         .collect())
 }
 

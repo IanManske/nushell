@@ -75,7 +75,7 @@ fn convert_toml_to_value(value: &toml::Value, span: Span) -> Value {
         toml::Value::Integer(i) => Value::int(*i, span),
         toml::Value::Table(k) => Value::record(
             k.iter()
-                .map(|(k, v)| (k.clone(), convert_toml_to_value(v, span)))
+                .map(|(k, v)| (k.as_str().into(), convert_toml_to_value(v, span)))
                 .collect(),
             span,
         ),

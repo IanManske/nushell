@@ -31,7 +31,10 @@ pub(crate) fn convert_columns(
             match value {
                 Value::String { val, .. } => {
                     col_span = span_join(&[col_span, span]);
-                    Ok(Spanned { item: val, span })
+                    Ok(Spanned {
+                        item: val.into(),
+                        span,
+                    })
                 }
                 _ => Err(ShellError::GenericError(
                     "Incorrect column format".into(),
@@ -42,7 +45,7 @@ pub(crate) fn convert_columns(
                 )),
             }
         })
-        .collect::<Result<Vec<Spanned<String>>, _>>()?;
+        .collect::<Result<_, _>>()?;
 
     Ok((res, col_span))
 }
@@ -74,7 +77,7 @@ pub(crate) fn convert_columns_string(
             match value {
                 Value::String { val, .. } => {
                     col_span = span_join(&[col_span, span]);
-                    Ok(val)
+                    Ok(val.into())
                 }
                 _ => Err(ShellError::GenericError(
                     "Incorrect column format".into(),
@@ -85,7 +88,7 @@ pub(crate) fn convert_columns_string(
                 )),
             }
         })
-        .collect::<Result<Vec<String>, _>>()?;
+        .collect::<Result<_, _>>()?;
 
     Ok((res, col_span))
 }

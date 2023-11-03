@@ -306,14 +306,14 @@ fn add_month_to_table(
 
         if should_show_year_column {
             indexmap.insert(
-                "year".to_string(),
+                "year".into(),
                 Value::int(month_helper.selected_year as i64, tag),
             );
         }
 
         if should_show_quarter_column {
             indexmap.insert(
-                "quarter".to_string(),
+                "quarter".into(),
                 Value::int(month_helper.quarter_number as i64, tag),
             );
         }
@@ -325,7 +325,7 @@ fn add_month_to_table(
                 Value::int(month_helper.selected_month as i64, tag)
             };
 
-            indexmap.insert("month".to_string(), month_value);
+            indexmap.insert("month".into(), month_value);
         }
 
         for day in &days_of_the_week {
@@ -347,7 +347,7 @@ fn add_month_to_table(
                 }
             }
 
-            indexmap.insert((*day).to_string(), value);
+            indexmap.insert((*day).into(), value);
 
             day_number += 1;
         }

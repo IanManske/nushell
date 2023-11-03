@@ -15,5 +15,6 @@ bench = false
 bench = false
 
 [dependencies]
+ecow = "0.2.0"
 nu-plugin = { path = "../nu-plugin", version = "0.86.1" }
 nu-protocol = { path = "../nu-protocol", version = "0.86.1", features = ["plugin"] }

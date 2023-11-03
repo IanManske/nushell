@@ -1,3 +1,4 @@
+use ecow::EcoVec;
 use nu_protocol::ast::{Call, Expr, Expression, PipelineElement};
 use nu_protocol::engine::{Command, EngineState, Stack, StateWorkingSet};
 use nu_protocol::{
@@ -362,7 +363,7 @@ fn convert_to_value(
             expr.span,
         )),
         Expr::Table(mut headers, cells) => {
-            let mut cols = vec![];
+            let mut cols = EcoVec::new();
 
             for key in headers.iter_mut() {
                 let key_str = match &mut key.expr {
@@ -383,7 +384,7 @@ fn convert_to_value(
                         first_use: headers[idx].span,
                     });
                 } else {
-                    cols.push(std::mem::take(key_str));
+                    cols.push(key_str.as_str().into());
                 }
             }
 
@@ -392,7 +393,7 @@ fn convert_to_value(
                 .map(|row| {
                     row.into_iter()
                         .map(|cell| convert_to_value(cell, span, original_text))
-                        .collect::<Result<Vec<_>, _>>()
+                        .collect::<Result<EcoVec<_>, _>>()
                         .and_then(|vals| {
                             if cols.len() != vals.len() {
                                 Err(ShellError::OutsideSpannedLabeledError(

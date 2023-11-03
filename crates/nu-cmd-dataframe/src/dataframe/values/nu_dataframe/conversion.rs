@@ -1,6 +1,7 @@
 use super::{DataFrameValue, NuDataFrame};
 
 use chrono::{DateTime, FixedOffset, NaiveDateTime};
+use ecow::EcoString;
 use indexmap::map::{Entry, IndexMap};
 use nu_protocol::{Record, ShellError, Span, Value};
 use polars::chunked_array::builder::AnonymousOwnedListBuilder;
@@ -26,24 +27,27 @@ const VALUES_CAPACITY: usize = 10;
 
 #[derive(Debug)]
 pub struct Column {
-    name: String,
+    name: EcoString,
     values: Vec<Value>,
 }
 
 impl Column {
-    pub fn new(name: String, values: Vec<Value>) -> Self {
-        Self { name, values }
+    pub fn new(name: impl Into<EcoString>, values: Vec<Value>) -> Self {
+        Self {
+            name: name.into(),
+            values,
+        }
     }
 
-    pub fn new_empty(name: String) -> Self {
+    pub fn new_empty(name: EcoString) -> Self {
         Self {
             name,
             values: Vec::new(),
         }
     }
 
-    pub fn name(&self) -> &str {
-        self.name.as_str()
+    pub fn name(&self) -> &EcoString {
+        &self.name
     }
 }
 
@@ -90,7 +94,7 @@ pub struct TypedColumn {
 }
 
 impl TypedColumn {
-    fn new_empty(name: String) -> Self {
+    fn new_empty(name: EcoString) -> Self {
         Self {
             column: Column::new_empty(name),
             column_type: None,
@@ -112,7 +116,7 @@ impl DerefMut for TypedColumn {
     }
 }
 
-pub type ColumnMap = IndexMap<String, TypedColumn>;
+pub type ColumnMap = IndexMap<EcoString, TypedColumn>;
 
 pub fn create_column(
     series: &Series,
@@ -122,7 +126,7 @@ pub fn create_column(
 ) -> Result<Column, ShellError> {
     let size = to_row - from_row;
     let values = series_to_values(series, Some(from_row), Some(size), span)?;
-    Ok(Column::new(series.name().into(), values))
+    Ok(Column::new(series.name(), values))
 }
 
 // Adds a separator to the vector of values using the column names from the
@@ -150,11 +154,14 @@ pub fn insert_record(column_values: &mut ColumnMap, record: Record) -> Result<()
 
 pub fn insert_value(
     value: Value,
-    key: String,
+    key: EcoString,
     column_values: &mut ColumnMap,
 ) -> Result<(), ShellError> {
-    let col_val = match column_values.entry(key.clone()) {
-        Entry::Vacant(entry) => entry.insert(TypedColumn::new_empty(key)),
+    let col_val = match column_values.entry(key) {
+        Entry::Vacant(entry) => {
+            let key = entry.key().clone();
+            entry.insert(TypedColumn::new_empty(key))
+        }
         Entry::Occupied(entry) => entry.into_mut(),
     };
 
@@ -1005,16 +1012,16 @@ mod tests {
     fn test_parsed_column_string_list() -> Result<(), Box<dyn std::error::Error>> {
         let values = vec![
             Value::list(
-                [Value::string("bar".to_string(), Span::test_data())].into(),
+                [Value::string("bar", Span::test_data())].into(),
                 Span::test_data(),
             ),
             Value::list(
-                [Value::string("baz".to_string(), Span::test_data())].into(),
+                [Value::string("baz", Span::test_data())].into(),
                 Span::test_data(),
             ),
         ];
         let column = Column {
-            name: "foo".to_string(),
+            name: "foo".into(),
             values: values.clone(),
         };
         let typed_column = TypedColumn {
@@ -1022,7 +1029,7 @@ mod tests {
             column_type: Some(InputType::List(Box::new(InputType::String))),
         };
 
-        let column_map = indexmap!("foo".to_string() => typed_column);
+        let column_map = indexmap!("foo".into() => typed_column);
         let parsed_df = from_parsed_columns(column_map)?;
         let parsed_columns = parsed_df.columns(Span::test_data())?;
         assert_eq!(parsed_columns.len(), 1);

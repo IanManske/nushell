@@ -1,3 +1,4 @@
+use ecow::{eco_vec, EcoString, EcoVec};
 use nu_engine::CallExt;
 use nu_protocol::IntoPipelineData;
 use nu_protocol::{
@@ -160,11 +161,11 @@ pub fn rotate(
     input: PipelineData,
 ) -> Result<PipelineData, ShellError> {
     let metadata = input.metadata();
-    let col_given_names: Vec<String> = call.rest(engine_state, stack, 0)?;
+    let col_given_names: Vec<EcoString> = call.rest(engine_state, stack, 0)?;
     let span = input.span();
     let mut values = input.into_iter().collect::<Vec<_>>();
-    let mut old_column_names = vec![];
-    let mut new_values = vec![];
+    let mut old_column_names = EcoVec::new();
+    let mut new_values = EcoVec::new();
     let mut not_a_record = false;
     let total_rows = &mut values.len();
     let ccw: bool = call.has_flag("ccw");
@@ -218,15 +219,16 @@ pub fn rotate(
 
     // holder for the new column names, particularly if none are provided by the user we create names as column0, column1, etc.
     let mut new_column_names = {
-        let mut res = vec![];
+        let mut res = EcoVec::new();
         for idx in 0..(*total_rows + 1) {
-            res.push(format!("column{idx}"));
+            res.push(format!("column{idx}").into());
         }
-        res.to_vec()
+        res
     };
 
     // we got new names for columns from the input, so we need to swap those we already made
     if !col_given_names.is_empty() {
+        let new_column_names = new_column_names.make_mut();
         for (idx, val) in col_given_names.into_iter().enumerate() {
             if idx > new_column_names.len() - 1 {
                 break;
@@ -269,9 +271,9 @@ pub fn rotate(
         .map(|(idx, val)| {
             // when rotating counter clockwise, the old columns names become the first column's values
             let mut res = if ccw {
-                vec![Value::string(val, call.head)]
+                eco_vec![Value::string(val.as_str(), call.head)]
             } else {
-                vec![]
+                eco_vec![]
             };
 
             let new_vals = {
@@ -282,9 +284,9 @@ pub fn rotate(
                 }
                 // when rotating clockwise, the old column names become the last column's values
                 if !ccw {
-                    res.push(Value::string(val, call.head));
+                    res.push(Value::string(val.as_str(), call.head));
                 }
-                res.to_vec()
+                res
             };
 
             Value::record(

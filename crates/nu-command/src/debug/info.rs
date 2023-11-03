@@ -236,7 +236,7 @@ impl<'a> LazyRecord<'a> for LazySystemInfoRecord {
             .into_iter()
             .map(|col| {
                 let val = self.get_column_value_with_system(col, Some(&system))?;
-                Ok((col.to_owned(), val))
+                Ok((col.into(), val))
             })
             .collect::<Result<Record, _>>()
             .map(|record| Value::record(record, self.span()))

@@ -237,7 +237,7 @@ fn params_to_value(params: Vec<(String, Vec<String>)>, span: Span) -> Value {
             .map(|val| Value::string(val, span))
             .collect();
 
-        row.insert(param_name, Value::list(values, span));
+        row.insert(param_name.into(), Value::list(values, span));
     }
 
     Value::record(row.into_iter().collect(), span)

@@ -77,7 +77,7 @@ impl NuCompleter {
                     Value::list(
                         spans
                             .iter()
-                            .map(|it| Value::string(it, Span::unknown()))
+                            .map(|it| Value::string(it.as_str(), Span::unknown()))
                             .collect(),
                         Span::unknown(),
                     ),

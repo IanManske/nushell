@@ -13,7 +13,7 @@ use crate::debug::inspect_table::{
 pub fn build_table(value: Value, description: String, termsize: usize) -> String {
     let (head, mut data) = util::collect_input(value);
     let count_columns = head.len();
-    data.insert(0, head);
+    data.insert(0, head.into_iter().map(Into::into).collect());
 
     let mut desc = description;
     let mut desc_width = string_width(&desc);
@@ -193,12 +193,12 @@ fn push_empty_column(data: &mut Vec<Vec<String>>) {
 
 mod util {
     use crate::debug::explain::debug_string_without_formatting;
-    use ecow::EcoVec;
+    use ecow::{EcoString, EcoVec};
     use nu_engine::get_columns;
     use nu_protocol::{ast::PathMember, Span, Value};
 
     /// Try to build column names and a table grid.
-    pub fn collect_input(value: Value) -> (Vec<String>, Vec<Vec<String>>) {
+    pub fn collect_input(value: Value) -> (EcoVec<EcoString>, Vec<Vec<String>>) {
         let span = value.span();
         match value {
             Value::Record { val: record, .. } => (
@@ -214,7 +214,7 @@ mod util {
                 let data = convert_records_to_dataset(&columns, vals);
 
                 if columns.is_empty() {
-                    columns = vec![String::from("")];
+                    columns = ["".into()].into();
                 }
 
                 (columns, data)
@@ -222,21 +222,21 @@ mod util {
             Value::String { val, .. } => {
                 let lines = val
                     .lines()
-                    .map(|line| Value::string(line.to_string(), span))
+                    .map(|line| Value::string(line, span))
                     .map(|val| vec![debug_string_without_formatting(&val)])
                     .collect();
 
-                (vec![String::from("")], lines)
+                (["".into()].into(), lines)
             }
-            Value::Nothing { .. } => (vec![], vec![]),
+            Value::Nothing { .. } => ([].into(), vec![]),
             value => (
-                vec![String::from("")],
+                ["".into()].into(),
                 vec![vec![debug_string_without_formatting(&value)]],
             ),
         }
     }
 
-    fn convert_records_to_dataset(cols: &[String], records: EcoVec<Value>) -> Vec<Vec<String>> {
+    fn convert_records_to_dataset(cols: &[EcoString], records: EcoVec<Value>) -> Vec<Vec<String>> {
         if !cols.is_empty() {
             create_table_for_record(cols, &records)
         } else if cols.is_empty() && records.is_empty() {
@@ -254,7 +254,7 @@ mod util {
         }
     }
 
-    fn create_table_for_record(headers: &[String], items: &[Value]) -> Vec<Vec<String>> {
+    fn create_table_for_record(headers: &[EcoString], items: &[Value]) -> Vec<Vec<String>> {
         let mut data = vec![Vec::new(); items.len()];
 
         for (i, item) in items.iter().enumerate() {
@@ -265,7 +265,7 @@ mod util {
         data
     }
 
-    fn record_create_row(headers: &[String], item: &Value) -> Vec<String> {
+    fn record_create_row(headers: &[EcoString], item: &Value) -> Vec<String> {
         let mut rows = vec![String::default(); headers.len()];
 
         for (i, header) in headers.iter().enumerate() {

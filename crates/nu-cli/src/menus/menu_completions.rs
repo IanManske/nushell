@@ -128,10 +128,10 @@ fn convert_to_suggestions(
 
             let extra = match value.get_data_by_key("extra") {
                 Some(Value::List { vals, .. }) => {
-                    let extra: Vec<String> = vals
+                    let extra = vals
                         .into_iter()
                         .filter_map(|extra| match extra {
-                            Value::String { val, .. } => Some(val),
+                            Value::String { val, .. } => Some(val.into()),
                             _ => None,
                         })
                         .collect();

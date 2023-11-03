@@ -3,6 +3,7 @@ use std::{
     cmp::{max, Ordering},
 };
 
+use ecow::EcoString;
 use nu_color_config::{Alignment, StyleComputer, TextStyle};
 use nu_protocol::Value;
 use nu_table::string_width;
@@ -22,7 +23,7 @@ use super::Layout;
 
 #[derive(Debug, Clone)]
 pub struct TableW<'a> {
-    columns: Cow<'a, [String]>,
+    columns: Cow<'a, [EcoString]>,
     data: Cow<'a, [Vec<NuText>]>,
     index_row: usize,
     index_column: usize,
@@ -53,7 +54,7 @@ pub struct TableStyle {
 impl<'a> TableW<'a> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        columns: impl Into<Cow<'a, [String]>>,
+        columns: impl Into<Cow<'a, [EcoString]>>,
         data: impl Into<Cow<'a, [Vec<NuText>]>>,
         style_computer: &'a StyleComputer<'a>,
         index_row: usize,

@@ -60,15 +60,17 @@ fn horizontal_rotate_value(
             let rotations = by.map(|n| n % record.len()).unwrap_or(1);
 
             if !cells_only {
+                let cols = record.cols.make_mut();
                 match direction {
-                    HorizontalDirection::Right => record.cols.rotate_right(rotations),
-                    HorizontalDirection::Left => record.cols.rotate_left(rotations),
+                    HorizontalDirection::Right => cols.rotate_right(rotations),
+                    HorizontalDirection::Left => cols.rotate_left(rotations),
                 }
             };
 
+            let vals = record.vals.make_mut();
             match direction {
-                HorizontalDirection::Right => record.vals.rotate_right(rotations),
-                HorizontalDirection::Left => record.vals.rotate_left(rotations),
+                HorizontalDirection::Right => vals.rotate_right(rotations),
+                HorizontalDirection::Left => vals.rotate_left(rotations),
             }
 
             Ok(Value::record(record, span))

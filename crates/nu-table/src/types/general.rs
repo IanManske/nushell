@@ -96,9 +96,15 @@ fn table(input: &[Value], row_offset: usize, opts: TableOpts<'_>) -> TableResult
 
     // The header with the INDEX is removed from the table headers since
     // it is added to the natural table index
-    let headers: Vec<_> = headers
+    let headers = headers
         .into_iter()
-        .filter(|header| header != INDEX_COLUMN_NAME)
+        .filter_map(|header| {
+            if header != INDEX_COLUMN_NAME {
+                Some(header.into())
+            } else {
+                None
+            }
+        })
         .collect();
 
     let table = to_table_with_header(input, headers, with_index, row_offset, opts)?;

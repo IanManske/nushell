@@ -1,3 +1,4 @@
+use ecow::EcoString;
 use nu_engine::{eval_block, CallExt};
 use nu_protocol::ast::{Block, Call};
 use nu_protocol::engine::{Closure, Command, EngineState, Stack};
@@ -6,7 +7,6 @@ use nu_protocol::{
     PipelineIterator, ShellError, Signature, Span, SyntaxShape, Type, Value,
 };
 use std::collections::HashSet;
-use std::iter::FromIterator;
 
 #[derive(Clone)]
 pub struct UpdateCells;
@@ -119,15 +119,13 @@ impl Command for UpdateCells {
 
         // the columns to update
         let columns: Option<Value> = call.get_flag(&engine_state, &mut stack, "columns")?;
-        let columns: Option<HashSet<String>> = match columns {
-            Some(val) => {
-                let cols = val
-                    .as_list()?
+        let columns = match columns {
+            Some(val) => Some(
+                val.as_list()?
                     .iter()
-                    .map(|val| val.as_string())
-                    .collect::<Result<Vec<String>, ShellError>>()?;
-                Some(HashSet::from_iter(cols))
-            }
+                    .map(|val| val.as_string().map(Into::into))
+                    .collect::<Result<_, _>>()?,
+            ),
             None => None,
         };
 
@@ -148,7 +146,7 @@ impl Command for UpdateCells {
 
 struct UpdateCellIterator {
     input: PipelineIterator,
-    columns: Option<HashSet<String>>,
+    columns: Option<HashSet<EcoString>>,
     engine_state: EngineState,
     stack: Stack,
     block: Block,

@@ -1,4 +1,4 @@
-use ecow::EcoVec;
+use ecow::{EcoString, EcoVec};
 use nu_color_config::StyleComputer;
 use nu_protocol::{Config, Record, Span, Value};
 use tabled::{
@@ -115,7 +115,7 @@ fn build_vertical_map(record: Record, config: &Config) -> TableValue {
     let mut rows = Vec::with_capacity(record.len());
     for (key, value) in record {
         let val = convert_nu_value_to_table_value(value, config);
-        let row = TableValue::Row(vec![TableValue::Cell(key), val]);
+        let row = TableValue::Row(vec![TableValue::Cell(key.into()), val]);
         rows.push(row);
     }
 
@@ -158,7 +158,7 @@ fn build_vertical_array(vals: EcoVec<Value>, config: &Config) -> TableValue {
 }
 
 fn is_valid_record(vals: &[Value]) -> bool {
-    let mut used_cols: Option<&[String]> = None;
+    let mut used_cols = None;
     for val in vals {
         match val {
             Value::Record { val, .. } => {
@@ -168,7 +168,7 @@ fn is_valid_record(vals: &[Value]) -> bool {
                     return false;
                 }
 
-                used_cols = Some(&val.cols);
+                used_cols = Some(val.cols.as_slice());
             }
             _ => return false,
         }
@@ -190,7 +190,7 @@ fn build_map_from_record(vals: EcoVec<Value>, config: &Config) -> TableValue {
     let head = get_columns_in_record(&vals);
     let count_columns = head.len();
     for col in head {
-        list.push(vec![TableValue::Cell(col)]);
+        list.push(vec![TableValue::Cell(col.into())]);
     }
 
     for val in vals {
@@ -210,10 +210,10 @@ fn build_map_from_record(vals: EcoVec<Value>, config: &Config) -> TableValue {
     TableValue::Row(columns)
 }
 
-fn get_columns_in_record(vals: &[Value]) -> Vec<String> {
+fn get_columns_in_record(vals: &[Value]) -> EcoVec<EcoString> {
     match vals.iter().next() {
         Some(Value::Record { val, .. }) => val.cols.clone(),
-        _ => vec![],
+        _ => EcoVec::new(),
     }
 }
 

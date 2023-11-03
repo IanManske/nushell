@@ -1,5 +1,5 @@
 use crate::{current_dir_str, get_full_help};
-use ecow::EcoVec;
+use ecow::{EcoString, EcoVec};
 use nu_path::expand_path_with;
 use nu_protocol::{
     ast::{
@@ -564,7 +564,7 @@ pub fn eval_expression(
             Ok(Value::record(record, expr.span))
         }
         Expr::Table(headers, vals) => {
-            let mut output_headers = vec![];
+            let mut output_headers = EcoVec::new();
             for expr in headers {
                 let header = eval_expression(engine_state, stack, expr)?.as_string()?;
                 if let Some(idx) = output_headers
@@ -576,7 +576,7 @@ pub fn eval_expression(
                         first_use: headers[idx].span,
                     });
                 } else {
-                    output_headers.push(header);
+                    output_headers.push(header.into());
                 }
             }
 
@@ -1096,9 +1096,9 @@ pub fn eval_variable(
             let env_values = env_vars.values();
 
             let mut pairs = env_columns
-                .map(|x| x.to_string())
+                .map(|x| x.as_str().into())
                 .zip(env_values.cloned())
-                .collect::<Vec<(String, Value)>>();
+                .collect::<Vec<(EcoString, _)>>();
 
             pairs.sort_by(|a, b| a.0.cmp(&b.0));
 

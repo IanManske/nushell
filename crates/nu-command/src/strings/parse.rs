@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+use ecow::EcoString;
 use fancy_regex::Regex;
 use nu_engine::CallExt;
 use nu_protocol::ast::Call;
@@ -295,14 +296,14 @@ fn build_regex(input: &str, span: Span) -> Result<String, ShellError> {
     Ok(output)
 }
 
-fn column_names(regex: &Regex) -> Vec<String> {
+fn column_names(regex: &Regex) -> Vec<EcoString> {
     regex
         .capture_names()
         .enumerate()
         .skip(1)
         .map(|(i, name)| {
-            name.map(String::from)
-                .unwrap_or_else(|| format!("capture{}", i - 1))
+            name.map(Into::into)
+                .unwrap_or_else(|| format!("capture{}", i - 1).into())
         })
         .collect()
 }
@@ -311,7 +312,7 @@ pub struct ParseStreamer {
     span: Span,
     excess: Vec<Value>,
     regex: Regex,
-    columns: Vec<String>,
+    columns: Vec<EcoString>,
     stream: Box<dyn Iterator<Item = Value> + Send + 'static>,
     ctrlc: Option<Arc<AtomicBool>>,
 }
@@ -366,7 +367,7 @@ pub struct ParseStreamerExternal {
     span: Span,
     excess: Vec<Value>,
     regex: Regex,
-    columns: Vec<String>,
+    columns: Vec<EcoString>,
     stream: Box<dyn Iterator<Item = Result<Vec<u8>, ShellError>> + Send + 'static>,
 }
 
@@ -423,7 +424,7 @@ fn stream_helper(
     regex: Regex,
     span: Span,
     s: String,
-    columns: Vec<String>,
+    columns: Vec<EcoString>,
     excess: &mut Vec<Value>,
 ) -> Option<Value> {
     let results = regex.captures_iter(&s);

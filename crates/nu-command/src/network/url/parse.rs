@@ -1,4 +1,5 @@
 use super::url;
+use ecow::EcoString;
 use nu_protocol::ast::Call;
 use nu_protocol::engine::{Command, EngineState, Stack};
 use nu_protocol::{
@@ -88,8 +89,9 @@ fn parse(value: Value, head: Span, engine_state: &EngineState) -> Result<Pipelin
 
     match result_url {
         Ok(url) => {
-            let params =
-                serde_urlencoded::from_str::<Vec<(String, String)>>(url.query().unwrap_or(""));
+            let params = serde_urlencoded::from_str::<Vec<(EcoString, EcoString)>>(
+                url.query().unwrap_or(""),
+            );
             match params {
                 Ok(result) => {
                     let params = result

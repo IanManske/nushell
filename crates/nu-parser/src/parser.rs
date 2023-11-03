@@ -2678,7 +2678,7 @@ pub fn parse_import_pattern(working_set: &mut StateWorkingSet, spans: &[Span]) -
 
     let (maybe_module_id, head_name) = match eval_constant(working_set, &head_expr) {
         Ok(val) => match value_as_string(val, head_expr.span) {
-            Ok(s) => (working_set.find_module(s.as_bytes()), s.into_bytes()),
+            Ok(s) => (working_set.find_module(s.as_bytes()), s.bytes().collect()),
             Err(err) => {
                 working_set.error(err.wrap(working_set, span(spans)));
                 return garbage(span(spans));

@@ -230,7 +230,7 @@ fn str_expand(contents: &str, span: Span, value_span: Span) -> Value {
                 Ok(node) => {
                     match expand(&node) {
                         Ok(possibilities) => {
-                            Value::list(possibilities.iter().map(|e| Value::string(e,span)).collect(), span)
+                            Value::list(possibilities.iter().map(|e| Value::string(e.as_str(), span)).collect(), span)
                         },
                         Err(e) => match e {
                             bracoxide::ExpansionError::NumConversionFailed(s) => Value::error(

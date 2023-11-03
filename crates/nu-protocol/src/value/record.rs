@@ -1,11 +1,12 @@
 use crate::Value;
 
+use ecow::{EcoString, EcoVec};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Record {
-    pub cols: Vec<String>,
-    pub vals: Vec<Value>,
+    pub cols: EcoVec<EcoString>,
+    pub vals: EcoVec<Value>,
 }
 
 impl Record {
@@ -15,8 +16,8 @@ impl Record {
 
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
-            cols: Vec::with_capacity(capacity),
-            vals: Vec::with_capacity(capacity),
+            cols: EcoVec::with_capacity(capacity),
+            vals: EcoVec::with_capacity(capacity),
         }
     }
 
@@ -24,7 +25,7 @@ impl Record {
     //
     // For perf reasons does not validate the rest of the record assumptions.
     // - unique keys
-    pub fn from_raw_cols_vals(cols: Vec<String>, vals: Vec<Value>) -> Self {
+    pub fn from_raw_cols_vals(cols: EcoVec<EcoString>, vals: EcoVec<Value>) -> Self {
         assert_eq!(cols.len(), vals.len());
 
         Self { cols, vals }
@@ -51,7 +52,7 @@ impl Record {
     /// May duplicate data!
     ///
     /// Consider to use [`Record::insert`] instead
-    pub fn push(&mut self, col: impl Into<String>, val: Value) {
+    pub fn push(&mut self, col: impl Into<EcoString>, val: Value) {
         self.cols.push(col.into());
         self.vals.push(val);
     }
@@ -61,11 +62,11 @@ impl Record {
     /// Returns `Some(previous_value)` if found. Else `None`
     pub fn insert<K>(&mut self, col: K, val: Value) -> Option<Value>
     where
-        K: AsRef<str> + Into<String>,
+        K: AsRef<str> + Into<EcoString>,
     {
         if let Some(idx) = self.index_of(&col) {
             // Can panic if vals.len() < cols.len()
-            let curr_val = &mut self.vals[idx];
+            let curr_val = &mut self.vals.make_mut()[idx];
             Some(std::mem::replace(curr_val, val))
         } else {
             self.cols.push(col.into());
@@ -87,10 +88,11 @@ impl Record {
     }
 
     pub fn get_mut(&mut self, col: impl AsRef<str>) -> Option<&mut Value> {
-        self.index_of(col).and_then(|idx| self.vals.get_mut(idx))
+        self.index_of(col)
+            .and_then(|idx| self.vals.make_mut().get_mut(idx))
     }
 
-    pub fn get_index(&self, idx: usize) -> Option<(&String, &Value)> {
+    pub fn get_index(&self, idx: usize) -> Option<(&EcoString, &Value)> {
         Some((self.cols.get(idx)?, self.vals.get(idx)?))
     }
 
@@ -181,23 +183,22 @@ impl Record {
 
         // number of elements keep so far, start of ..dropped and length of ..retained
         let mut retained = 0;
-        // current index of element being checked, start of ..unvisited
-        let mut idx = 0;
-
-        self.vals.retain_mut(|val| {
-            if keep(&self.cols[idx], val) {
+        let len = self.len();
+        let vals = self.vals.make_mut();
+        let cols = self.cols.make_mut();
+        // idx is the current element being checked, start of ..unvisited
+        for idx in 0..len {
+            if keep(&cols[idx], &mut vals[idx]) {
                 // skip swaps for first consecutive run of kept elements
                 if idx != retained {
-                    self.cols.swap(idx, retained);
+                    cols.swap(idx, retained);
+                    vals.swap(idx, retained);
                 }
                 retained += 1;
-                idx += 1;
-                true
-            } else {
-                idx += 1;
-                false
             }
-        });
+        }
+
+        self.vals.truncate(retained);
         self.cols.truncate(retained);
     }
 
@@ -220,15 +221,15 @@ impl Record {
     }
 }
 
-impl FromIterator<(String, Value)> for Record {
-    fn from_iter<T: IntoIterator<Item = (String, Value)>>(iter: T) -> Self {
+impl FromIterator<(EcoString, Value)> for Record {
+    fn from_iter<T: IntoIterator<Item = (EcoString, Value)>>(iter: T) -> Self {
         let (cols, vals) = iter.into_iter().unzip();
         Self { cols, vals }
     }
 }
 
-impl Extend<(String, Value)> for Record {
-    fn extend<T: IntoIterator<Item = (String, Value)>>(&mut self, iter: T) {
+impl Extend<(EcoString, Value)> for Record {
+    fn extend<T: IntoIterator<Item = (EcoString, Value)>>(&mut self, iter: T) {
         for (k, v) in iter {
             // TODO: should this .insert with a check?
             self.cols.push(k);
@@ -237,10 +238,10 @@ impl Extend<(String, Value)> for Record {
     }
 }
 
-pub type IntoIter = std::iter::Zip<std::vec::IntoIter<String>, std::vec::IntoIter<Value>>;
+pub type IntoIter = std::iter::Zip<ecow::vec::IntoIter<EcoString>, ecow::vec::IntoIter<Value>>;
 
 impl IntoIterator for Record {
-    type Item = (String, Value);
+    type Item = (EcoString, Value);
 
     type IntoIter = IntoIter;
 
@@ -249,10 +250,10 @@ impl IntoIterator for Record {
     }
 }
 
-pub type Iter<'a> = std::iter::Zip<std::slice::Iter<'a, String>, std::slice::Iter<'a, Value>>;
+pub type Iter<'a> = std::iter::Zip<std::slice::Iter<'a, EcoString>, std::slice::Iter<'a, Value>>;
 
 impl<'a> IntoIterator for &'a Record {
-    type Item = (&'a String, &'a Value);
+    type Item = (&'a EcoString, &'a Value);
 
     type IntoIter = Iter<'a>;
 
@@ -261,24 +262,25 @@ impl<'a> IntoIterator for &'a Record {
     }
 }
 
-pub type IterMut<'a> = std::iter::Zip<std::slice::Iter<'a, String>, std::slice::IterMut<'a, Value>>;
+pub type IterMut<'a> =
+    std::iter::Zip<std::slice::Iter<'a, EcoString>, std::slice::IterMut<'a, Value>>;
 
 impl<'a> IntoIterator for &'a mut Record {
-    type Item = (&'a String, &'a mut Value);
+    type Item = (&'a EcoString, &'a mut Value);
 
     type IntoIter = IterMut<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.cols.iter().zip(&mut self.vals)
+        self.cols.iter().zip(self.vals.make_mut())
     }
 }
 
 pub struct Columns<'a> {
-    iter: std::slice::Iter<'a, String>,
+    iter: std::slice::Iter<'a, EcoString>,
 }
 
 impl<'a> Iterator for Columns<'a> {
-    type Item = &'a String;
+    type Item = &'a EcoString;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next()
@@ -330,7 +332,7 @@ impl<'a> ExactSizeIterator for Values<'a> {
 }
 
 pub struct IntoValues {
-    iter: std::vec::IntoIter<Value>,
+    iter: ecow::vec::IntoIter<Value>,
 }
 
 impl Iterator for IntoValues {
@@ -361,8 +363,8 @@ impl ExactSizeIterator for IntoValues {
 macro_rules! record {
     {$($col:expr => $val:expr),+ $(,)?} => {
         $crate::Record::from_raw_cols_vals (
-            vec![$($col.into(),)+],
-            vec![$($val,)+]
+            ecow::eco_vec![$($col.into(),)+],
+            ecow::eco_vec![$($val,)+]
         )
     };
     {} => {

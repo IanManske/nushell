@@ -125,6 +125,7 @@ fn make_error(value: &Value, throw_span: Option<Span>) -> Option<ShellError> {
 
         match (msg, &label) {
             (Some(Value::String { val: message, .. }), Some(label)) => {
+                let message = message.to_string();
                 let label_start = label.get_data_by_key("start");
                 let label_end = label.get_data_by_key("end");
                 let label_text = label.get_data_by_key("text");
@@ -150,7 +151,7 @@ fn make_error(value: &Value, throw_span: Option<Span>) -> Option<ShellError> {
                         } else {
                             Some(ShellError::GenericError(
                                 message,
-                                label_text,
+                                label_text.to_string(),
                                 Some(Span::new(start as usize, end as usize)),
                                 None,
                                 Vec::new(),
@@ -165,7 +166,7 @@ fn make_error(value: &Value, throw_span: Option<Span>) -> Option<ShellError> {
                         }),
                     ) => Some(ShellError::GenericError(
                         message,
-                        label_text,
+                        label_text.to_string(),
                         throw_span,
                         None,
                         Vec::new(),
@@ -195,7 +196,7 @@ fn make_error(value: &Value, throw_span: Option<Span>) -> Option<ShellError> {
                 }
             }
             (Some(Value::String { val: message, .. }), None) => Some(ShellError::GenericError(
-                message,
+                message.to_string(),
                 "originates from here".to_string(),
                 throw_span,
                 None,

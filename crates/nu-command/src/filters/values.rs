@@ -111,7 +111,7 @@ pub fn get_values<'a>(
     head: Span,
     input_span: Span,
 ) -> Result<Vec<Value>, ShellError> {
-    let mut output: IndexMap<String, EcoVec<Value>> = IndexMap::new();
+    let mut output = IndexMap::<_, EcoVec<_>>::new();
 
     for item in input {
         match item {

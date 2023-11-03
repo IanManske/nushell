@@ -178,11 +178,11 @@ fn split_column_helper(
             }
 
             for (&k, v) in split_result.iter().zip(&gen_columns) {
-                record.push(v, Value::string(k, head));
+                record.push(v.as_str(), Value::string(k, head));
             }
         } else {
             for (&k, v) in split_result.iter().zip(&positional) {
-                record.push(v, Value::string(k, head));
+                record.push(v.as_str(), Value::string(k, head));
             }
         }
         vec![Value::record(record, head)]

@@ -36,7 +36,7 @@ impl Command for DropDF {
             example: "[[a b]; [1 2] [3 4]] | dfr into-df | dfr drop a",
             result: Some(
                 NuDataFrame::try_from_columns(vec![Column::new(
-                    "b".to_string(),
+                    "b",
                     vec![Value::test_int(2), Value::test_int(4)],
                 )])
                 .expect("simple df for test should not fail")

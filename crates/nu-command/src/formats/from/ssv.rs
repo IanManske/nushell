@@ -272,7 +272,7 @@ fn from_ssv_string_to_value(
         .map(|row| {
             let mut dict = IndexMap::new();
             for (col, entry) in row {
-                dict.insert(col, Value::string(entry, span));
+                dict.insert(col.into(), Value::string(entry, span));
             }
             Value::record(dict.into_iter().collect(), span)
         })

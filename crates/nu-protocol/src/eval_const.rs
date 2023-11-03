@@ -6,7 +6,7 @@ use crate::{
     engine::{EngineState, StateWorkingSet},
     record, HistoryFileFormat, PipelineData, Range, Record, ShellError, Span, Value,
 };
-use ecow::EcoVec;
+use ecow::{EcoString, EcoVec};
 use nu_system::os_info::{get_kernel_version, get_os_arch, get_os_family, get_os_name};
 use std::path::{Path, PathBuf};
 
@@ -294,7 +294,7 @@ pub fn eval_constant(
             Ok(Value::record(record, expr.span))
         }
         Expr::Table(headers, vals) => {
-            let mut output_headers = vec![];
+            let mut output_headers = EcoVec::new();
             for expr in headers {
                 let header = value_as_string(eval_constant(working_set, expr)?, expr.span)?;
                 if let Some(idx) = output_headers
@@ -312,10 +312,11 @@ pub fn eval_constant(
 
             let mut output_rows = EcoVec::new();
             for val in vals {
-                let mut row = vec![];
-                for expr in val {
-                    row.push(eval_constant(working_set, expr)?);
-                }
+                let row = val
+                    .iter()
+                    .map(|expr| eval_constant(working_set, expr))
+                    .collect::<Result<_, _>>()?;
+
                 // length equality already ensured in parser
                 output_rows.push(Value::record(
                     Record::from_raw_cols_vals(output_headers.clone(), row),
@@ -466,7 +467,7 @@ pub fn eval_constant(
 }
 
 /// Get the value as a string
-pub fn value_as_string(value: Value, span: Span) -> Result<String, ShellError> {
+pub fn value_as_string(value: Value, span: Span) -> Result<EcoString, ShellError> {
     match value {
         Value::String { val, .. } => Ok(val),
         _ => Err(ShellError::NotAConstant(span)),

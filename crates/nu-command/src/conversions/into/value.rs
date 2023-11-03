@@ -1,4 +1,5 @@
 use crate::parse_date_from_string;
+use ecow::EcoString;
 use nu_engine::CallExt;
 use nu_protocol::{
     ast::Call,
@@ -8,7 +9,7 @@ use nu_protocol::{
 };
 use once_cell::sync::Lazy;
 use regex::{Regex, RegexBuilder};
-use std::{collections::HashSet, iter::FromIterator};
+use std::collections::HashSet;
 
 #[derive(Clone)]
 pub struct IntoValue;
@@ -63,22 +64,11 @@ impl Command for IntoValue {
         let span = call.head;
 
         // the columns to update
-        let columns: Option<Value> = call.get_flag(&engine_state, stack, "columns")?;
-        let columns: Option<HashSet<String>> = match columns {
-            Some(val) => {
-                let cols = val
-                    .as_list()?
-                    .iter()
-                    .map(|val| val.as_string())
-                    .collect::<Result<Vec<String>, ShellError>>()?;
-                Some(HashSet::from_iter(cols))
-            }
-            None => None,
-        };
+        let columns: Option<Vec<EcoString>> = call.get_flag(&engine_state, stack, "columns")?;
 
         Ok(UpdateCellIterator {
             input: input.into_iter(),
-            columns,
+            columns: columns.map(|cols| cols.into_iter().collect()),
             span,
         }
         .into_pipeline_data(ctrlc)
@@ -88,7 +78,7 @@ impl Command for IntoValue {
 
 struct UpdateCellIterator {
     input: PipelineIterator,
-    columns: Option<HashSet<String>>,
+    columns: Option<HashSet<EcoString>>,
     span: Span,
 }
 

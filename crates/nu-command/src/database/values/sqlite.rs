@@ -3,7 +3,7 @@ use super::definitions::{
     db_index::DbIndex, db_table::DbTable,
 };
 
-use ecow::EcoVec;
+use ecow::{EcoString, EcoVec};
 use nu_protocol::{CustomValue, PipelineData, Record, ShellError, Span, Spanned, Value};
 use rusqlite::{types::ValueRef, Connection, Row};
 use serde::{Deserialize, Serialize};
@@ -372,8 +372,8 @@ fn prepared_statement_to_nu_list(
     let column_names = stmt
         .column_names()
         .iter()
-        .map(|c| c.to_string())
-        .collect::<Vec<String>>();
+        .map(|&c| c.into())
+        .collect::<EcoVec<_>>();
 
     let row_results = stmt.query_map([], |row| {
         Ok(convert_sqlite_row_to_nu_value(
@@ -421,13 +421,14 @@ fn read_entire_sqlite_db(
     Ok(Value::record(tables, call_span))
 }
 
-pub fn convert_sqlite_row_to_nu_value(row: &Row, span: Span, column_names: Vec<String>) -> Value {
-    let mut vals = Vec::with_capacity(column_names.len());
-
-    for i in 0..column_names.len() {
-        let val = convert_sqlite_value_to_nu_value(row.get_ref_unwrap(i), span);
-        vals.push(val);
-    }
+pub fn convert_sqlite_row_to_nu_value(
+    row: &Row,
+    span: Span,
+    column_names: EcoVec<EcoString>,
+) -> Value {
+    let vals = (0..column_names.len())
+        .map(|i| convert_sqlite_value_to_nu_value(row.get_ref_unwrap(i), span))
+        .collect();
 
     Value::record(
         Record {

@@ -1,3 +1,4 @@
+use ecow::EcoString;
 use nu_protocol::ast::Call;
 use nu_protocol::engine::{Command, EngineState, Stack};
 use nu_protocol::{
@@ -139,7 +140,7 @@ impl UrlComponents {
 
     pub fn add_component(
         self,
-        key: String,
+        key: EcoString,
         value: Value,
         span: Span,
         engine_state: &EngineState,

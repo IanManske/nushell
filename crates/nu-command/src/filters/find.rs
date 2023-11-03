@@ -1,4 +1,5 @@
 use crate::help::highlight_search_string;
+use ecow::EcoString;
 use itertools::Itertools;
 
 use fancy_regex::Regex;
@@ -277,7 +278,7 @@ fn record_matches_regex(values: &[Value], re: &Regex, config: &Config) -> bool {
 
 #[allow(clippy::too_many_arguments)]
 fn highlight_terms_in_record_with_search_columns(
-    search_cols: &[String],
+    search_cols: &[EcoString],
     record: &Record,
     span: Span,
     config: &Config,
@@ -357,10 +358,11 @@ fn find_with_rest_and_highlight(
     let highlight_style =
         style_computer.compute("search_result", &Value::string("search result", span));
 
-    let cols_to_search_in_map = match call.get_flag(&engine_state, stack, "columns")? {
-        Some(cols) => cols,
-        None => vec![],
-    };
+    let cols_to_search_in_map: Vec<EcoString> =
+        match call.get_flag(&engine_state, stack, "columns")? {
+            Some(cols) => cols,
+            None => vec![],
+        };
 
     let cols_to_search_in_filter = cols_to_search_in_map.clone();
 
@@ -490,7 +492,7 @@ fn value_should_be_printed(
     filter_config: &Config,
     lower_terms: &[Value],
     span: Span,
-    columns_to_search: &[String],
+    columns_to_search: &[EcoString],
     invert: bool,
 ) -> bool {
     let lower_value = Value::string(value.into_string("", filter_config).to_lowercase(), span);
@@ -544,7 +546,7 @@ fn term_equals_value(term: &Value, value: &Value, span: Span) -> bool {
 
 fn record_matches_term(
     record: &Record,
-    columns_to_search: &[String],
+    columns_to_search: &[EcoString],
     filter_config: &Config,
     term: &Value,
     span: Span,

@@ -2715,6 +2715,7 @@ version = "0.86.1"
 dependencies = [
  "chrono",
  "crossterm 0.27.0",
+ "ecow",
  "fancy-regex",
  "fuzzy-matcher",
  "is_executable",
@@ -2745,6 +2746,7 @@ dependencies = [
 name = "nu-cmd-base"
 version = "0.86.1"
 dependencies = [
+ "ecow",
  "indexmap 2.0.2",
  "miette",
  "nu-engine",
@@ -2782,6 +2784,7 @@ name = "nu-cmd-extra"
 version = "0.86.1"
 dependencies = [
  "ahash",
+ "ecow",
  "fancy-regex",
  "heck",
  "htmlescape",
@@ -3162,6 +3165,7 @@ dependencies = [
 name = "nu_plugin_example"
 version = "0.86.1"
 dependencies = [
+ "ecow",
  "nu-plugin",
  "nu-protocol",
 ]
@@ -3170,6 +3174,7 @@ dependencies = [
 name = "nu_plugin_formats"
 version = "0.86.1"
 dependencies = [
+ "ecow",
  "eml-parser",
  "ical",
  "indexmap 2.0.2",
@@ -3182,6 +3187,7 @@ dependencies = [
 name = "nu_plugin_gstat"
 version = "0.86.1"
 dependencies = [
+ "ecow",
  "git2",
  "nu-plugin",
  "nu-protocol",

@@ -99,7 +99,7 @@ struct ParsingInfo {
 fn from_attributes_to_value(attributes: &[roxmltree::Attribute], info: &ParsingInfo) -> Value {
     let mut collected = IndexMap::new();
     for a in attributes {
-        collected.insert(String::from(a.name()), Value::string(a.value(), info.span));
+        collected.insert(a.name().into(), Value::string(a.value(), info.span));
     }
     Value::record(collected.into_iter().collect(), info.span)
 }
@@ -120,9 +120,9 @@ fn element_to_value(n: &roxmltree::Node, info: &ParsingInfo) -> Value {
 
     let attributes = from_attributes_to_value(&n.attributes().collect::<Vec<_>>(), info);
 
-    node.insert(String::from(COLUMN_TAG_NAME), tag);
-    node.insert(String::from(COLUMN_ATTRS_NAME), attributes);
-    node.insert(String::from(COLUMN_CONTENT_NAME), content);
+    node.insert(COLUMN_TAG_NAME.into(), tag);
+    node.insert(COLUMN_ATTRS_NAME.into(), attributes);
+    node.insert(COLUMN_CONTENT_NAME.into(), content);
 
     Value::record(node.into_iter().collect(), span)
 }
@@ -137,9 +137,9 @@ fn text_to_value(n: &roxmltree::Node, info: &ParsingInfo) -> Option<Value> {
         let mut node = IndexMap::new();
         let content = Value::string(String::from(text), span);
 
-        node.insert(String::from(COLUMN_TAG_NAME), Value::nothing(span));
-        node.insert(String::from(COLUMN_ATTRS_NAME), Value::nothing(span));
-        node.insert(String::from(COLUMN_CONTENT_NAME), content);
+        node.insert(COLUMN_TAG_NAME.into(), Value::nothing(span));
+        node.insert(COLUMN_ATTRS_NAME.into(), Value::nothing(span));
+        node.insert(COLUMN_CONTENT_NAME.into(), content);
 
         Some(Value::record(node.into_iter().collect(), span))
     }
@@ -155,9 +155,9 @@ fn comment_to_value(n: &roxmltree::Node, info: &ParsingInfo) -> Option<Value> {
         let mut node = IndexMap::new();
         let content = Value::string(String::from(text), span);
 
-        node.insert(String::from(COLUMN_TAG_NAME), Value::string("!", span));
-        node.insert(String::from(COLUMN_ATTRS_NAME), Value::nothing(span));
-        node.insert(String::from(COLUMN_CONTENT_NAME), content);
+        node.insert(COLUMN_TAG_NAME.into(), Value::string("!", span));
+        node.insert(COLUMN_ATTRS_NAME.into(), Value::nothing(span));
+        node.insert(COLUMN_CONTENT_NAME.into(), content);
 
         Some(Value::record(node.into_iter().collect(), span))
     } else {
@@ -178,9 +178,9 @@ fn processing_instruction_to_value(n: &roxmltree::Node, info: &ParsingInfo) -> O
             .value
             .map_or_else(|| Value::nothing(span), |x| Value::string(x, span));
 
-        node.insert(String::from(COLUMN_TAG_NAME), tag);
-        node.insert(String::from(COLUMN_ATTRS_NAME), Value::nothing(span));
-        node.insert(String::from(COLUMN_CONTENT_NAME), content);
+        node.insert(COLUMN_TAG_NAME.into(), tag);
+        node.insert(COLUMN_ATTRS_NAME.into(), Value::nothing(span));
+        node.insert(COLUMN_CONTENT_NAME.into(), content);
 
         Some(Value::record(node.into_iter().collect(), span))
     } else {
@@ -297,10 +297,11 @@ fn make_cant_convert_error(help: impl Into<String>, span: Span) -> ShellError {
 mod tests {
     use super::*;
 
+    use ecow::EcoString;
     use indexmap::indexmap;
     use indexmap::IndexMap;
 
-    fn string(input: impl Into<String>) -> Value {
+    fn string(input: impl Into<EcoString>) -> Value {
         Value::test_string(input)
     }
 
@@ -318,7 +319,7 @@ mod tests {
     }
 
     fn content_tag(
-        tag: impl Into<String>,
+        tag: impl Into<EcoString>,
         attrs: IndexMap<&str, &str>,
         content: &[Value],
     ) -> Value {
@@ -329,7 +330,7 @@ mod tests {
         })
     }
 
-    fn content_string(value: impl Into<String>) -> Value {
+    fn content_string(value: impl Into<EcoString>) -> Value {
         Value::test_record(record! {
             COLUMN_TAG_NAME =>     Value::nothing(Span::test_data()),
             COLUMN_ATTRS_NAME =>   Value::nothing(Span::test_data()),
@@ -385,7 +386,7 @@ mod tests {
             content_tag(
                 "nu",
                 indexmap! {},
-                &vec![
+                &[
                     content_tag("dev", indexmap! {}, &[content_string("Andrés")]),
                     content_tag("dev", indexmap! {}, &[content_string("JT")]),
                     content_tag("dev", indexmap! {}, &[content_string("Yehuda")])

@@ -94,12 +94,12 @@ fn default(
                     } => {
                         let mut idx = 0;
                         let mut found = false;
-
-                        while idx < record.len() {
+                        let vals = record.vals.make_mut();
+                        while idx < vals.len() {
                             if record.cols[idx] == column.item {
                                 found = true;
-                                if matches!(record.vals[idx], Value::Nothing { .. }) {
-                                    record.vals[idx] = value.clone();
+                                if matches!(vals[idx], Value::Nothing { .. }) {
+                                    vals[idx] = value.clone();
                                 }
                             }
                             idx += 1;

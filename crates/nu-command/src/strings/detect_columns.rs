@@ -1,6 +1,7 @@
 use std::iter::Peekable;
 use std::str::CharIndices;
 
+use ecow::EcoVec;
 use itertools::Itertools;
 use nu_engine::CallExt;
 use nu_protocol::ast::Call;
@@ -139,8 +140,8 @@ fn detect_columns(
         .map(move |x| {
             let row = find_columns(&x);
 
-            let mut cols = vec![];
-            let mut vals = vec![];
+            let mut cols = EcoVec::new();
+            let mut vals = EcoVec::new();
 
             if headers.len() == row.len() {
                 for (header, val) in headers.iter().zip(row.iter()) {
@@ -156,7 +157,7 @@ fn detect_columns(
                         if cell.span.start <= header.span.end && cell.span.end > header.span.start {
                             pre_output.push((
                                 header.item.to_string(),
-                                Value::string(&cell.item, name_span),
+                                Value::string(cell.item.as_str(), name_span),
                             ));
                         }
                     }
@@ -186,6 +187,7 @@ fn detect_columns(
                 }
             }
 
+            let mut cols = cols.into_iter().map(Into::into).collect::<EcoVec<_>>();
             let (start_index, end_index) = if let Some(range) = &range {
                 match nu_cmd_base::util::process_range(range) {
                     Ok((l_idx, r_idx)) => {
@@ -217,9 +219,12 @@ fn detect_columns(
             };
 
             // Merge Columns
-            ((start_index + 1)..(cols.len() - end_index + start_index + 1)).for_each(|idx| {
-                cols.swap(idx, end_index - start_index - 1 + idx);
-            });
+            {
+                let cols = cols.make_mut();
+                ((start_index + 1)..(cols.len() - end_index + start_index + 1)).for_each(|idx| {
+                    cols.swap(idx, end_index - start_index - 1 + idx);
+                });
+            }
             cols.truncate(cols.len() - end_index + start_index + 1);
 
             // Merge Values
@@ -230,10 +235,10 @@ fn detect_columns(
                 .map(|v| v.as_string().unwrap_or_default())
                 .join(" ");
             let binding = Value::string(combined, Span::unknown());
-            let last_seg = vals.split_off(end_index);
+            let last_seg = vals[end_index..].to_vec();
             vals.truncate(start_index);
             vals.push(binding);
-            last_seg.into_iter().for_each(|v| vals.push(v));
+            vals.extend(last_seg);
 
             Value::record(Record { cols, vals }, name_span)
         })

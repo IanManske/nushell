@@ -316,7 +316,7 @@ pub fn run_seq_dates(
 
     let mut ret = EcoVec::new();
     loop {
-        let date_string = &next.format(&out_format).to_string();
+        let date_string = next.format(&out_format).to_string();
         ret.push(Value::string(date_string, call_span));
         next += Duration::days(step_size);
 

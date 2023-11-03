@@ -250,7 +250,7 @@ fn convert_to_extension(
 /// Propagates [`Value::Error`] and creates error otherwise
 fn value_to_bytes(value: Value) -> Result<Vec<u8>, ShellError> {
     match value {
-        Value::String { val, .. } => Ok(val.into_bytes()),
+        Value::String { val, .. } => Ok(val.bytes().collect()),
         Value::Binary { val, .. } => Ok(val),
         Value::List { vals, .. } => {
             let val = vals
@@ -382,7 +382,7 @@ fn stream_to_file(
         .try_for_each(move |result| {
             let buf = match result {
                 Ok(v) => match v {
-                    Value::String { val, .. } => val.into_bytes(),
+                    Value::String { val, .. } => val.bytes().collect(),
                     Value::Binary { val, .. } => val,
                     // Propagate errors by explicitly matching them before the final case.
                     Value::Error { error, .. } => return Err(*error),

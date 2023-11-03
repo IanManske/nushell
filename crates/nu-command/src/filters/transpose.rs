@@ -1,3 +1,4 @@
+use ecow::EcoString;
 use nu_engine::column::get_columns;
 use nu_engine::CallExt;
 use nu_protocol::ast::Call;
@@ -169,7 +170,7 @@ pub fn transpose(
 
     let descs = get_columns(&input);
 
-    let mut headers: Vec<String> = vec![];
+    let mut headers: Vec<EcoString> = vec![];
 
     if !args.rest.is_empty() && args.header_row {
         return Err(ShellError::GenericError(
@@ -187,7 +188,7 @@ pub fn transpose(
                 match &i.get_data_by_key(desc) {
                     Some(x) => {
                         if let Ok(s) = x.as_string() {
-                            headers.push(s.to_string());
+                            headers.push(s.into());
                         } else {
                             return Err(ShellError::GenericError(
                                 "Header row needs string headers".into(),
@@ -221,14 +222,14 @@ pub fn transpose(
     } else {
         for i in 0..=input.len() {
             if let Some(name) = args.rest.get(i) {
-                headers.push(name.item.clone())
+                headers.push(name.item.as_str().into())
             } else {
-                headers.push(format!("column{i}"));
+                headers.push(format!("column{i}").into());
             }
         }
     }
 
-    let descs: Vec<_> = if args.header_row {
+    let descs = if args.header_row {
         descs.into_iter().skip(1).collect()
     } else {
         descs

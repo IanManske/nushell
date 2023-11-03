@@ -1,3 +1,4 @@
+use ecow::{EcoString, EcoVec};
 use nu_protocol::ast::Call;
 use nu_protocol::engine::{Command, EngineState, Stack};
 use nu_protocol::{
@@ -85,8 +86,8 @@ impl Command for Headers {
 
 fn replace_headers(
     value: Value,
-    old_headers: &[String],
-    new_headers: &[String],
+    old_headers: &[EcoString],
+    new_headers: &[EcoString],
 ) -> Result<Value, ShellError> {
     let span = value.span();
     match value {
@@ -131,7 +132,7 @@ fn is_valid_header(value: &Value) -> bool {
 fn extract_headers(
     value: &Value,
     config: &Config,
-) -> Result<(Vec<String>, Vec<String>), ShellError> {
+) -> Result<(EcoVec<EcoString>, Vec<EcoString>), ShellError> {
     let span = value.span();
     match value {
         Value::Record { val: record, .. } => {
@@ -157,8 +158,9 @@ fn extract_headers(
                     } else {
                         col
                     }
+                    .into()
                 })
-                .collect::<Vec<String>>();
+                .collect();
 
             Ok((old_headers, new_headers))
         }

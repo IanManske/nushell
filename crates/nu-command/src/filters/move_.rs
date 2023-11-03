@@ -197,7 +197,7 @@ fn move_record_columns(
     // Check if before/after column exist
     match &before_or_after.item {
         BeforeOrAfter::After(after) => {
-            if !record.cols.contains(after) {
+            if !record.contains(after) {
                 return Err(ShellError::GenericError(
                     "Cannot move columns".to_string(),
                     "column does not exist".to_string(),
@@ -208,7 +208,7 @@ fn move_record_columns(
             }
         }
         BeforeOrAfter::Before(before) => {
-            if !record.cols.contains(before) {
+            if !record.contains(before) {
                 return Err(ShellError::GenericError(
                     "Cannot move columns".to_string(),
                     "column does not exist".to_string(),

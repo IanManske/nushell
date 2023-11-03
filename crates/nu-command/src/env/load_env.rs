@@ -45,24 +45,22 @@ impl Command for LoadEnv {
         match arg {
             Some(record) => {
                 for (env_var, rhs) in record {
-                    let env_var_ = env_var.as_str();
-                    if ["FILE_PWD", "CURRENT_FILE", "PWD"].contains(&env_var_) {
+                    if ["FILE_PWD", "CURRENT_FILE", "PWD"].contains(&env_var.as_str()) {
                         return Err(ShellError::AutomaticEnvVarSetManually {
-                            envvar_name: env_var,
+                            envvar_name: env_var.into(),
                             span: call.head,
                         });
                     }
-                    stack.add_env_var(env_var, rhs);
+                    stack.add_env_var(env_var.into(), rhs);
                 }
                 Ok(PipelineData::empty())
             }
             None => match input {
                 PipelineData::Value(Value::Record { val, .. }, ..) => {
                     for (env_var, rhs) in val {
-                        let env_var_ = env_var.as_str();
-                        if ["FILE_PWD", "CURRENT_FILE"].contains(&env_var_) {
+                        if ["FILE_PWD", "CURRENT_FILE"].contains(&env_var.as_str()) {
                             return Err(ShellError::AutomaticEnvVarSetManually {
-                                envvar_name: env_var,
+                                envvar_name: env_var.into(),
                                 span: call.head,
                             });
                         }
@@ -72,11 +70,11 @@ impl Command for LoadEnv {
                             let rhs = rhs.as_string()?;
                             let rhs = nu_path::expand_path_with(rhs, cwd);
                             stack.add_env_var(
-                                env_var,
+                                env_var.into(),
                                 Value::string(rhs.to_string_lossy(), call.head),
                             );
                         } else {
-                            stack.add_env_var(env_var, rhs);
+                            stack.add_env_var(env_var.into(), rhs);
                         }
                     }
                     Ok(PipelineData::empty())

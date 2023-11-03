@@ -87,7 +87,7 @@ fn with_env(
     let block = engine_state.get_block(capture_block.block_id);
     let mut stack = stack.captures_to_stack(capture_block.captures);
 
-    let mut env: HashMap<String, Value> = HashMap::new();
+    let mut env = HashMap::new();
 
     match &variable {
         Value::List { vals: table, .. } => {
@@ -96,7 +96,7 @@ fn with_env(
                 match &table[0] {
                     Value::Record { val, .. } => {
                         for (k, v) in val {
-                            env.insert(k.to_string(), v.clone());
+                            env.insert(k.clone(), v.clone());
                         }
                     }
                     x => {
@@ -115,7 +115,7 @@ fn with_env(
                 // primitive values([X Y W Z])
                 for row in table.chunks(2) {
                     if row.len() == 2 {
-                        env.insert(row[0].as_string()?, row[1].clone());
+                        env.insert(row[0].as_string()?.into(), row[1].clone());
                     }
                     // TODO: else error?
                 }
@@ -141,7 +141,7 @@ fn with_env(
     };
 
     for (k, v) in env {
-        stack.add_env_var(k, v);
+        stack.add_env_var(k.into(), v);
     }
 
     eval_block(

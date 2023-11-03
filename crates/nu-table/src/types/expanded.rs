@@ -263,7 +263,7 @@ fn expanded_table_list(input: &[Value], cfg: Cfg<'_>) -> TableResult {
             data_styles.insert((row + 1, col + with_index as usize), style);
         }
 
-        let head_cell = NuTableCell::new(header);
+        let head_cell = NuTableCell::new(header.into());
         data[0].push(head_cell);
 
         if column_width > available {
@@ -372,7 +372,7 @@ fn expanded_table_kv(record: &Record, cfg: Cfg<'_>) -> StringResult {
         // we want to have a key being aligned to 2nd line,
         // we could use Padding for it but,
         // the easiest way to do so is just push a new_line char before
-        let mut key = key.to_owned();
+        let mut key = key.to_string();
         if !key.is_empty() && is_expanded && theme.has_top_line() {
             key.insert(0, '\n');
         }

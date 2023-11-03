@@ -266,7 +266,7 @@ impl View for InteractiveView<'_> {
             }
         }
 
-        let mut r = RecordView::new(vec![], vec![]);
+        let mut r = RecordView::new([].into(), vec![]);
         r.setup(config);
 
         self.table_theme = r.get_theme().clone();

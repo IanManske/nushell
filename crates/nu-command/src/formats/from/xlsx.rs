@@ -73,13 +73,13 @@ fn convert_columns(columns: &[Value]) -> Result<Vec<String>, ShellError> {
     let res = columns
         .iter()
         .map(|value| match &value {
-            Value::String { val: s, .. } => Ok(s.clone()),
+            Value::String { val: s, .. } => Ok(s.into()),
             _ => Err(ShellError::IncompatibleParametersSingle {
                 msg: "Incorrect column format, Only string as column name".to_string(),
                 span: value.span(),
             }),
         })
-        .collect::<Result<Vec<String>, _>>()?;
+        .collect::<Result<_, _>>()?;
 
     Ok(res)
 }
@@ -143,14 +143,14 @@ fn from_xlsx(
                         .map(|(i, cell)| {
                             let value = match cell {
                                 DataType::Empty => Value::nothing(head),
-                                DataType::String(s) => Value::string(s, head),
+                                DataType::String(s) => Value::string(s.as_str(), head),
                                 DataType::Float(f) => Value::float(*f, head),
                                 DataType::Int(i) => Value::int(*i, head),
                                 DataType::Bool(b) => Value::bool(*b, head),
                                 _ => Value::nothing(head),
                             };
 
-                            (format!("column{i}"), value)
+                            (format!("column{i}").into(), value)
                         })
                         .collect();
 
@@ -158,7 +158,7 @@ fn from_xlsx(
                 })
                 .collect();
 
-            dict.insert(sheet_name, Value::list(sheet_output, head));
+            dict.insert(sheet_name.into(), Value::list(sheet_output, head));
         } else {
             return Err(ShellError::UnsupportedInput(
                 "Could not load sheet".to_string(),

@@ -2784,7 +2784,7 @@ pub fn parse_overlay_use(working_set: &mut StateWorkingSet, call: Box<Call>) -> 
             // First, check for errors
             if has_prefix && !overlay_frame.prefixed {
                 working_set.error(ParseError::OverlayPrefixMismatch(
-                    overlay_name,
+                    overlay_name.into(),
                     "without".to_string(),
                     overlay_name_span,
                 ));
@@ -2793,7 +2793,7 @@ pub fn parse_overlay_use(working_set: &mut StateWorkingSet, call: Box<Call>) -> 
 
             if !has_prefix && overlay_frame.prefixed {
                 working_set.error(ParseError::OverlayPrefixMismatch(
-                    overlay_name,
+                    overlay_name.into(),
                     "with".to_string(),
                     overlay_name_span,
                 ));
@@ -2852,14 +2852,16 @@ pub fn parse_overlay_use(working_set: &mut StateWorkingSet, call: Box<Call>) -> 
                 working_set,
                 overlay_name.as_bytes(),
                 overlay_name_span,
-                new_name.as_ref().map(|spanned| spanned.item.clone()),
+                new_name
+                    .as_ref()
+                    .map(|spanned| spanned.item.as_str().into()),
             ) {
                 // try file or directory
                 let new_module = working_set.get_module(module_id).clone();
                 (
                     new_name
                         .map(|spanned| spanned.item)
-                        .unwrap_or_else(|| String::from_utf8_lossy(&new_module.name).to_string()),
+                        .unwrap_or_else(|| String::from_utf8_lossy(&new_module.name).into()),
                     new_module,
                     module_id,
                     true,
@@ -2949,7 +2951,7 @@ pub fn parse_overlay_hide(working_set: &mut StateWorkingSet, call: Box<Call>) ->
         }
     } else {
         (
-            String::from_utf8_lossy(working_set.last_overlay_name()).to_string(),
+            String::from_utf8_lossy(working_set.last_overlay_name()).into(),
             call_span,
         )
     };
@@ -2965,7 +2967,7 @@ pub fn parse_overlay_hide(working_set: &mut StateWorkingSet, call: Box<Call>) ->
 
     if overlay_name == DEFAULT_OVERLAY_NAME {
         working_set.error(ParseError::CantHideDefaultOverlay(
-            overlay_name,
+            overlay_name.into(),
             overlay_name_span,
         ));
 
@@ -3456,7 +3458,7 @@ pub fn parse_source(working_set: &mut StateWorkingSet, spans: &[Span]) -> Pipeli
                         }]);
                     }
                 } else {
-                    working_set.error(ParseError::SourcedFileNotFound(filename, spans[1]));
+                    working_set.error(ParseError::SourcedFileNotFound(filename.into(), spans[1]));
                 }
             }
             return Pipeline::from_vec(vec![Expression {
@@ -3597,13 +3599,16 @@ pub fn parse_register(working_set: &mut StateWorkingSet, spans: &[Span]) -> Pipe
                 value_as_string(val, expr.span).map_err(|err| err.wrap(working_set, call.head))?;
 
             let Some(path) = find_in_dirs(&filename, working_set, &cwd, PLUGIN_DIRS_VAR) else {
-                return Err(ParseError::RegisteredFileNotFound(filename, expr.span));
+                return Err(ParseError::RegisteredFileNotFound(filename.into(), expr.span));
             };
 
             if path.exists() && path.is_file() {
                 Ok((path, expr.span))
             } else {
-                Err(ParseError::RegisteredFileNotFound(filename, expr.span))
+                Err(ParseError::RegisteredFileNotFound(
+                    filename.into(),
+                    expr.span,
+                ))
             }
         })
         .expect("required positional has being checked");

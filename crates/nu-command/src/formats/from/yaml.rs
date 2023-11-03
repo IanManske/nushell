@@ -119,19 +119,19 @@ fn convert_yaml_value_to_nu_value(
                 match (k, v) {
                     (serde_yaml::Value::Number(k), _) => {
                         collected.insert(
-                            k.to_string(),
+                            k.to_string().into(),
                             convert_yaml_value_to_nu_value(v, span, val_span)?,
                         );
                     }
                     (serde_yaml::Value::Bool(k), _) => {
                         collected.insert(
-                            k.to_string(),
+                            k.to_string().into(),
                             convert_yaml_value_to_nu_value(v, span, val_span)?,
                         );
                     }
                     (serde_yaml::Value::String(k), _) => {
                         collected.insert(
-                            k.clone(),
+                            k.as_str().into(),
                             convert_yaml_value_to_nu_value(v, span, val_span)?,
                         );
                     }

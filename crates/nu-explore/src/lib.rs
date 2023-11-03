@@ -7,6 +7,7 @@ mod registry;
 mod views;
 
 pub use default_context::add_explore_context;
+use ecow::{EcoString, EcoVec};
 pub use explore::Explore;
 
 use std::io;
@@ -60,8 +61,8 @@ fn run_pager(
 }
 
 fn create_record_view(
-    columns: Vec<String>,
-    data: Vec<Vec<Value>>,
+    columns: EcoVec<EcoString>,
+    data: Vec<EcoVec<Value>>,
     is_record: bool,
     config: PagerConfig,
 ) -> Option<Page> {

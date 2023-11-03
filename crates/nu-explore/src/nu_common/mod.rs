@@ -6,6 +6,7 @@ mod value;
 
 use std::sync::{atomic::AtomicBool, Arc};
 
+use ecow::EcoVec;
 use nu_color_config::TextStyle;
 use nu_protocol::Value;
 
@@ -21,7 +22,7 @@ pub use string::{string_width, truncate_str};
 pub use table::try_build_table;
 pub use value::{collect_input, collect_pipeline, create_map, map_into_value};
 
-pub fn has_simple_value(data: &[Vec<Value>]) -> Option<&Value> {
+pub fn has_simple_value(data: &[EcoVec<Value>]) -> Option<&Value> {
     if data.len() == 1
         && data[0].len() == 1
         && !matches!(&data[0][0], Value::List { .. } | Value::Record { .. })

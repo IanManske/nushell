@@ -116,7 +116,7 @@ fn eval_benchmarks(c: &mut Criterion) {
 fn encoding_test_data(row_cnt: usize, col_cnt: usize) -> Value {
     let record = Value::test_record(
         (0..col_cnt)
-            .map(|x| (format!("col_{x}"), Value::test_int(x as i64)))
+            .map(|x| (format!("col_{x}").into(), Value::test_int(x as i64)))
             .collect(),
     );
 

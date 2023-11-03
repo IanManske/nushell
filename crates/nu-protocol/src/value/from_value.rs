@@ -4,7 +4,7 @@ use crate::ast::{CellPath, MatchPattern, PathMember};
 use crate::engine::{Block, Closure};
 use crate::{Range, Record, ShellError, Spanned, Value};
 use chrono::{DateTime, FixedOffset};
-use ecow::EcoVec;
+use ecow::{EcoString, EcoVec};
 
 pub trait FromValue: Sized {
     fn from_value(v: Value) -> Result<Self, ShellError>;
@@ -167,12 +167,107 @@ impl FromValue for usize {
     }
 }
 
+impl FromValue for EcoString {
+    fn from_value(v: Value) -> Result<Self, ShellError> {
+        // FIXME: we may want to fail a little nicer here
+        match v {
+            Value::CellPath { val, .. } => Ok(val.into_string().into()),
+            Value::String { val, .. } => Ok(val),
+            v => Err(ShellError::CantConvert {
+                to_type: "string".into(),
+                from_type: v.get_type().to_string(),
+                span: v.span(),
+                help: None,
+            }),
+        }
+    }
+}
+
+impl FromValue for Spanned<EcoString> {
+    fn from_value(v: Value) -> Result<Self, ShellError> {
+        let span = v.span();
+        Ok(Spanned {
+            item: match v {
+                Value::CellPath { val, .. } => val.into_string().into(),
+                Value::String { val, .. } => val,
+                v => {
+                    return Err(ShellError::CantConvert {
+                        to_type: "string".into(),
+                        from_type: v.get_type().to_string(),
+                        span: v.span(),
+                        help: None,
+                    })
+                }
+            },
+            span,
+        })
+    }
+}
+
+impl FromValue for Vec<EcoString> {
+    fn from_value(v: Value) -> Result<Self, ShellError> {
+        // FIXME: we may want to fail a little nicer here
+        match v {
+            Value::List { vals, .. } => vals
+                .into_iter()
+                .map(|val| match val {
+                    Value::String { val, .. } => Ok(val),
+                    c => Err(ShellError::CantConvert {
+                        to_type: "string".into(),
+                        from_type: c.get_type().to_string(),
+                        span: c.span(),
+                        help: None,
+                    }),
+                })
+                .collect::<Result<_, _>>(),
+            v => Err(ShellError::CantConvert {
+                to_type: "string".into(),
+                from_type: v.get_type().to_string(),
+                span: v.span(),
+                help: None,
+            }),
+        }
+    }
+}
+
+impl FromValue for Vec<Spanned<EcoString>> {
+    fn from_value(v: Value) -> Result<Self, ShellError> {
+        // FIXME: we may want to fail a little nicer here
+        match v {
+            Value::List { vals, .. } => vals
+                .into_iter()
+                .map(|val| {
+                    let val_span = val.span();
+                    match val {
+                        Value::String { val, .. } => Ok(Spanned {
+                            item: val,
+                            span: val_span,
+                        }),
+                        c => Err(ShellError::CantConvert {
+                            to_type: "string".into(),
+                            from_type: c.get_type().to_string(),
+                            span: c.span(),
+                            help: None,
+                        }),
+                    }
+                })
+                .collect::<Result<_, _>>(),
+            v => Err(ShellError::CantConvert {
+                to_type: "string".into(),
+                from_type: v.get_type().to_string(),
+                span: v.span(),
+                help: None,
+            }),
+        }
+    }
+}
+
 impl FromValue for String {
     fn from_value(v: Value) -> Result<Self, ShellError> {
         // FIXME: we may want to fail a little nicer here
         match v {
             Value::CellPath { val, .. } => Ok(val.into_string()),
-            Value::String { val, .. } => Ok(val),
+            Value::String { val, .. } => Ok(val.into()),
             v => Err(ShellError::CantConvert {
                 to_type: "string".into(),
                 from_type: v.get_type().to_string(),
@@ -189,7 +284,7 @@ impl FromValue for Spanned<String> {
         Ok(Spanned {
             item: match v {
                 Value::CellPath { val, .. } => val.into_string(),
-                Value::String { val, .. } => val,
+                Value::String { val, .. } => val.into(),
                 v => {
                     return Err(ShellError::CantConvert {
                         to_type: "string".into(),
@@ -211,7 +306,7 @@ impl FromValue for Vec<String> {
             Value::List { vals, .. } => vals
                 .into_iter()
                 .map(|val| match val {
-                    Value::String { val, .. } => Ok(val),
+                    Value::String { val, .. } => Ok(val.into()),
                     c => Err(ShellError::CantConvert {
                         to_type: "string".into(),
                         from_type: c.get_type().to_string(),
@@ -219,7 +314,7 @@ impl FromValue for Vec<String> {
                         help: None,
                     }),
                 })
-                .collect::<Result<Vec<String>, ShellError>>(),
+                .collect::<Result<_, _>>(),
             v => Err(ShellError::CantConvert {
                 to_type: "string".into(),
                 from_type: v.get_type().to_string(),
@@ -240,7 +335,7 @@ impl FromValue for Vec<Spanned<String>> {
                     let val_span = val.span();
                     match val {
                         Value::String { val, .. } => Ok(Spanned {
-                            item: val,
+                            item: val.into(),
                             span: val_span,
                         }),
                         c => Err(ShellError::CantConvert {
@@ -251,7 +346,7 @@ impl FromValue for Vec<Spanned<String>> {
                         }),
                     }
                 })
-                .collect::<Result<Vec<Spanned<String>>, ShellError>>(),
+                .collect::<Result<_, _>>(),
             v => Err(ShellError::CantConvert {
                 to_type: "string".into(),
                 from_type: v.get_type().to_string(),
@@ -294,7 +389,7 @@ impl FromValue for CellPath {
             Value::CellPath { val, .. } => Ok(val),
             Value::String { val, .. } => Ok(CellPath {
                 members: vec![PathMember::String {
-                    val,
+                    val: val.into(),
                     span,
                     optional: false,
                 }],
@@ -413,7 +508,7 @@ impl FromValue for Vec<u8> {
     fn from_value(v: Value) -> Result<Self, ShellError> {
         match v {
             Value::Binary { val, .. } => Ok(val),
-            Value::String { val, .. } => Ok(val.into_bytes()),
+            Value::String { val, .. } => Ok(val.bytes().collect()),
             v => Err(ShellError::CantConvert {
                 to_type: "binary data".into(),
                 from_type: v.get_type().to_string(),
@@ -430,7 +525,7 @@ impl FromValue for Spanned<Vec<u8>> {
         match v {
             Value::Binary { val, .. } => Ok(Spanned { item: val, span }),
             Value::String { val, .. } => Ok(Spanned {
-                item: val.into_bytes(),
+                item: val.bytes().collect(),
                 span,
             }),
             v => Err(ShellError::CantConvert {
@@ -448,7 +543,7 @@ impl FromValue for Spanned<PathBuf> {
         let span = v.span();
         match v {
             Value::String { val, .. } => Ok(Spanned {
-                item: val.into(),
+                item: val.to_string().into(),
                 span,
             }),
             v => Err(ShellError::CantConvert {

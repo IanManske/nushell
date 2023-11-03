@@ -239,7 +239,7 @@ fn nested_suggestions(
             // Add all the columns as completion
             for item in val.cols {
                 output.push(Suggestion {
-                    value: item,
+                    value: item.into(),
                     description: None,
                     extra: None,
                     span: current_span,
@@ -266,7 +266,7 @@ fn nested_suggestions(
         Value::List { vals, .. } => {
             for column_name in get_columns(vals.as_slice()) {
                 output.push(Suggestion {
-                    value: column_name,
+                    value: column_name.into(),
                     description: None,
                     extra: None,
                     span: current_span,

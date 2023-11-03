@@ -234,7 +234,10 @@ fn parse(path: &Path, span: Span, args: &Arguments) -> Value {
             if basename.ends_with(&ext_with_dot) && !extension.is_empty() {
                 let stem = basename.trim_end_matches(&ext_with_dot);
                 record.push("stem", Value::string(stem, span));
-                record.push("extension", Value::string(extension, *extension_span));
+                record.push(
+                    "extension",
+                    Value::string(extension.as_str(), *extension_span),
+                );
             } else {
                 record.push("stem", Value::string(basename, span));
                 record.push("extension", Value::string("", span));

@@ -1,4 +1,4 @@
-use ecow::EcoVec;
+use ecow::{eco_vec, EcoString, EcoVec};
 use nu_protocol::{
     ast::Expr,
     engine::{Command, EngineState, Stack, Visibility},
@@ -141,14 +141,14 @@ impl<'e, 's> ScopeData<'e, 's> {
             .iter()
             .map(|(input_type, output_type)| {
                 (
-                    input_type.to_shape().to_string(),
+                    input_type.to_shape().to_string().into(),
                     Value::list(
                         self.collect_signature_entries(input_type, output_type, signature, span),
                         span,
                     ),
                 )
             })
-            .collect::<Vec<(String, Value)>>();
+            .collect::<Vec<(EcoString, _)>>();
 
         // Until we allow custom commands to have input and output types, let's just
         // make them Type::Any Type::Any so they can show up in our `scope commands`
@@ -157,7 +157,7 @@ impl<'e, 's> ScopeData<'e, 's> {
         if sigs.is_empty() {
             let any_type = &Type::Any;
             sigs.push((
-                any_type.to_shape().to_string(),
+                any_type.to_shape().to_string().into(),
                 Value::list(
                     self.collect_signature_entries(any_type, any_type, signature, span),
                     span,
@@ -186,22 +186,22 @@ impl<'e, 's> ScopeData<'e, 's> {
     ) -> EcoVec<Value> {
         let mut sig_records = EcoVec::new();
 
-        let sig_cols = vec![
-            "parameter_name".to_string(),
-            "parameter_type".to_string(),
-            "syntax_shape".to_string(),
-            "is_optional".to_string(),
-            "short_flag".to_string(),
-            "description".to_string(),
-            "custom_completion".to_string(),
-            "parameter_default".to_string(),
+        let sig_cols = eco_vec![
+            "parameter_name".into(),
+            "parameter_type".into(),
+            "syntax_shape".into(),
+            "is_optional".into(),
+            "short_flag".into(),
+            "description".into(),
+            "custom_completion".into(),
+            "parameter_default".into(),
         ];
 
         // input
         sig_records.push(Value::record(
             Record::from_raw_cols_vals(
                 sig_cols.clone(),
-                vec![
+                [
                     Value::nothing(span),
                     Value::string("input", span),
                     Value::string(input_type.to_shape().to_string(), span),
@@ -210,26 +210,28 @@ impl<'e, 's> ScopeData<'e, 's> {
                     Value::nothing(span),
                     Value::nothing(span),
                     Value::nothing(span),
-                ],
+                ]
+                .into(),
             ),
             span,
         ));
 
         // required_positional
         for req in &signature.required_positional {
-            let sig_vals = vec![
-                Value::string(&req.name, span),
+            let sig_vals = [
+                Value::string(req.name.as_str(), span),
                 Value::string("positional", span),
                 Value::string(req.shape.to_string(), span),
                 Value::bool(false, span),
                 Value::nothing(span),
-                Value::string(&req.desc, span),
+                Value::string(req.desc.as_str(), span),
                 Value::string(
                     extract_custom_completion_from_arg(self.engine_state, &req.shape),
                     span,
                 ),
                 Value::nothing(span),
-            ];
+            ]
+            .into();
 
             sig_records.push(Value::record(
                 Record::from_raw_cols_vals(sig_cols.clone(), sig_vals),
@@ -239,13 +241,13 @@ impl<'e, 's> ScopeData<'e, 's> {
 
         // optional_positional
         for opt in &signature.optional_positional {
-            let sig_vals = vec![
-                Value::string(&opt.name, span),
+            let sig_vals = [
+                Value::string(opt.name.as_str(), span),
                 Value::string("positional", span),
                 Value::string(opt.shape.to_string(), span),
                 Value::bool(true, span),
                 Value::nothing(span),
-                Value::string(&opt.desc, span),
+                Value::string(opt.desc.as_str(), span),
                 Value::string(
                     extract_custom_completion_from_arg(self.engine_state, &opt.shape),
                     span,
@@ -255,7 +257,8 @@ impl<'e, 's> ScopeData<'e, 's> {
                 } else {
                     Value::nothing(span)
                 },
-            ];
+            ]
+            .into();
 
             sig_records.push(Value::record(
                 Record::from_raw_cols_vals(sig_cols.clone(), sig_vals),
@@ -265,19 +268,20 @@ impl<'e, 's> ScopeData<'e, 's> {
 
         // rest_positional
         if let Some(rest) = &signature.rest_positional {
-            let sig_vals = vec![
+            let sig_vals = [
                 Value::string(if rest.name == "rest" { "" } else { &rest.name }, span),
                 Value::string("rest", span),
                 Value::string(rest.shape.to_string(), span),
                 Value::bool(true, span),
                 Value::nothing(span),
-                Value::string(&rest.desc, span),
+                Value::string(rest.desc.as_str(), span),
                 Value::string(
                     extract_custom_completion_from_arg(self.engine_state, &rest.shape),
                     span,
                 ),
                 Value::nothing(span), // rest_positional does have default, but parser prohibits specifying it?!
-            ];
+            ]
+            .into();
 
             sig_records.push(Value::record(
                 Record::from_raw_cols_vals(sig_cols.clone(), sig_vals),
@@ -311,20 +315,21 @@ impl<'e, 's> ScopeData<'e, 's> {
                 Value::nothing(span)
             };
 
-            let sig_vals = vec![
-                Value::string(&named.long, span),
+            let sig_vals = [
+                Value::string(named.long.as_str(), span),
                 flag_type,
                 shape,
                 Value::bool(!named.required, span),
                 short_flag,
-                Value::string(&named.desc, span),
+                Value::string(named.desc.as_str(), span),
                 Value::string(custom_completion_command_name, span),
                 if let Some(val) = &named.default_value {
                     val.clone()
                 } else {
                     Value::nothing(span)
                 },
-            ];
+            ]
+            .into();
 
             sig_records.push(Value::record(
                 Record::from_raw_cols_vals(sig_cols.clone(), sig_vals),
@@ -336,7 +341,7 @@ impl<'e, 's> ScopeData<'e, 's> {
         sig_records.push(Value::record(
             Record::from_raw_cols_vals(
                 sig_cols,
-                vec![
+                [
                     Value::nothing(span),
                     Value::string("output", span),
                     Value::string(output_type.to_shape().to_string(), span),
@@ -345,7 +350,8 @@ impl<'e, 's> ScopeData<'e, 's> {
                     Value::nothing(span),
                     Value::nothing(span),
                     Value::nothing(span),
-                ],
+                ]
+                .into(),
             ),
             span,
         ));

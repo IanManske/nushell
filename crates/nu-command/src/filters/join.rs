@@ -1,4 +1,4 @@
-use ecow::EcoVec;
+use ecow::{EcoString, EcoVec};
 use nu_engine::CallExt;
 use nu_protocol::ast::Call;
 use nu_protocol::engine::{Command, EngineState, Stack};
@@ -249,7 +249,7 @@ fn join_rows(
     this: &[Value],
     this_join_key: &str,
     other: HashMap<String, Vec<&Record>>,
-    other_keys: &[String],
+    other_keys: &[EcoString],
     shared_join_key: Option<&str>,
     join_type: &JoinType,
     include_inner: IncludeInner,
@@ -298,7 +298,7 @@ fn join_rows(
                                 Value::nothing(span)
                             };
 
-                            (key.clone(), val)
+                            (key.as_str().into(), val)
                         })
                         .collect();
 
@@ -321,7 +321,7 @@ fn join_rows(
 
 // Return column names (i.e. ordered keys from the first row; we assume that
 // these are the same for all rows).
-fn column_names(table: &[Value]) -> &[String] {
+fn column_names(table: &[Value]) -> &[EcoString] {
     table
         .iter()
         .find_map(|val| match val {
@@ -370,7 +370,11 @@ fn merge_records(left: &Record, right: &Record, shared_key: Option<&str>) -> Rec
         // Do not output shared join key twice
         if !(k_seen && k_shared) {
             record.push(
-                if k_seen { format!("{}_", k) } else { k.clone() },
+                if k_seen {
+                    format!("{}_", k).into()
+                } else {
+                    k.clone()
+                },
                 v.clone(),
             );
         }

@@ -38,22 +38,10 @@ impl Command for AppendDF {
     $a | dfr append $a"#,
                 result: Some(
                     NuDataFrame::try_from_columns(vec![
-                        Column::new(
-                            "a".to_string(),
-                            vec![Value::test_int(1), Value::test_int(3)],
-                        ),
-                        Column::new(
-                            "b".to_string(),
-                            vec![Value::test_int(2), Value::test_int(4)],
-                        ),
-                        Column::new(
-                            "a_x".to_string(),
-                            vec![Value::test_int(1), Value::test_int(3)],
-                        ),
-                        Column::new(
-                            "b_x".to_string(),
-                            vec![Value::test_int(2), Value::test_int(4)],
-                        ),
+                        Column::new("a", vec![Value::test_int(1), Value::test_int(3)]),
+                        Column::new("b", vec![Value::test_int(2), Value::test_int(4)]),
+                        Column::new("a_x", vec![Value::test_int(1), Value::test_int(3)]),
+                        Column::new("b_x", vec![Value::test_int(2), Value::test_int(4)]),
                     ])
                     .expect("simple df for test should not fail")
                     .into_value(Span::test_data()),
@@ -66,7 +54,7 @@ impl Command for AppendDF {
                 result: Some(
                     NuDataFrame::try_from_columns(vec![
                         Column::new(
-                            "a".to_string(),
+                            "a",
                             vec![
                                 Value::test_int(1),
                                 Value::test_int(3),
@@ -75,7 +63,7 @@ impl Command for AppendDF {
                             ],
                         ),
                         Column::new(
-                            "b".to_string(),
+                            "b",
                             vec![
                                 Value::test_int(2),
                                 Value::test_int(4),

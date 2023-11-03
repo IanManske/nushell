@@ -1,3 +1,4 @@
+use ecow::EcoString;
 use nu_engine::{eval_block_with_early_return, CallExt};
 use nu_protocol::ast::Call;
 use nu_protocol::engine::{Closure, Command, EngineState, Stack};
@@ -57,7 +58,7 @@ impl Command for Items {
         let redirect_stderr = call.redirect_stderr;
 
         let input_span = input.span().unwrap_or(call.head);
-        let run_for_each_item = move |keyval: (String, Value)| -> Option<Value> {
+        let run_for_each_item = move |keyval: (EcoString, Value)| -> Option<Value> {
             // with_env() is used here to ensure that each iteration uses
             // a different set of environment variables.
             // Hence, a 'cd' in the first loop won't affect the next loop.

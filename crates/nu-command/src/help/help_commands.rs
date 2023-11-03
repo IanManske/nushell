@@ -144,10 +144,10 @@ fn build_help_commands(engine_state: &EngineState, span: Span) -> Vec<Value> {
             for required_param in &sig.required_positional {
                 vals.push(Value::record(
                     record! {
-                        "name" => Value::string(&required_param.name, span),
+                        "name" => Value::string(required_param.name.as_str(), span),
                         "type" => Value::string(required_param.shape.to_string(), span),
                         "required" => Value::bool(true, span),
-                        "description" => Value::string(&required_param.desc, span),
+                        "description" => Value::string(required_param.desc.as_str(), span),
                     },
                     span,
                 ));
@@ -156,10 +156,10 @@ fn build_help_commands(engine_state: &EngineState, span: Span) -> Vec<Value> {
             for optional_param in &sig.optional_positional {
                 vals.push(Value::record(
                     record! {
-                        "name" => Value::string(&optional_param.name, span),
+                        "name" => Value::string(optional_param.name.as_str(), span),
                         "type" => Value::string(optional_param.shape.to_string(), span),
                         "required" => Value::bool(false, span),
-                        "description" => Value::string(&optional_param.desc, span),
+                        "description" => Value::string(optional_param.desc.as_str(), span),
                     },
                     span,
                 ));
@@ -171,7 +171,7 @@ fn build_help_commands(engine_state: &EngineState, span: Span) -> Vec<Value> {
                         "name" => Value::string(format!("...{}", rest_positional.name), span),
                         "type" => Value::string(rest_positional.shape.to_string(), span),
                         "required" => Value::bool(false, span),
-                        "description" => Value::string(&rest_positional.desc, span),
+                        "description" => Value::string(rest_positional.desc.as_str(), span),
                     },
                     span,
                 ));
@@ -199,7 +199,7 @@ fn build_help_commands(engine_state: &EngineState, span: Span) -> Vec<Value> {
                         "name" => Value::string(name, span),
                         "type" => Value::string(typ, span),
                         "required" => Value::bool(named_param.required, span),
-                        "description" => Value::string(&named_param.desc, span),
+                        "description" => Value::string(named_param.desc.as_str(), span),
                     },
                     span,
                 ));

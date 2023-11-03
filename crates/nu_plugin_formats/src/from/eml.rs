@@ -63,11 +63,12 @@ Test' | from eml -b 1"
 fn emailaddress_to_value(span: Span, email_address: &EmailAddress) -> Value {
     let (n, a) = match email_address {
         EmailAddress::AddressOnly { address } => {
-            (Value::nothing(span), Value::string(address, span))
+            (Value::nothing(span), Value::string(address.as_str(), span))
         }
-        EmailAddress::NameAndEmailAddress { name, address } => {
-            (Value::string(name, span), Value::string(address, span))
-        }
+        EmailAddress::NameAndEmailAddress { name, address } => (
+            Value::string(name.as_str(), span),
+            Value::string(address.as_str(), span),
+        ),
     };
 
     Value::record(
@@ -91,7 +92,7 @@ fn headerfieldvalue_to_value(head: Span, value: &HeaderFieldValue) -> Value {
                 .collect(),
             head,
         ),
-        Unstructured(s) => Value::string(s, head),
+        Unstructured(s) => Value::string(s.as_str(), head),
         Empty => Value::nothing(head),
     }
 }
@@ -112,23 +113,23 @@ fn from_eml(input: &Value, body_preview: usize, head: Span) -> Result<Value, Lab
     let mut collected = IndexMap::new();
 
     if let Some(subj) = eml.subject {
-        collected.insert("Subject".to_string(), Value::string(subj, head));
+        collected.insert("Subject".into(), Value::string(subj, head));
     }
 
     if let Some(from) = eml.from {
-        collected.insert("From".to_string(), headerfieldvalue_to_value(head, &from));
+        collected.insert("From".into(), headerfieldvalue_to_value(head, &from));
     }
 
     if let Some(to) = eml.to {
-        collected.insert("To".to_string(), headerfieldvalue_to_value(head, &to));
+        collected.insert("To".into(), headerfieldvalue_to_value(head, &to));
     }
 
     for HeaderField { name, value } in &eml.headers {
-        collected.insert(name.to_string(), headerfieldvalue_to_value(head, value));
+        collected.insert(name.as_str().into(), headerfieldvalue_to_value(head, value));
     }
 
     if let Some(body) = eml.body {
-        collected.insert("Body".to_string(), Value::string(body, head));
+        collected.insert("Body".into(), Value::string(body, head));
     }
 
     Ok(Value::record(collected.into_iter().collect(), head))

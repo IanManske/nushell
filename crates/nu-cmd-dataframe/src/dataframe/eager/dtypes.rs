@@ -33,11 +33,11 @@ impl Command for DataTypes {
             result: Some(
                 NuDataFrame::try_from_columns(vec![
                     Column::new(
-                        "column".to_string(),
+                        "column",
                         vec![Value::test_string("a"), Value::test_string("b")],
                     ),
                     Column::new(
-                        "dtype".to_string(),
+                        "dtype",
                         vec![Value::test_string("i64"), Value::test_string("i64")],
                     ),
                 ])

@@ -192,7 +192,7 @@ pub fn send_request(
             send_cancellable_request(&request_url, Box::new(|| request.send_json(data)), ctrl_c)
         }
         Value::Record { val, .. } if body_type == BodyType::Form => {
-            let mut data: Vec<(String, String)> = Vec::with_capacity(val.len());
+            let mut data = Vec::with_capacity(val.len());
 
             for (col, val) in val {
                 let val_string = val.as_string()?;
@@ -622,8 +622,8 @@ fn headers_to_nu(headers: &Headers, span: Span) -> Result<PipelineData, ShellErr
             // This interface is why we needed to check if we've already parsed this header name.
             for str_value in values {
                 let record = record! {
-                    "name" => Value::string(name, span),
-                    "value" => Value::string(str_value, span),
+                    "name" => Value::string(name.as_str(), span),
+                    "value" => Value::string(str_value.as_str(), span),
                 };
                 vals.push(Value::record(record, span));
             }

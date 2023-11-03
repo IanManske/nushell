@@ -1,16 +1,17 @@
+use ecow::{EcoString, EcoVec};
 use nu_protocol::Value;
 use std::collections::HashSet;
 
-pub fn get_columns(input: &[Value]) -> Vec<String> {
-    let mut columns = vec![];
+pub fn get_columns(input: &[Value]) -> EcoVec<EcoString> {
+    let mut columns = EcoVec::new();
     for item in input {
         let Value::Record { val, .. } = item else {
-            return vec![];
+            return EcoVec::new();
         };
 
         for col in val.columns() {
             if !columns.contains(col) {
-                columns.push(col.to_string());
+                columns.push(col.clone());
             }
         }
     }
@@ -19,11 +20,14 @@ pub fn get_columns(input: &[Value]) -> Vec<String> {
 }
 
 // If a column doesn't exist in the input, return it.
-pub fn nonexistent_column(inputs: &[String], columns: &[String]) -> Option<String> {
-    let set: HashSet<String> = HashSet::from_iter(columns.iter().cloned());
+pub fn nonexistent_column(inputs: &[String], columns: &[EcoString]) -> Option<String> {
+    let set = columns
+        .iter()
+        .map(EcoString::as_str)
+        .collect::<HashSet<_>>();
 
     for input in inputs {
-        if set.contains(input) {
+        if set.contains(input.as_str()) {
             continue;
         }
         return Some(input.clone());

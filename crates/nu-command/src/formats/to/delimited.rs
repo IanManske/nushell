@@ -30,12 +30,11 @@ fn record_to_delimited(
     let mut wtr = WriterBuilder::new()
         .delimiter(separator as u8)
         .from_writer(vec![]);
-    let mut fields: VecDeque<String> = VecDeque::new();
-    let mut values: VecDeque<String> = VecDeque::new();
+    let mut fields = VecDeque::new();
+    let mut values = VecDeque::new();
 
     for (k, v) in record {
-        fields.push_back(k.clone());
-
+        fields.push_back(k.as_bytes());
         values.push_back(to_string_tagged_value(v, config, head, span)?);
     }
 

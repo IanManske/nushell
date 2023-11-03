@@ -141,14 +141,13 @@ fn action(
             match base64_config.action_type {
                 ActionType::Encode => {
                     let mut enc_str = String::new();
-                    base64_engine.encode_string(val, &mut enc_str);
+                    base64_engine.encode_string(val.as_str(), &mut enc_str);
                     Value::string(enc_str, command_span)
                 }
 
                 ActionType::Decode => {
                     // for decode, input val may contains invalid new line character, which is ok to omitted them by default.
-                    let val = val.clone();
-                    let val = val.replace("\r\n", "").replace('\n', "");
+                    let val = val.to_string().replace("\r\n", "").replace('\n', "");
 
                     match base64_engine.decode(val) {
                         Ok(decoded_value) => {

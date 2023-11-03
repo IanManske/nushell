@@ -19,7 +19,7 @@ pub trait LazyRecord<'a>: fmt::Debug + Send + Sync {
             .into_iter()
             .map(|col| {
                 let val = self.get_column_value(col)?;
-                Ok((col.to_owned(), val))
+                Ok((col.into(), val))
             })
             .collect::<Result<Record, _>>()
             .map(|record| Value::record(record, self.span()))

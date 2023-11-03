@@ -31,6 +31,7 @@ nu-pretty-hex = { version = "0.86.1", path = "../nu-pretty-hex" }
 nu-json = { version = "0.86.1", path = "../nu-json" }
 serde_urlencoded = "0.7.1"
 htmlescape = "0.3.1"
+ecow = "0.2.0"
 
 [features]
 extra = ["default"]

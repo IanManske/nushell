@@ -17,7 +17,7 @@ use byte_unit::ByteUnit;
 use chrono::{DateTime, Datelike, Duration, FixedOffset, Locale, TimeZone};
 use chrono_humanize::HumanTime;
 pub use custom_value::CustomValue;
-use ecow::EcoVec;
+use ecow::{EcoString, EcoVec};
 use fancy_regex::Regex;
 pub use from_value::FromValue;
 pub use lazy_record::LazyRecord;
@@ -41,6 +41,7 @@ pub use unit::*;
 // NOTE: Please do not reorder these enum cases without thinking through the
 // impact on the PartialOrd implementation and the global sort order
 #[derive(Debug, Serialize, Deserialize)]
+#[repr(align(64))]
 pub enum Value {
     Bool {
         val: bool,
@@ -85,7 +86,7 @@ pub enum Value {
         internal_span: Span,
     },
     String {
-        val: String,
+        val: EcoString,
         // note: spans are being refactored out of Value
         // please use .span() instead of matching this span value
         internal_span: Span,
@@ -400,7 +401,7 @@ impl Value {
 
     pub fn as_path(&self) -> Result<PathBuf, ShellError> {
         match self {
-            Value::String { val, .. } => Ok(PathBuf::from(val)),
+            Value::String { val, .. } => Ok(PathBuf::from(val.to_string())),
             x => Err(ShellError::CantConvert {
                 to_type: "path".into(),
                 from_type: x.get_type().to_string(),
@@ -584,7 +585,7 @@ impl Value {
             Value::Range { .. } => Type::Range,
             Value::String { .. } => Type::String,
             Value::Record { val, .. } => {
-                Type::Record(val.iter().map(|(x, y)| (x.clone(), y.get_type())).collect())
+                Type::Record(val.iter().map(|(x, y)| (x.into(), y.get_type())).collect())
             }
             Value::List { vals, .. } => {
                 let mut ty = None;
@@ -700,7 +701,7 @@ impl Value {
                     val.to.into_string(", ", config)
                 )
             }
-            Value::String { val, .. } => val.clone(),
+            Value::String { val, .. } => val.into(),
             Value::List { vals: val, .. } => format!(
                 "[{}]",
                 val.iter()
@@ -869,7 +870,7 @@ impl Value {
                     val.to.into_string(", ", config)
                 )
             }
-            Value::String { val, .. } => val.clone(),
+            Value::String { val, .. } => val.into(),
             Value::List { vals: val, .. } => format!(
                 "[{}]",
                 val.iter()
@@ -1170,12 +1171,13 @@ impl Value {
                     ..
                 } => match self {
                     Value::List { vals, .. } => {
+                        let col_name = EcoString::from(col_name.as_str());
                         for val in vals.make_mut() {
                             match val {
                                 Value::Record { val: record, .. } => {
                                     let mut found = false;
                                     for (col, val) in record.iter_mut() {
-                                        if col == col_name {
+                                        if col == col_name.as_str() {
                                             found = true;
                                             val.upsert_data_at_cell_path(
                                                 &cell_path[1..],
@@ -1228,7 +1230,7 @@ impl Value {
                                 new_col
                             };
 
-                            record.push(col_name, new_col);
+                            record.push(col_name.clone(), new_col);
                         }
                     }
                     Value::LazyRecord { val, .. } => {
@@ -1426,14 +1428,11 @@ impl Value {
                                 match val {
                                     Value::Record { val: record, .. } => {
                                         let mut found = false;
-                                        let mut index = 0;
-                                        record.cols.retain_mut(|col| {
+                                        record.retain(|col, _| {
                                             if col == col_name {
                                                 found = true;
-                                                record.vals.remove(index);
                                                 false
                                             } else {
-                                                index += 1;
                                                 true
                                             }
                                         });
@@ -1458,14 +1457,11 @@ impl Value {
                         }
                         Value::Record { val: record, .. } => {
                             let mut found = false;
-                            let mut index = 0;
-                            record.cols.retain_mut(|col| {
+                            record.retain(|col, _| {
                                 if col == col_name {
                                     found = true;
-                                    record.vals.remove(index);
                                     false
                                 } else {
-                                    index += 1;
                                     true
                                 }
                             });
@@ -1655,7 +1651,7 @@ impl Value {
                                         }
                                     }
 
-                                    record.push(col_name, new_val.clone());
+                                    record.push(col_name.clone(), new_val.clone());
                                 }
                                 // SIGH...
                                 Value::Error { error, .. } => return Err(*error.clone()),
@@ -1689,7 +1685,7 @@ impl Value {
                             }
                         }
 
-                        record.push(col_name, new_val);
+                        record.push(col_name.as_str(), new_val);
                     }
                     Value::LazyRecord { val, .. } => {
                         // convert to Record first.
@@ -1746,7 +1742,7 @@ impl Value {
         matches!(self, Value::Bool { val: false, .. })
     }
 
-    pub fn columns(&self) -> &[String] {
+    pub fn columns(&self) -> &[EcoString] {
         match self {
             Value::Record { val, .. } => &val.cols,
             _ => &[],
@@ -1802,7 +1798,7 @@ impl Value {
         }
     }
 
-    pub fn string(val: impl Into<String>, span: Span) -> Value {
+    pub fn string(val: impl Into<EcoString>, span: Span) -> Value {
         Value::String {
             val: val.into(),
             internal_span: span,
@@ -1930,7 +1926,7 @@ impl Value {
 
     /// Note: Only use this for test data, *not* live data, as it will point into unknown source
     /// when used in errors.
-    pub fn test_string(val: impl Into<String>) -> Value {
+    pub fn test_string(val: impl Into<EcoString>) -> Value {
         Value::string(val, Span::test_data())
     }
 
@@ -3109,7 +3105,7 @@ impl Value {
         match (self, rhs) {
             (lhs, Value::Range { val: rhs, .. }) => Ok(Value::bool(rhs.contains(lhs), span)),
             (Value::String { val: lhs, .. }, Value::String { val: rhs, .. }) => {
-                Ok(Value::bool(rhs.contains(lhs), span))
+                Ok(Value::bool(rhs.contains(lhs.as_str()), span))
             }
             (lhs, Value::List { vals: rhs, .. }) => Ok(Value::bool(rhs.contains(lhs), span)),
             (Value::String { val: lhs, .. }, Value::Record { val: rhs, .. }) => {
@@ -3157,7 +3153,7 @@ impl Value {
         match (self, rhs) {
             (lhs, Value::Range { val: rhs, .. }) => Ok(Value::bool(!rhs.contains(lhs), span)),
             (Value::String { val: lhs, .. }, Value::String { val: rhs, .. }) => {
-                Ok(Value::bool(!rhs.contains(lhs), span))
+                Ok(Value::bool(!rhs.contains(lhs.as_str()), span))
             }
             (lhs, Value::List { vals: rhs, .. }) => Ok(Value::bool(!rhs.contains(lhs), span)),
             (Value::String { val: lhs, .. }, Value::Record { val: rhs, .. }) => {
@@ -3217,7 +3213,7 @@ impl Value {
             (Value::String { val: lhs, .. }, Value::String { val: rhs, .. }) => {
                 let is_match = match engine_state.regex_cache.try_lock() {
                     Ok(mut cache) => {
-                        if let Some(regex) = cache.get(rhs) {
+                        if let Some(regex) = cache.get(rhs.as_str()) {
                             regex.is_match(lhs)
                         } else {
                             let regex = Regex::new(rhs).map_err(|e| {
@@ -3229,7 +3225,7 @@ impl Value {
                                 )
                             })?;
                             let ret = regex.is_match(lhs);
-                            cache.put(rhs.clone(), regex);
+                            cache.put(rhs.into(), regex);
                             ret
                         }
                     }
@@ -3278,7 +3274,7 @@ impl Value {
     pub fn starts_with(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
         match (self, rhs) {
             (Value::String { val: lhs, .. }, Value::String { val: rhs, .. }) => {
-                Ok(Value::bool(lhs.starts_with(rhs), span))
+                Ok(Value::bool(lhs.starts_with(rhs.as_str()), span))
             }
             (Value::CustomValue { val: lhs, .. }, rhs) => lhs.operation(
                 self.span(),
@@ -3299,7 +3295,7 @@ impl Value {
     pub fn ends_with(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
         match (self, rhs) {
             (Value::String { val: lhs, .. }, Value::String { val: rhs, .. }) => {
-                Ok(Value::bool(lhs.ends_with(rhs), span))
+                Ok(Value::bool(lhs.ends_with(rhs.as_str()), span))
             }
             (Value::CustomValue { val: lhs, .. }, rhs) => lhs.operation(
                 self.span(),
@@ -3545,7 +3541,7 @@ impl Value {
     }
 }
 
-fn reorder_record_inner(record: &Record) -> (Vec<&String>, Vec<&Value>) {
+fn reorder_record_inner(record: &Record) -> (Vec<&EcoString>, Vec<&Value>) {
     let mut kv_pairs = record.iter().collect::<Vec<_>>();
     kv_pairs.sort_by_key(|(col, _)| *col);
     kv_pairs.into_iter().unzip()

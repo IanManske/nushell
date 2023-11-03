@@ -247,7 +247,7 @@ fn prepare_default_config(config: &mut HashMap<String, Value>) {
 fn parse_hash_map(value: &Value) -> Option<HashMap<String, Value>> {
     value.as_record().ok().map(|val| {
         val.iter()
-            .map(|(col, val)| (col.clone(), val.clone()))
+            .map(|(col, val)| (col.into(), val.clone()))
             .collect::<HashMap<_, _>>()
     })
 }

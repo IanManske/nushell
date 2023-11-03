@@ -348,9 +348,9 @@ mod test {
         assert!((required - 1.0).abs() < f64::EPSILON);
 
         let optional: Option<String> = call.opt(1).unwrap();
-        assert_eq!(optional, Some("something".to_string()));
+        assert_eq!(optional.as_deref(), Some("something"));
 
         let rest: Vec<String> = call.rest(1).unwrap();
-        assert_eq!(rest, vec!["something".to_string()]);
+        assert_eq!(rest, &["something"]);
     }
 }

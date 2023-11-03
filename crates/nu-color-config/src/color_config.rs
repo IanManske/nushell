@@ -47,19 +47,19 @@ fn get_style_from_value(record: &Record) -> Option<NuStyle> {
         match col.as_str() {
             "bg" => {
                 if let Value::String { val, .. } = val {
-                    style.bg = Some(val.clone());
+                    style.bg = Some(val.into());
                     was_set = true;
                 }
             }
             "fg" => {
                 if let Value::String { val, .. } = val {
-                    style.fg = Some(val.clone());
+                    style.fg = Some(val.into());
                     was_set = true;
                 }
             }
             "attr" => {
                 if let Value::String { val, .. } = val {
-                    style.attr = Some(val.clone());
+                    style.attr = Some(val.into());
                     was_set = true;
                 }
             }
@@ -121,12 +121,13 @@ mod tests {
     fn test_get_style_from_value() {
         // Test case 1: all values are valid
         let record = Record {
-            cols: vec!["bg".to_string(), "fg".to_string(), "attr".to_string()],
-            vals: vec![
+            cols: ["bg".into(), "fg".into(), "attr".into()].into(),
+            vals: [
                 Value::string("red", Span::unknown()),
                 Value::string("blue", Span::unknown()),
                 Value::string("bold", Span::unknown()),
-            ],
+            ]
+            .into(),
         };
         let expected_style = NuStyle {
             bg: Some("red".to_string()),
@@ -137,18 +138,19 @@ mod tests {
 
         // Test case 2: no values are valid
         let record = Record {
-            cols: vec!["invalid".to_string()],
-            vals: vec![Value::nothing(Span::unknown())],
+            cols: ["invalid".into()].into(),
+            vals: [Value::nothing(Span::unknown())].into(),
         };
         assert_eq!(get_style_from_value(&record), None);
 
         // Test case 3: some values are valid
         let record = Record {
-            cols: vec!["bg".to_string(), "invalid".to_string()],
-            vals: vec![
+            cols: ["bg".into(), "invalid".into()].into(),
+            vals: [
                 Value::string("green", Span::unknown()),
                 Value::nothing(Span::unknown()),
-            ],
+            ]
+            .into(),
         };
         let expected_style = NuStyle {
             bg: Some("green".to_string()),

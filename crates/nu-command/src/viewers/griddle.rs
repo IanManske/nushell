@@ -1,5 +1,6 @@
 // use super::icons::{icon_for_file, iconify_style_ansi_to_nu};
 use super::icons::icon_for_file;
+use ecow::EcoString;
 use lscolors::Style;
 use nu_engine::env_to_string;
 use nu_engine::CallExt;
@@ -168,7 +169,7 @@ prints out the list properly."#
 }
 
 fn create_grid_output(
-    items: Vec<(usize, String, String)>,
+    items: Vec<(usize, EcoString, String)>,
     call: &Call,
     width_param: Option<i64>,
     use_color: bool,
@@ -254,7 +255,7 @@ fn convert_to_list(
     iter: impl IntoIterator<Item = Value>,
     config: &Config,
     head: Span,
-) -> Result<Option<Vec<(usize, String, String)>>, ShellError> {
+) -> Result<Option<Vec<(usize, EcoString, String)>>, ShellError> {
     let mut iter = iter.into_iter().peekable();
 
     if let Some(first) = iter.peek() {
@@ -295,13 +296,13 @@ fn convert_to_list(
             data.push(row);
         }
 
-        let mut h: Vec<String> = headers.into_iter().collect();
+        let mut h = headers.into_iter().collect::<Vec<_>>();
 
         // This is just a list
         if h.is_empty() {
             // let's fake the header
-            h.push("#".to_string());
-            h.push("name".to_string());
+            h.push("#".into());
+            h.push("name".into());
         }
 
         // this tuple is (row_index, header_name, value)

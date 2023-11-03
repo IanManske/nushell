@@ -1,3 +1,4 @@
+use ecow::EcoString;
 use indexmap::IndexMap;
 use nu_engine::{eval_block_with_early_return, CallExt};
 use nu_protocol::ast::Call;
@@ -117,7 +118,7 @@ fn rename(
 ) -> Result<PipelineData, ShellError> {
     let specified_column: Option<Record> = call.get_flag(engine_state, stack, "column")?;
     // convert from Record to HashMap for easily query.
-    let specified_column: Option<IndexMap<String, String>> = match specified_column {
+    let specified_column = match specified_column {
         Some(query) => {
             let mut columns = IndexMap::new();
             for (col, val) in query {
@@ -158,7 +159,7 @@ fn rename(
             None
         };
 
-    let columns: Vec<String> = call.rest(engine_state, stack, 0)?;
+    let columns: Vec<EcoString> = call.rest(engine_state, stack, 0)?;
     let metadata = input.metadata();
 
     let head_span = call.head;
@@ -170,10 +171,11 @@ fn rename(
                     Value::Record {
                         val: mut record, ..
                     } => {
+                        let cols = record.cols.make_mut();
                         if let Some((engine_state, block, mut stack, env_vars, env_hidden)) =
                             block_info.clone()
                         {
-                            for c in &mut record.cols {
+                            for c in cols {
                                 stack.with_env(&env_vars, &env_hidden);
 
                                 if let Some(var) = block.signature.get_positional(0) {
@@ -193,18 +195,18 @@ fn rename(
                                     Err(e) => return Value::error(e, span),
                                     Ok(res) => match res.collect_string_strict(span) {
                                         Err(e) => return Value::error(e, span),
-                                        Ok(new_c) => *c = new_c.0,
+                                        Ok(new_c) => *c = new_c.0.into(),
                                     },
                                 }
                             }
                         } else {
                             match &specified_column {
                                 Some(c) => {
-                                    let mut column_to_rename: HashSet<String> = HashSet::from_iter(c.keys().cloned());
-                                    for val in record.cols.iter_mut() {
+                                    let mut column_to_rename = c.keys().collect::<HashSet<_>>();
+                                    for val in cols {
                                         if c.contains_key(val) {
                                             column_to_rename.remove(val);
-                                            *val = c.get(val).expect("already check exists").to_owned();
+                                            *val = c.get(val).expect("already check exists").clone();
                                         }
                                     }
                                     if !column_to_rename.is_empty() {
@@ -229,11 +231,11 @@ fn rename(
                                 }
                                 None => {
                                     for (idx, val) in columns.iter().enumerate() {
-                                        if idx >= record.len() {
+                                        if idx >= cols.len() {
                                             // skip extra new columns names if we already reached the final column
                                             break;
                                         }
-                                        record.cols[idx] = val.clone();
+                                        cols[idx] = val.clone();
                                     }
                                 }
                             }

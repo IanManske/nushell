@@ -179,7 +179,10 @@ pub fn expr_to_value(expr: &Expr, span: Span) -> Result<Value, ShellError> {
             span,
         )),
         Expr::Columns(columns) => {
-            let value = columns.iter().map(|col| Value::string(col, span)).collect();
+            let value = columns
+                .iter()
+                .map(|col| Value::string(col.as_str(), span))
+                .collect();
             Ok(Value::record(
                 record! {
                     "expr" => Value::string("columns", span),

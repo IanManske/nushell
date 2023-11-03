@@ -194,8 +194,9 @@ pub fn current_dir_str_const(working_set: &StateWorkingSet) -> Result<String, Sh
         let span = pwd.span();
         match pwd {
             Value::String { val, .. } => {
-                if Path::new(val).is_absolute() {
-                    Ok(val.clone())
+                let val = val.to_string();
+                if Path::new(&val).is_absolute() {
+                    Ok(val)
                 } else {
                     Err(ShellError::GenericError(
                             "Invalid current directory".to_string(),
@@ -435,7 +436,7 @@ fn ensure_path(scope: &mut HashMap<String, Value>, env_path_name: &str) -> Optio
         match value {
             Value::String { val, .. } => {
                 // Force-split path into a list
-                let paths = std::env::split_paths(val)
+                let paths = std::env::split_paths(val.as_str())
                     .map(|p| Value::string(p.to_string_lossy().to_string(), span))
                     .collect();
 

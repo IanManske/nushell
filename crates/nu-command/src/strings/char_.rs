@@ -242,7 +242,7 @@ impl Command for Char {
                     );
                     let record = record! {
                         "name" => Value::string(*name, call_span),
-                        "character" => Value::string(s, call_span),
+                        "character" => Value::string(s.as_str(), call_span),
                         "unicode" => unicode,
                     };
 

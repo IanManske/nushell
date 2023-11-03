@@ -1,3 +1,4 @@
+use ecow::EcoString;
 use fancy_regex::Regex;
 use nu_cmd_base::formats::to::delimited::merge_descriptors;
 use nu_engine::CallExt;
@@ -388,7 +389,7 @@ fn html_list(list: Vec<Value>, config: &Config) -> String {
     output_string
 }
 
-fn html_table(table: Vec<Value>, headers: Vec<String>, config: &Config) -> String {
+fn html_table(table: Vec<Value>, headers: Vec<EcoString>, config: &Config) -> String {
     let mut output_string = String::new();
 
     output_string.push_str("<table>");

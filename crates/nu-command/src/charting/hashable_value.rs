@@ -92,7 +92,7 @@ impl HashableValue {
                 span: val_span,
             }),
             Value::String { val, .. } => Ok(HashableValue::String {
-                val,
+                val: val.into(),
                 span: val_span,
             }),
             Value::Binary { val, .. } => Ok(HashableValue::Binary {

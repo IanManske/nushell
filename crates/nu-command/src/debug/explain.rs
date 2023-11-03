@@ -150,7 +150,7 @@ fn get_arguments(engine_state: &EngineState, stack: &mut Stack, call: Call) -> E
                         get_expression_as_value(engine_state, stack, expression);
                     let arg_type = "expr";
                     let arg_value_name = debug_string_without_formatting(&evaluated_expression);
-                    let arg_value_type = &evaluated_expression.get_type().to_string();
+                    let arg_value_type = evaluated_expression.get_type().to_string();
                     let evaled_span = evaluated_expression.span();
                     let arg_value_name_span_start = evaled_span.start as i64;
                     let arg_value_name_span_end = evaled_span.end as i64;
@@ -169,7 +169,7 @@ fn get_arguments(engine_state: &EngineState, stack: &mut Stack, call: Call) -> E
                 let arg_type = "positional";
                 let evaluated_expression = get_expression_as_value(engine_state, stack, inner_expr);
                 let arg_value_name = debug_string_without_formatting(&evaluated_expression);
-                let arg_value_type = &evaluated_expression.get_type().to_string();
+                let arg_value_type = evaluated_expression.get_type().to_string();
                 let evaled_span = evaluated_expression.span();
                 let arg_value_name_span_start = evaled_span.start as i64;
                 let arg_value_name_span_end = evaled_span.end as i64;
@@ -187,7 +187,7 @@ fn get_arguments(engine_state: &EngineState, stack: &mut Stack, call: Call) -> E
                 let arg_type = "unknown";
                 let evaluated_expression = get_expression_as_value(engine_state, stack, inner_expr);
                 let arg_value_name = debug_string_without_formatting(&evaluated_expression);
-                let arg_value_type = &evaluated_expression.get_type().to_string();
+                let arg_value_type = evaluated_expression.get_type().to_string();
                 let evaled_span = evaluated_expression.span();
                 let arg_value_name_span_start = evaled_span.start as i64;
                 let arg_value_name_span_end = evaled_span.end as i64;
@@ -233,7 +233,7 @@ pub fn debug_string_without_formatting(value: &Value) -> String {
                 debug_string_without_formatting(&val.to)
             )
         }
-        Value::String { val, .. } => val.clone(),
+        Value::String { val, .. } => val.into(),
         Value::List { vals: val, .. } => format!(
             "[{}]",
             val.iter()

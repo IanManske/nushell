@@ -18,7 +18,7 @@ pub fn eval_env_change_hook(
                 for (env_name, hook_value) in &val {
                     let before = engine_state
                         .previous_env_vars
-                        .get(env_name)
+                        .get(env_name.as_str())
                         .cloned()
                         .unwrap_or_default();
 

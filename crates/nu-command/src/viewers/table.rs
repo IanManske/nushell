@@ -1,4 +1,4 @@
-use ecow::EcoVec;
+use ecow::{eco_vec, EcoVec};
 use lscolors::{LsColors, Style};
 use nu_color_config::color_from_hex;
 use nu_color_config::{StyleComputer, TextStyle};
@@ -365,9 +365,9 @@ fn handle_record(
 
     if let Some(limit) = cfg.abbreviation {
         if record.cols.len() > limit * 2 + 1 {
-            record.cols = abbreviate_list(&record.cols, limit, String::from("..."));
+            record.cols = abbreviate_list(&record.cols, limit, "...".into()).into();
             record.vals =
-                abbreviate_list(&record.vals, limit, Value::string("...", Span::unknown()));
+                abbreviate_list(&record.vals, limit, Value::string("...", Span::unknown())).into();
         }
     }
 
@@ -472,15 +472,15 @@ fn handle_row_stream(
                 stream.map(move |mut x| match &mut x {
                     Value::Record { val: record, .. } => {
                         let mut idx = 0;
-
-                        while idx < record.len() {
+                        let vals = record.vals.make_mut();
+                        while idx < vals.len() {
                             // Only the name column gets special colors, for now
                             if record.cols[idx] == "name" {
-                                let span = record.vals.get(idx).map(|v| v.span()).unwrap_or(span);
-                                if let Some(Value::String { val, .. }) = record.vals.get(idx) {
+                                let span = vals.get(idx).map(|v| v.span()).unwrap_or(span);
+                                if let Some(Value::String { val, .. }) = vals.get(idx) {
                                     let val = render_path_name(val, &config, &ls_colors, span);
                                     if let Some(val) = val {
-                                        record.vals[idx] = val;
+                                        vals[idx] = val;
                                     }
                                 }
                             }
@@ -506,14 +506,15 @@ fn handle_row_stream(
                 stream.map(move |mut x| match &mut x {
                     Value::Record { val: record, .. } => {
                         let mut idx = 0;
+                        let vals = record.vals.make_mut();
                         // Every column in the HTML theme table except 'name' is colored
-                        while idx < record.len() {
+                        while idx < vals.len() {
                             if record.cols[idx] != "name" {
                                 // Simple routine to grab the hex code, convert to a style,
                                 // then place it in a new Value::String.
 
-                                let span = record.vals.get(idx).map(|v| v.span()).unwrap_or(span);
-                                if let Some(Value::String { val, .. }) = record.vals.get(idx) {
+                                let span = vals.get(idx).map(|v| v.span()).unwrap_or(span);
+                                if let Some(Value::String { val, .. }) = vals.get(idx) {
                                     let s = match color_from_hex(val) {
                                         Ok(c) => match c {
                                             // .normal() just sets the text foreground color.
@@ -522,9 +523,9 @@ fn handle_row_stream(
                                         },
                                         Err(_) => nu_ansi_term::Style::default(),
                                     };
-                                    record.vals[idx] = Value::string(
+                                    vals[idx] = Value::string(
                                         // Apply the style (ANSI codes) to the string
-                                        s.paint(val).to_string(),
+                                        s.paint(val.as_str()).as_str(),
                                         span,
                                     );
                                 }
@@ -768,7 +769,7 @@ impl Iterator for PagingTableCreator {
 
                     let cols = batch[0].as_record().expect("ok").cols.clone();
                     let vals =
-                        vec![Value::string(String::from("..."), Span::unknown()); cols.len()];
+                        eco_vec![Value::string(String::from("..."), Span::unknown()); cols.len()];
                     batch[limit] = Value::record(Record { cols, vals }, Span::unknown());
                 }
             }

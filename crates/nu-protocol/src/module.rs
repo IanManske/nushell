@@ -140,7 +140,7 @@ impl Module {
             let const_record = Value::record(
                 const_rows
                     .into_iter()
-                    .map(|(name, val)| (String::from_utf8_lossy(&name).to_string(), val))
+                    .map(|(name, val)| (String::from_utf8_lossy(&name).into(), val))
                     .collect(),
                 span,
             );

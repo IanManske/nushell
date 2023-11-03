@@ -48,14 +48,8 @@ impl Command for DropDuplicates {
             example: "[[a b]; [1 2] [3 4] [1 2]] | dfr into-df | dfr drop-duplicates",
             result: Some(
                 NuDataFrame::try_from_columns(vec![
-                    Column::new(
-                        "a".to_string(),
-                        vec![Value::test_int(3), Value::test_int(1)],
-                    ),
-                    Column::new(
-                        "b".to_string(),
-                        vec![Value::test_int(4), Value::test_int(2)],
-                    ),
+                    Column::new("a", vec![Value::test_int(3), Value::test_int(1)]),
+                    Column::new("b", vec![Value::test_int(4), Value::test_int(2)]),
                 ])
                 .expect("simple df for test should not fail")
                 .into_value(Span::test_data()),

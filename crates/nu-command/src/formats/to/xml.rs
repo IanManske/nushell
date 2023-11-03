@@ -1,5 +1,5 @@
 use crate::formats::nu_xml_format::{COLUMN_ATTRS_NAME, COLUMN_CONTENT_NAME, COLUMN_TAG_NAME};
-use ecow::EcoVec;
+use ecow::{EcoString, EcoVec};
 use indexmap::IndexMap;
 use nu_engine::CallExt;
 use nu_protocol::ast::Call;
@@ -87,7 +87,10 @@ Additionally any field which is: empty record, empty list or null, can be omitte
     }
 }
 
-pub fn add_attributes<'a>(element: &mut BytesStart<'a>, attributes: &'a IndexMap<String, String>) {
+pub fn add_attributes<'a>(
+    element: &mut BytesStart<'a>,
+    attributes: &'a IndexMap<EcoString, EcoString>,
+) {
     for (k, v) in attributes {
         element.push_attribute((k.as_str(), v.as_str()));
     }
@@ -157,7 +160,7 @@ fn to_xml_entry<W: Write>(
 /// Convert record to tag-like entry: tag, PI, comment.
 fn to_tag_like<W: Write>(
     entry_span: Span,
-    tag: String,
+    tag: EcoString,
     tag_span: Span,
     attrs: Value,
     content: Value,
@@ -187,9 +190,9 @@ fn to_tag_like<W: Write>(
             });
         }
 
-        let content: String = match content {
+        let content = match content {
             Value::String { val, .. } => val,
-            Value::Nothing { .. } => "".into(),
+            Value::Nothing { .. } => EcoString::new(),
             _ => {
                 return Err(ShellError::CantConvert {
                     to_type: "XML".into(),
@@ -266,7 +269,7 @@ fn to_processing_instruction<W: Write>(
     entry_span: Span,
     tag: &str,
     attrs: Value,
-    content: String,
+    content: EcoString,
     writer: &mut quick_xml::Writer<W>,
 ) -> Result<(), ShellError> {
     if !matches!(attrs, Value::Nothing { .. }) {
@@ -292,7 +295,7 @@ fn to_processing_instruction<W: Write>(
 
 fn to_tag<W: Write>(
     entry_span: Span,
-    tag: String,
+    tag: EcoString,
     tag_span: Span,
     attrs: Record,
     children: EcoVec<Value>,
@@ -311,7 +314,7 @@ fn to_tag<W: Write>(
     }
 
     let attributes = parse_attributes(attrs)?;
-    let mut open_tag_event = BytesStart::new(tag.clone());
+    let mut open_tag_event = BytesStart::new(tag.as_str());
     add_attributes(&mut open_tag_event, &attributes);
 
     writer
@@ -327,7 +330,7 @@ fn to_tag<W: Write>(
         .into_iter()
         .try_for_each(|child| to_xml_entry(child, false, writer))?;
 
-    let close_tag_event = BytesEnd::new(tag);
+    let close_tag_event = BytesEnd::new(tag.as_str());
     writer
         .write_event(Event::End(close_tag_event))
         .map_err(|_| ShellError::CantConvert {
@@ -338,7 +341,7 @@ fn to_tag<W: Write>(
         })
 }
 
-fn parse_attributes(attrs: Record) -> Result<IndexMap<String, String>, ShellError> {
+fn parse_attributes(attrs: Record) -> Result<IndexMap<EcoString, EcoString>, ShellError> {
     let mut h = IndexMap::new();
     for (k, v) in attrs {
         if let Value::String { val, .. } = v {

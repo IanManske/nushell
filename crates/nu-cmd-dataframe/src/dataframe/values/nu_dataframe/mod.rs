@@ -148,15 +148,14 @@ impl NuDataFrame {
             match value {
                 Value::CustomValue { .. } => return Self::try_from_value(value),
                 Value::List { vals, .. } => {
-                    let cols = (0..vals.len()).map(|i| format!("{i}")).collect();
-                    let vals = vals.to_vec();
+                    let cols = (0..vals.len()).map(|i| i.to_string().into()).collect();
                     conversion::insert_record(&mut column_values, Record { cols, vals })?
                 }
                 Value::Record { val: record, .. } => {
                     conversion::insert_record(&mut column_values, record)?
                 }
                 _ => {
-                    let key = "0".to_string();
+                    let key = "0".into();
                     conversion::insert_value(value, key, &mut column_values)?
                 }
             }
@@ -183,7 +182,7 @@ impl NuDataFrame {
         let mut column_values: ColumnMap = IndexMap::new();
 
         for column in columns {
-            let name = column.name().to_string();
+            let name = column.name().clone();
             for value in column {
                 conversion::insert_value(value, name.clone(), &mut column_values)?;
             }

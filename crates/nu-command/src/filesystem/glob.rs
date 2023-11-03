@@ -286,13 +286,13 @@ fn convert_patterns(columns: &[Value]) -> Result<Vec<String>, ShellError> {
     let res = columns
         .iter()
         .map(|value| match &value {
-            Value::String { val: s, .. } => Ok(s.clone()),
+            Value::String { val: s, .. } => Ok(s.into()),
             _ => Err(ShellError::IncompatibleParametersSingle {
                 msg: "Incorrect column format, Only string as column name".to_string(),
                 span: value.span(),
             }),
         })
-        .collect::<Result<Vec<String>, _>>()?;
+        .collect::<Result<_, _>>()?;
 
     Ok(res)
 }

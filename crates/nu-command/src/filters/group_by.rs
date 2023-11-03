@@ -313,7 +313,7 @@ fn groups_to_record(groups: IndexMap<String, EcoVec<Value>>, span: Span) -> Valu
     Value::record(
         groups
             .into_iter()
-            .map(|(k, v)| (k, Value::list(v, span)))
+            .map(|(k, v)| (k.into(), Value::list(v, span)))
             .collect(),
         span,
     )

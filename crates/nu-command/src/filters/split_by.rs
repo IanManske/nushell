@@ -167,7 +167,7 @@ fn data_group(
     Ok(Value::record(
         groups
             .into_iter()
-            .map(|(k, v)| (k, Value::list(v, span)))
+            .map(|(k, v)| (k.into(), Value::list(v, span)))
             .collect(),
         span,
     ))
@@ -179,7 +179,7 @@ pub fn data_split(
     splitter: Option<&dyn Fn(usize, &Value) -> Result<String, ShellError>>,
     span: Span,
 ) -> Result<PipelineData, ShellError> {
-    let mut splits = indexmap::IndexMap::new();
+    let mut splits = indexmap::IndexMap::<_, IndexMap<_, _>>::new();
 
     match value {
         PipelineData::Value(v, _) => {
@@ -191,7 +191,7 @@ pub fn data_split(
                             Ok(grouped_vals) => {
                                 if let Value::Record { val: sub, .. } = grouped_vals {
                                     for (inner_idx, subset) in sub.vals.iter().enumerate() {
-                                        let s: &mut IndexMap<String, Value> =
+                                        let s =
                                             splits.entry(sub.cols[inner_idx].clone()).or_default();
 
                                         s.insert(grouped.cols[idx].clone(), subset.clone());

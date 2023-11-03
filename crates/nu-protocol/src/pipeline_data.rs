@@ -354,7 +354,9 @@ impl PipelineData {
     ) -> Result<(String, Span, Option<PipelineMetadata>), ShellError> {
         match self {
             PipelineData::Empty => Ok((String::new(), span, None)),
-            PipelineData::Value(Value::String { val, .. }, metadata) => Ok((val, span, metadata)),
+            PipelineData::Value(Value::String { val, .. }, metadata) => {
+                Ok((val.into(), span, metadata))
+            }
             PipelineData::Value(val, _) => Err(ShellError::TypeMismatch {
                 err_message: "string".into(),
                 span: val.span(),

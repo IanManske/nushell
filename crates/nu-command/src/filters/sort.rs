@@ -1,4 +1,5 @@
 use alphanumeric_sort::compare_str;
+use ecow::EcoString;
 use nu_protocol::{
     ast::Call,
     engine::{Command, EngineState, Stack},
@@ -188,7 +189,7 @@ fn sort_record(
     insensitive: bool,
     natural: bool,
 ) -> Value {
-    let mut input_pairs: Vec<(String, Value)> = record.into_iter().collect();
+    let mut input_pairs = record.into_iter().collect::<Vec<_>>();
     input_pairs.sort_by(|a, b| {
         // Extract the data (if sort_by_value) or the column names for comparison
         let left_res = if sort_by_value {
@@ -196,7 +197,7 @@ fn sort_record(
                 Value::String { val, .. } => val.clone(),
                 val => {
                     if let Ok(val) = val.as_string() {
-                        val
+                        val.into()
                     } else {
                         // Values that can't be turned to strings are disregarded by the sort
                         // (same as in sort_utils.rs)
@@ -212,7 +213,7 @@ fn sort_record(
                 Value::String { val, .. } => val.clone(),
                 val => {
                     if let Ok(val) = val.as_string() {
-                        val
+                        val.into()
                     } else {
                         // Values that can't be turned to strings are disregarded by the sort
                         // (same as in sort_utils.rs)
@@ -258,8 +259,8 @@ pub fn sort(
 ) -> Result<(), ShellError> {
     match vec.first() {
         Some(Value::Record { val, .. }) => {
-            let columns = val.cols.clone();
-            vec.sort_by(|a, b| process(a, b, &columns, span, insensitive, natural));
+            let cols = val.cols.clone();
+            vec.sort_by(|a, b| process(a, b, &cols, span, insensitive, natural));
         }
         _ => {
             vec.sort_by(|a, b| {
@@ -307,7 +308,7 @@ pub fn sort(
 pub fn process(
     left: &Value,
     right: &Value,
-    columns: &[String],
+    columns: &[EcoString],
     span: Span,
     insensitive: bool,
     natural: bool,

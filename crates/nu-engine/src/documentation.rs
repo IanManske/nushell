@@ -386,7 +386,7 @@ fn get_argument_for_color_value(
                 .map(|(k, v)| {
                     (
                         Expression {
-                            expr: Expr::String(k.clone()),
+                            expr: Expr::String(k.into()),
                             span,
                             ty: Type::String,
                             custom_completion: None,
@@ -416,7 +416,7 @@ fn get_argument_for_color_value(
         Value::String { val, .. } => Some(Argument::Positional(Expression {
             span: Span::unknown(),
             ty: Type::String,
-            expr: Expr::String(val.clone()),
+            expr: Expr::String(val.into()),
             custom_completion: None,
         })),
         _ => None,

@@ -146,19 +146,19 @@ pub fn retrieve_tables(
 }
 
 fn retrieve_table(mut table: WebTable, columns: &Value, span: Span) -> Value {
-    let mut cols: Vec<String> = Vec::new();
+    let mut cols = EcoVec::new();
     if let Value::List { vals, .. } = &columns {
         for x in vals {
             // TODO Find a way to get the Config object here
             if let Value::String { val, .. } = x {
-                cols.push(val.to_string())
+                cols.push(val.clone())
             }
         }
     }
 
     if cols.is_empty() && !table.headers().is_empty() {
         for col in table.headers().keys() {
-            cols.push(col.to_string());
+            cols.push(col.as_str().into());
         }
     }
 
@@ -175,28 +175,33 @@ fn retrieve_table(mut table: WebTable, columns: &Value, span: Span) -> Value {
         let mut record = Record::new();
         for row in &table_with_no_empties {
             for (counter, cell) in row.iter().enumerate() {
-                record.push(format!("column{counter}"), Value::string(cell, span));
+                record.push(
+                    format!("column{counter}"),
+                    Value::string(cell.as_str(), span),
+                );
             }
         }
         table_out.push(Value::record(record, span))
     } else {
         for row in &table {
-            let mut vals = vec![];
-            let record_cols = &cols;
-            for col in &cols {
-                let val = row
-                    .get(col)
-                    .unwrap_or(&format!("Missing column: '{}'", &col))
-                    .to_string();
+            let vals = cols
+                .iter()
+                .map(|col| {
+                    let val = row
+                        .get(col)
+                        .unwrap_or(&format!("Missing column: '{}'", &col))
+                        .to_string();
 
-                if !at_least_one_row_filled && val != format!("Missing column: '{}'", &col) {
-                    at_least_one_row_filled = true;
-                }
-                vals.push(Value::string(val, span));
-            }
+                    if !at_least_one_row_filled && val != format!("Missing column: '{}'", &col) {
+                        at_least_one_row_filled = true;
+                    }
+                    Value::string(val, span)
+                })
+                .collect();
+
             table_out.push(Value::record(
                 Record {
-                    cols: record_cols.to_vec(),
+                    cols: cols.clone(),
                     vals,
                 },
                 span,

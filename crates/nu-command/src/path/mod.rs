@@ -38,7 +38,7 @@ where
 {
     let span = v.span();
     match v {
-        Value::String { val, .. } => cmd(StdPath::new(&val), span, args),
+        Value::String { val, .. } => cmd(StdPath::new(val.as_str()), span, args),
         _ => handle_invalid_values(v, name),
     }
 }

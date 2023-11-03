@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::io::{self, Result};
 
 use crossterm::event::KeyEvent;
+use ecow::{EcoString, EcoVec};
 use nu_protocol::{
     engine::{EngineState, Stack},
     record, Record, Value,
@@ -154,7 +155,7 @@ impl ViewCommand for HelpCmd {
 fn help_frame_data(
     supported_commands: &[HelpManual],
     aliases: &HashMap<String, Vec<String>>,
-) -> (Vec<String>, Vec<Vec<Value>>) {
+) -> (EcoVec<EcoString>, Vec<EcoVec<Value>>) {
     let commands = supported_commands
         .iter()
         .map(|manual| {
@@ -173,7 +174,10 @@ fn help_frame_data(
     collect_input(commands)
 }
 
-fn help_manual_data(manual: &HelpManual, aliases: &[String]) -> (Vec<String>, Vec<Vec<Value>>) {
+fn help_manual_data(
+    manual: &HelpManual,
+    aliases: &[String],
+) -> (EcoVec<EcoString>, Vec<EcoVec<Value>>) {
     fn nu_str(s: &impl ToString) -> Value {
         Value::string(s.to_string(), NuSpan::unknown())
     }
@@ -261,17 +265,18 @@ fn help_manual_data(manual: &HelpManual, aliases: &[String]) -> (Vec<String>, Ve
     let aliases = nu_str(&aliases.join(", "));
     let desc = nu_str(&manual.description);
 
-    let headers = vec![
-        String::from("name"),
-        String::from("aliases"),
-        String::from("arguments"),
-        String::from("input"),
-        String::from("examples"),
-        String::from("configuration"),
-        String::from("description"),
-    ];
+    let headers = [
+        "name".into(),
+        "aliases".into(),
+        "arguments".into(),
+        "input".into(),
+        "examples".into(),
+        "configuration".into(),
+        "description".into(),
+    ]
+    .into();
 
-    let data = vec![vec![
+    let data = vec![[
         name,
         aliases,
         arguments,
@@ -279,7 +284,8 @@ fn help_manual_data(manual: &HelpManual, aliases: &[String]) -> (Vec<String>, Ve
         examples,
         configuration,
         desc,
-    ]];
+    ]
+    .into()];
 
     (headers, data)
 }

@@ -5,6 +5,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use ecow::{eco_vec, EcoString, EcoVec};
 use nu_color_config::{get_color_map, StyleComputer};
 use nu_protocol::{
     engine::{EngineState, Stack},
@@ -41,10 +42,7 @@ pub struct RecordView<'a> {
 }
 
 impl<'a> RecordView<'a> {
-    pub fn new(
-        columns: impl Into<Cow<'a, [String]>>,
-        records: impl Into<Cow<'a, [Vec<Value>]>>,
-    ) -> Self {
+    pub fn new(columns: EcoVec<EcoString>, records: impl Into<Cow<'a, [EcoVec<Value>]>>) -> Self {
         Self {
             layer_stack: vec![RecordLayer::new(columns, records)],
             mode: UIMode::View,
@@ -372,8 +370,8 @@ enum UIMode {
 
 #[derive(Debug, Clone)]
 pub struct RecordLayer<'a> {
-    columns: Cow<'a, [String]>,
-    records: Cow<'a, [Vec<Value>]>,
+    columns: EcoVec<EcoString>,
+    records: Cow<'a, [EcoVec<Value>]>,
     orientation: Orientation,
     name: Option<String>,
     was_transposed: bool,
@@ -381,11 +379,7 @@ pub struct RecordLayer<'a> {
 }
 
 impl<'a> RecordLayer<'a> {
-    fn new(
-        columns: impl Into<Cow<'a, [String]>>,
-        records: impl Into<Cow<'a, [Vec<Value>]>>,
-    ) -> Self {
-        let columns = columns.into();
+    fn new(columns: EcoVec<EcoString>, records: impl Into<Cow<'a, [EcoVec<Value>]>>) -> Self {
         let records = records.into();
         let cursor = XYCursor::new(records.len(), columns.len());
 
@@ -639,7 +633,7 @@ fn state_reverse_data(state: &mut RecordView<'_>, page_size: usize) {
 }
 
 fn convert_records_to_string(
-    records: &[Vec<Value>],
+    records: &[EcoVec<Value>],
     cfg: &NuConfig,
     style_computer: &StyleComputer,
 ) -> Vec<Vec<NuText>> {
@@ -701,7 +695,6 @@ fn build_last_value(v: &RecordView) -> Value {
 fn build_table_as_list(v: &RecordView) -> Value {
     let layer = v.get_layer_last();
 
-    let headers = layer.columns.to_vec();
     let vals = layer
         .records
         .iter()
@@ -709,7 +702,7 @@ fn build_table_as_list(v: &RecordView) -> Value {
         .map(|vals| {
             Value::record(
                 Record {
-                    cols: headers.clone(),
+                    cols: layer.columns.clone(),
                     vals,
                 },
                 NuSpan::unknown(),
@@ -723,8 +716,11 @@ fn build_table_as_list(v: &RecordView) -> Value {
 fn build_table_as_record(v: &RecordView) -> Value {
     let layer = v.get_layer_last();
 
-    let cols = layer.columns.to_vec();
-    let vals = layer.records.get(0).map_or(Vec::new(), |row| row.clone());
+    let cols = layer.columns.clone();
+    let vals = layer
+        .records
+        .get(0)
+        .map_or(EcoVec::new(), |row| row.clone());
 
     Value::record(Record { cols, vals }, NuSpan::unknown())
 }
@@ -782,24 +778,26 @@ fn transpose_table(layer: &mut RecordLayer<'_>) {
         let data = _transpose_table(data, count_rows, count_columns - 1);
 
         layer.records = Cow::Owned(data);
-        layer.columns = Cow::Owned(headers);
+        layer.columns = headers;
     } else {
         let mut data = _transpose_table(&layer.records, count_rows, count_columns);
 
         for (column, column_name) in layer.columns.iter().enumerate() {
-            let value = Value::string(column_name, NuSpan::unknown());
+            let value = Value::string(column_name.as_str(), NuSpan::unknown());
 
             data[column].insert(0, value);
         }
 
         layer.records = Cow::Owned(data);
-        layer.columns = (1..count_rows + 1 + 1).map(|i| i.to_string()).collect();
+        layer.columns = (1..count_rows + 1 + 1)
+            .map(|i| i.to_string().into())
+            .collect();
     }
 
     layer.was_transposed = !layer.was_transposed;
 }
 
-fn pop_first_column(values: &mut [Vec<Value>]) -> Vec<Value> {
+fn pop_first_column(values: &mut [EcoVec<Value>]) -> Vec<Value> {
     let mut data = vec![Value::default(); values.len()];
     for (row, values) in values.iter_mut().enumerate() {
         data[row] = values.remove(0);
@@ -809,14 +807,14 @@ fn pop_first_column(values: &mut [Vec<Value>]) -> Vec<Value> {
 }
 
 fn _transpose_table(
-    values: &[Vec<Value>],
+    values: &[EcoVec<Value>],
     count_rows: usize,
     count_columns: usize,
-) -> Vec<Vec<Value>> {
-    let mut data = vec![vec![Value::default(); count_rows]; count_columns];
+) -> Vec<EcoVec<Value>> {
+    let mut data = vec![eco_vec![Value::default(); count_rows]; count_columns];
     for (row, values) in values.iter().enumerate() {
         for (column, value) in values.iter().enumerate() {
-            data[column][row] = value.to_owned();
+            data[column].make_mut()[row] = value.to_owned();
         }
     }
 

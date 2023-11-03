@@ -76,7 +76,7 @@ produce a table, a list will produce a list, and a record will produce a record.
                             Value::String { val, .. } => {
                                 let cv = CellPath {
                                     members: vec![PathMember::String {
-                                        val: val.clone(),
+                                        val: val.into(),
                                         span: *val_span,
                                         optional: false,
                                     }],
@@ -107,7 +107,7 @@ produce a table, a list will produce a list, and a record will produce a record.
                 Value::String { val, .. } => {
                     let cv = CellPath {
                         members: vec![PathMember::String {
-                            val: val.clone(),
+                            val: val.into(),
                             span: *col_span,
                             optional: false,
                         }],

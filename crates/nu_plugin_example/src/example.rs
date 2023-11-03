@@ -1,3 +1,4 @@
+use ecow::eco_vec;
 use nu_plugin::{EvaluatedCall, LabeledError};
 use nu_protocol::{Record, Value};
 pub struct Example;
@@ -59,13 +60,11 @@ impl Example {
     pub fn test2(&self, call: &EvaluatedCall, input: &Value) -> Result<Value, LabeledError> {
         self.print_values(2, call, input)?;
 
-        let cols = vec!["one".to_string(), "two".to_string(), "three".to_string()];
+        let cols = eco_vec!["one".into(), "two".into(), "three".into()];
 
         let vals = (0..10i64)
             .map(|i| {
-                let vals = (0..3)
-                    .map(|v| Value::int(v * i, call.head))
-                    .collect::<Vec<Value>>();
+                let vals = (0..3).map(|v| Value::int(v * i, call.head)).collect();
 
                 Value::record(
                     Record {

@@ -210,11 +210,8 @@ fn sort_attributes(val: Value) -> Value {
                 .sorted_by(|a, b| a.0.cmp(&b.0))
                 .collect_vec();
 
-            let sorted_cols = sorted.clone().into_iter().map(|a| a.0).collect_vec();
-            let sorted_vals = sorted
-                .into_iter()
-                .map(|a| sort_attributes(a.1))
-                .collect_vec();
+            let sorted_cols = sorted.clone().into_iter().map(|a| a.0).collect();
+            let sorted_vals = sorted.into_iter().map(|a| sort_attributes(a.1)).collect();
 
             Value::record(
                 Record {

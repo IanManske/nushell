@@ -1,3 +1,4 @@
+use ecow::EcoString;
 use nu_protocol::ast::Call;
 use nu_protocol::engine::{Command, EngineState, Stack};
 use nu_protocol::{
@@ -50,7 +51,7 @@ impl Command for FromUrl {
 fn from_url(input: PipelineData, head: Span) -> Result<PipelineData, ShellError> {
     let (concat_string, span, metadata) = input.collect_string_strict(head)?;
 
-    let result = serde_urlencoded::from_str::<Vec<(String, String)>>(&concat_string);
+    let result = serde_urlencoded::from_str::<Vec<(EcoString, EcoString)>>(&concat_string);
 
     match result {
         Ok(result) => {

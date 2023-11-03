@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use ecow::EcoString;
 use nu_engine::CallExt;
 use nu_protocol::ast::Call;
 use nu_protocol::engine::{EngineState, Stack, StateWorkingSet};
@@ -192,7 +193,7 @@ fn run(call: &Call, args: &Arguments, input: PipelineData) -> Result<PipelineDat
 fn handle_value(v: Value, args: &Arguments, head: Span) -> Value {
     let span = v.span();
     match v {
-        Value::String { ref val, .. } => join_single(Path::new(val), head, args),
+        Value::String { val, .. } => join_single(Path::new(val.as_str()), head, args),
         Value::Record { val, .. } => join_record(&val, head, span, args),
         Value::List { vals, .. } => join_list(&vals, head, span, args),
 
@@ -263,7 +264,7 @@ fn merge_record(record: &Record, head: Span, span: Span) -> Result<PathBuf, Shel
     let entries: HashMap<&str, &Value> = record
         .cols
         .iter()
-        .map(String::as_str)
+        .map(EcoString::as_str)
         .zip(&record.vals)
         .collect();
 

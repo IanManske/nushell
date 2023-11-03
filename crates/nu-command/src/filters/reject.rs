@@ -72,7 +72,7 @@ impl Command for Reject {
                             Value::String { val, .. } => {
                                 let cv = CellPath {
                                     members: vec![PathMember::String {
-                                        val: val.clone(),
+                                        val: val.into(),
                                         span: *val_span,
                                         optional: false,
                                     }],
@@ -103,7 +103,7 @@ impl Command for Reject {
                 Value::String { val, .. } => {
                     let cv = CellPath {
                         members: vec![PathMember::String {
-                            val: val.clone(),
+                            val: val.into(),
                             span: *col_span,
                             optional: false,
                         }],

@@ -296,7 +296,7 @@ fn describe_value(
                         describe_value(v.clone(), head, engine_state, call)?
                     {
                         if let [Value::String { val: k, .. }] = val.vals.as_slice() {
-                            Value::string(k, head)
+                            Value::string(k.clone(), head)
                         } else {
                             Value::record(val, head)
                         }
