@@ -1,4 +1,4 @@
-mod foreground;
+mod job;
 #[cfg(any(target_os = "android", target_os = "linux"))]
 mod linux;
 #[cfg(target_os = "macos")]
@@ -7,10 +7,10 @@ pub mod os_info;
 #[cfg(target_os = "windows")]
 mod windows;
 
-pub use self::foreground::ForegroundChild;
+pub use job::ForegroundChild;
 #[cfg(any(target_os = "android", target_os = "linux"))]
-pub use self::linux::*;
+pub use linux::*;
 #[cfg(target_os = "macos")]
-pub use self::macos::*;
+pub use macos::*;
 #[cfg(target_os = "windows")]
-pub use self::windows::*;
+pub use windows::*;
