@@ -75,7 +75,7 @@ impl InternalJob {
         }
     }
 
-    fn mark_process(&mut self, pid: Pid, status: JobStatus) {
+    fn mark_process(&mut self, pid: Pid, status: JobStatus) -> bool {
         fn try_move(from: &mut Vec<Pid>, to: &mut Vec<Pid>, pid: Pid) -> bool {
             if let Some(i) = from.iter().position(|&p| p == pid) {
                 from.swap_remove(i);
@@ -86,23 +86,45 @@ impl InternalJob {
             }
         }
 
-        let moved = match status {
+        match status {
             JobStatus::Completed => {
                 try_move(&mut self.runnning, &mut self.completed, pid)
                     || try_move(&mut self.stopped, &mut self.completed, pid)
             }
             JobStatus::Stopped => try_move(&mut self.runnning, &mut self.stopped, pid),
             JobStatus::Running => try_move(&mut self.stopped, &mut self.runnning, pid),
-        };
+        }
+    }
+}
 
-        debug_assert!(moved, "failed to find process with id {pid}")
+struct JobState {
+    foreground: Option<usize>,
+    background: Vec<InternalJob>,
+}
+
+impl JobState {
+    fn foreground_job_mut(&mut self) -> Option<&mut InternalJob> {
+        self.foreground.map(|i| &mut self.background[i])
+    }
+
+    fn foreground_pgroup(&self) -> Option<Pid> {
+        self.foreground.map(|i| self.background[i].pgroup)
+    }
+
+    fn mark_process(&mut self, pid: Pid, status: JobStatus) -> Option<&InternalJob> {
+        self.background.iter_mut().find_map(|job| {
+            if job.mark_process(pid, status) {
+                Some(&*job)
+            } else {
+                None
+            }
+        })
     }
 }
 
 pub struct Jobs {
     next_id: AtomicUsize,
-    foreground_job: Mutex<Option<InternalJob>>,
-    background_jobs: Mutex<Vec<InternalJob>>,
+    state: Mutex<JobState>,
 }
 
 fn pid(child: &Child) -> Pid {
@@ -132,14 +154,14 @@ impl Jobs {
     }
 
     pub fn spawn_foreground(&self, mut command: Command, interactive: bool) -> io::Result<Child> {
-        let mut foreground = self.foreground_job.lock().expect("unpoisoned");
+        let mut state = self.state.lock().expect("unpoisoned");
         let interactive = interactive && io::stdin().is_terminal();
         if interactive {
-            prepare_interactive(&mut command, true, foreground.as_ref().map(|j| j.pgroup));
+            prepare_interactive(&mut command, true, state.foreground_pgroup());
         }
         match command.spawn() {
             Ok(child) => {
-                if let Some(foreground) = foreground.as_mut() {
+                if let Some(foreground) = state.foreground_job_mut() {
                     foreground.runnning.push(pid(&child));
                 } else {
                     let job = self.new_job(
@@ -152,12 +174,13 @@ impl Jobs {
                             eprintln!("ERROR: failed to set foreground job: {e}");
                         }
                     }
-                    *foreground = Some(job);
+                    state.foreground = Some(state.background.len());
+                    state.background.push(job);
                 }
                 Ok(child)
             }
             Err(e) => {
-                if interactive && foreground.is_none() {
+                if interactive && state.foreground.is_none() {
                     reset_foreground();
                 }
                 Err(e)
@@ -170,9 +193,9 @@ impl Jobs {
             prepare_interactive(&mut command, false, None);
         }
 
-        let mut background = self.background_jobs.lock().expect("unpoisoned");
+        let mut state = self.state.lock().expect("unpoisoned");
         let child = command.spawn()?;
-        background.push(self.new_job(
+        state.background.push(self.new_job(
             command.get_program().to_owned().into_string().unwrap(),
             &child,
         ));
@@ -182,164 +205,99 @@ impl Jobs {
     /// Blocks on the foreground process group, waiting until all of its processes
     /// have either stopped or completed. It then restores the terminal, putting nushell back in control.
     pub fn wait_reset_foreground(&self, interactive: bool) {
-        if !interactive {
+        let mut state = self.state.lock().expect("unpoisoned");
+
+        let Some(foreground) = state.foreground_pgroup() else {
             return;
-        }
+        };
 
-        {
-            let mut foreground = self.foreground_job.lock().expect("unpoisoned");
-            if let Some(job) = foreground.as_mut() {
-                let flags = Some(WaitPidFlag::WUNTRACED | WaitPidFlag::WCONTINUED);
-                while let Ok(status) = waitpid(Pid::from_raw(-job.pgroup.as_raw()), flags) {
-                    match status {
-                        WaitStatus::Exited(pid, _code) => {
-                            job.mark_process(pid, JobStatus::Completed)
-                        }
-                        WaitStatus::Signaled(pid, _signal, _core_dumped) => {
-                            job.mark_process(pid, JobStatus::Completed)
-                        }
-                        WaitStatus::Stopped(pid, _signal) => {
-                            job.mark_process(pid, JobStatus::Stopped)
-                        }
-                        WaitStatus::Continued(pid) => job.mark_process(pid, JobStatus::Running),
-                        #[cfg(any(target_os = "linux", target_os = "android"))]
-                        WaitStatus::PtraceEvent(pid, _, _) | WaitStatus::PtraceSyscall(pid) => {
-                            job.mark_process(pid, JobStatus::Stopped)
-                        }
-                        WaitStatus::StillAlive => unreachable!("WNOHANG was not provided"),
-                    }
-
-                    match job.status() {
-                        JobStatus::Completed => {
-                            *foreground = None;
-                            break;
-                        }
-                        JobStatus::Stopped => {
-                            self.background_jobs
-                                .lock()
-                                .expect("unpoisoned")
-                                .push(foreground.take().expect("foreground exists"));
-
-                            break;
-                        }
-                        JobStatus::Running => (),
-                    }
+        let flags = Some(WaitPidFlag::WUNTRACED);
+        while let Ok(status) = waitpid(None, flags) {
+            let job = match status {
+                WaitStatus::Exited(pid, _code) => state.mark_process(pid, JobStatus::Completed),
+                WaitStatus::Signaled(pid, _signal, _core_dumped) => {
+                    state.mark_process(pid, JobStatus::Completed)
                 }
-
-                if io::stdin().is_terminal() {
-                    reset_foreground()
+                WaitStatus::Stopped(pid, _signal) => state.mark_process(pid, JobStatus::Stopped),
+                WaitStatus::Continued(_) => unreachable!("WCONTINUED was not provided"),
+                #[cfg(any(target_os = "linux", target_os = "android"))]
+                WaitStatus::PtraceEvent(pid, _, _) | WaitStatus::PtraceSyscall(pid) => {
+                    state.mark_process(pid, JobStatus::Stopped)
                 }
-            }
-        }
-
-        {
-            let mut background = self.background_jobs.lock().expect("unpoisoned");
-
-            let mut try_mark_job = |pid, status| match unistd::getpgid(Some(pid)) {
-                Ok(pgroup) => {
-                    if let Some(job) = background.iter_mut().find(|j| j.pgroup == pgroup) {
-                        job.mark_process(pid, status)
-                    } else {
-                        debug_assert!(false, "unknown pgroup {pgroup}");
-                    }
-                }
-                Err(e) => {
-                    eprint!("ERROR: failed to get process group: {e}")
-                }
+                WaitStatus::StillAlive => unreachable!("WNOHANG was not provided"),
             };
 
-            let flags = Some(WaitPidFlag::WUNTRACED | WaitPidFlag::WCONTINUED);
-            while let Ok(status) = waitpid(None, flags) {
-                match status {
-                    WaitStatus::Exited(pid, _code) => try_mark_job(pid, JobStatus::Completed),
-                    WaitStatus::Signaled(pid, _signal, _core_dumped) => {
-                        try_mark_job(pid, JobStatus::Completed)
-                    }
-                    WaitStatus::Stopped(pid, _signal) => try_mark_job(pid, JobStatus::Stopped),
-                    WaitStatus::Continued(pid) => try_mark_job(pid, JobStatus::Running),
-                    #[cfg(any(target_os = "linux", target_os = "android"))]
-                    WaitStatus::PtraceEvent(pid, _, _) | WaitStatus::PtraceSyscall(pid) => {
-                        try_mark_job(pid, JobStatus::Stopped)
-                    }
-                    WaitStatus::StillAlive => unreachable!("WNOHANG was not provided"),
+            debug_assert!(job.is_some());
+
+            if let Some(job) = job {
+                if job.pgroup == foreground && job.status() != JobStatus::Running {
+                    state.foreground = None;
+                    break;
                 }
             }
+        }
+
+        if interactive && io::stdin().is_terminal() {
+            reset_foreground()
         }
     }
 
     pub fn background_jobs(&self) -> Vec<Job> {
-        let mut foreground = self.foreground_job.lock().expect("unpoisoned");
-        let mut background = self.background_jobs.lock().expect("unpoisoned");
+        let mut state = self.state.lock().expect("unpoisoned");
 
-        let mut try_mark_job = |pid, status| match unistd::getpgid(Some(pid)) {
-            Ok(pgroup) => match foreground.as_mut() {
-                Some(foreground) if pgroup == foreground.pgroup => {
-                    foreground.mark_process(pid, status)
-                }
-                _ => {
-                    if let Some(job) = background.iter_mut().find(|j| j.pgroup == pgroup) {
-                        job.mark_process(pid, status)
-                    } else {
-                        debug_assert!(false, "unknown pgroup {pgroup}");
-                    }
-                }
-            },
-            Err(e) => {
-                eprint!("ERROR: failed to get process group: {e}")
-            }
-        };
-
-        let flags = Some(WaitPidFlag::WUNTRACED | WaitPidFlag::WCONTINUED);
+        let flags = Some(WaitPidFlag::WUNTRACED | WaitPidFlag::WCONTINUED | WaitPidFlag::WNOHANG);
         while let Ok(status) = waitpid(None, flags) {
-            match status {
-                WaitStatus::Exited(pid, _code) => try_mark_job(pid, JobStatus::Completed),
+            let job = match status {
+                WaitStatus::Exited(pid, _code) => state.mark_process(pid, JobStatus::Completed),
                 WaitStatus::Signaled(pid, _signal, _core_dumped) => {
-                    try_mark_job(pid, JobStatus::Completed)
+                    state.mark_process(pid, JobStatus::Completed)
                 }
-                WaitStatus::Stopped(pid, _signal) => try_mark_job(pid, JobStatus::Stopped),
-                WaitStatus::Continued(pid) => try_mark_job(pid, JobStatus::Running),
+                WaitStatus::Stopped(pid, _signal) => state.mark_process(pid, JobStatus::Stopped),
+                WaitStatus::Continued(pid) => state.mark_process(pid, JobStatus::Running),
                 #[cfg(any(target_os = "linux", target_os = "android"))]
                 WaitStatus::PtraceEvent(pid, _, _) | WaitStatus::PtraceSyscall(pid) => {
-                    try_mark_job(pid, JobStatus::Stopped)
+                    state.mark_process(pid, JobStatus::Stopped)
                 }
-                WaitStatus::StillAlive => unreachable!("WNOHANG was not provided"),
-            }
+                WaitStatus::StillAlive => break,
+            };
+
+            debug_assert!(job.is_some());
         }
 
-        background.iter().map(InternalJob::to_job).collect()
+        state.background.iter().map(InternalJob::to_job).collect()
     }
 
     /// Brings a background job to the foreground.
     /// Does nothing if there already is a foreground job or the background job is finished.
     /// Otherwise returns `false` if no job exists with the given [`JobId`].
     pub fn switch_foreground(&self, id: JobId) -> bool {
-        let mut foreground = self.foreground_job.lock().expect("unpoisoned");
+        let mut state = self.state.lock().expect("unpoisoned");
 
-        if foreground.is_some() {
+        if state.foreground.is_some() {
             return true;
         }
 
-        let mut background = self.background_jobs.lock().expect("unpoisoned");
-
-        if let Some(i) = background.iter().position(|j| j.id == id) {
-            let job = &mut background[i];
-
-            let flags = Some(WaitPidFlag::WNOHANG);
-            while let Ok(status) = waitpid(Pid::from_raw(-job.pgroup.as_raw()), flags) {
-                match status {
-                    WaitStatus::Exited(pid, _code) => job.mark_process(pid, JobStatus::Completed),
-                    WaitStatus::Signaled(pid, _signal, _core_dumped) => {
-                        job.mark_process(pid, JobStatus::Completed)
-                    }
-                    WaitStatus::Stopped(_, _) => unreachable!("WUNTRACED was not provided"),
-                    WaitStatus::Continued(_) => unreachable!("WCONTINUED was not provided"),
-                    #[cfg(any(target_os = "linux", target_os = "android"))]
-                    WaitStatus::PtraceEvent(pid, _, _) | WaitStatus::PtraceSyscall(pid) => {
-                        job.mark_process(pid, JobStatus::Stopped)
-                    }
-                    WaitStatus::StillAlive => break,
+        let flags = Some(WaitPidFlag::WNOHANG);
+        while let Ok(status) = waitpid(None, flags) {
+            let job = match status {
+                WaitStatus::Exited(pid, _code) => state.mark_process(pid, JobStatus::Completed),
+                WaitStatus::Signaled(pid, _signal, _core_dumped) => {
+                    state.mark_process(pid, JobStatus::Completed)
                 }
-            }
+                WaitStatus::Stopped(_, _) => unreachable!("WUNTRACED was not provided"),
+                WaitStatus::Continued(_) => unreachable!("WCONTINUED was not provided"),
+                #[cfg(any(target_os = "linux", target_os = "android"))]
+                WaitStatus::PtraceEvent(pid, _, _) | WaitStatus::PtraceSyscall(pid) => {
+                    state.mark_process(pid, JobStatus::Stopped)
+                }
+                WaitStatus::StillAlive => break,
+            };
+
+            debug_assert!(job.is_some());
+        }
+
+        if let Some(i) = state.background.iter().position(|j| j.id == id) {
+            let job = &state.background[i];
 
             if job.status() == JobStatus::Completed {
                 return true;
@@ -354,7 +312,7 @@ impl Jobs {
                 reset_foreground();
                 return true;
             }
-            *foreground = Some(background.remove(i));
+            state.foreground = Some(i);
             true
         } else {
             false
@@ -366,8 +324,10 @@ impl Default for Jobs {
     fn default() -> Self {
         Self {
             next_id: AtomicUsize::new(1),
-            foreground_job: Mutex::new(None),
-            background_jobs: Mutex::new(Vec::new()),
+            state: Mutex::new(JobState {
+                foreground: None,
+                background: Vec::new(),
+            }),
         }
     }
 }
