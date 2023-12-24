@@ -572,7 +572,7 @@ pub fn evaluate_repl(
 
                 engine_state
                     .jobs
-                    .block_reset_foreground(engine_state.is_interactive);
+                    .wait_reset_foreground(engine_state.is_interactive);
 
                 let cmd_duration = start_time.elapsed();
 

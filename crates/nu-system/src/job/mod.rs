@@ -2,6 +2,8 @@
 
 // pub use foreground::*;
 
+pub type JobId = usize;
+
 #[cfg(unix)]
 mod unix;
 

@@ -1,4 +1,5 @@
 use std::{
+    fmt::Display,
     io::{self, IsTerminal},
     os::unix::process::CommandExt,
     process::{Child, Command},
@@ -16,6 +17,8 @@ use nix::{
     unistd::{self, Pid},
 };
 
+use crate::JobId;
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum JobStatus {
     Completed,
@@ -23,26 +26,52 @@ pub enum JobStatus {
     Running,
 }
 
+impl Display for JobStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                JobStatus::Completed => "done",
+                JobStatus::Stopped => "stopped",
+                JobStatus::Running => "running",
+            }
+        )
+    }
+}
+
 pub struct Job {
-    id: usize,
+    pub id: JobId,
+    pub command: String,
+    pub status: JobStatus,
+    // span?
+}
+
+struct InternalJob {
+    id: JobId,
+    command: String,
     pgroup: Pid,
     runnning: Vec<Pid>,
     stopped: Vec<Pid>,
     completed: Vec<Pid>,
 }
 
-impl Job {
-    pub fn id(&self) -> usize {
-        self.id
-    }
-
-    pub fn status(&self) -> JobStatus {
+impl InternalJob {
+    fn status(&self) -> JobStatus {
         if !self.runnning.is_empty() {
             JobStatus::Running
         } else if !self.stopped.is_empty() {
             JobStatus::Stopped
         } else {
             JobStatus::Completed
+        }
+    }
+
+    fn to_job(&self) -> Job {
+        Job {
+            id: self.id,
+            command: self.command.clone(),
+            status: self.status(),
         }
     }
 
@@ -66,14 +95,14 @@ impl Job {
             JobStatus::Running => try_move(&mut self.stopped, &mut self.runnning, pid),
         };
 
-        debug_assert!(moved)
+        debug_assert!(moved, "failed to find process with id {pid}")
     }
 }
 
 pub struct Jobs {
     next_id: AtomicUsize,
-    foreground_job: Mutex<Option<Job>>,
-    background_jobs: Mutex<Vec<Job>>,
+    foreground_job: Mutex<Option<InternalJob>>,
+    background_jobs: Mutex<Vec<InternalJob>>,
 }
 
 fn pid(child: &Child) -> Pid {
@@ -90,10 +119,11 @@ impl Jobs {
         self.next_id.fetch_add(1, Ordering::Relaxed)
     }
 
-    fn new_job(&self, child: &Child) -> Job {
+    fn new_job(&self, command: String, child: &Child) -> InternalJob {
         let pid = Pid::from_raw(child.id() as i32);
-        Job {
+        InternalJob {
             id: self.next_id(),
+            command,
             pgroup: pid,
             runnning: vec![pid],
             stopped: Vec::new(),
@@ -113,17 +143,29 @@ impl Jobs {
                     .or(Some(Pid::from_raw(0))),
             );
         }
-        let child = command.spawn()?;
-        if let Some(foreground) = foreground.as_mut() {
-            foreground.runnning.push(pid(&child));
-        } else {
-            let job = self.new_job(&child);
-            if interactive {
-                set_foreground_pid(job.pgroup, job.pgroup);
+        match command.spawn() {
+            Ok(child) => {
+                if let Some(foreground) = foreground.as_mut() {
+                    foreground.runnning.push(pid(&child));
+                } else {
+                    let job = self.new_job(
+                        command.get_program().to_owned().into_string().unwrap(),
+                        &child,
+                    );
+                    if interactive {
+                        set_foreground(job.pgroup, job.pgroup);
+                    }
+                    *foreground = Some(job);
+                }
+                Ok(child)
             }
-            *foreground = Some(job);
+            Err(e) => {
+                if interactive && foreground.is_none() {
+                    reset_foreground();
+                }
+                Err(e)
+            }
         }
-        Ok(child)
     }
 
     pub fn spawn_background(&self, mut command: Command, interactive: bool) -> io::Result<Child> {
@@ -133,13 +175,16 @@ impl Jobs {
 
         let mut background = self.background_jobs.lock().expect("unpoisoned");
         let child = command.spawn()?;
-        background.push(self.new_job(&child));
+        background.push(self.new_job(
+            command.get_program().to_owned().into_string().unwrap(),
+            &child,
+        ));
         Ok(child)
     }
 
-    /// Blocks on the foreground process group, waiting until all process have either stopped or completed.
-    /// It then restores the terminal, putting nushell back in control.
-    pub fn block_reset_foreground(&self, interactive: bool) {
+    /// Blocks on the foreground process group, waiting until all of its processes
+    /// have either stopped or completed. It then restores the terminal, putting nushell back in control.
+    pub fn wait_reset_foreground(&self, interactive: bool) {
         let pgroup = {
             self.foreground_job
                 .lock()
@@ -162,7 +207,9 @@ impl Jobs {
                     WaitStatus::Stopped(pid, _signal) => job.mark_process(pid, JobStatus::Stopped),
                     WaitStatus::Continued(pid) => job.mark_process(pid, JobStatus::Running),
                     #[cfg(any(target_os = "linux", target_os = "android"))]
-                    WaitStatus::PtraceEvent(_, _, _) | WaitStatus::PtraceSyscall(_) => (),
+                    WaitStatus::PtraceEvent(pid, _, _) | WaitStatus::PtraceSyscall(pid) => {
+                        job.mark_process(pid, JobStatus::Stopped)
+                    }
                     WaitStatus::StillAlive => unreachable!("WNOHANG was not provided"),
                 }
 
@@ -184,12 +231,35 @@ impl Jobs {
             }
 
             if interactive && io::stdin().is_terminal() {
-                // Make nushell the owner of the terminal again (the foreground process group)
-                if let Err(e) = unistd::tcsetpgrp(libc::STDIN_FILENO, unistd::getpgrp()) {
-                    eprintln!("ERROR: tcsetpgrp failed: {e:?}");
-                }
+                reset_foreground()
             }
         }
+    }
+
+    pub fn background_jobs(&self) -> Vec<Job> {
+        let jobs = self.background_jobs.lock().expect("unpoisoned");
+        jobs.iter().map(InternalJob::to_job).collect()
+    }
+
+    /// Brings a background job to the foreground.
+    /// Does nothing if there already is a foreground job.
+    /// Otherwise returns `false` if no job exists with the given [`JobId`].
+    pub fn switch_foreground(&self, id: JobId) -> bool {
+        let mut foreground = self.foreground_job.lock().expect("unpoisoned");
+
+        if foreground.is_some() {
+            return true;
+        }
+
+        let mut background = self.background_jobs.lock().expect("unpoisoned");
+        let job = background
+            .iter()
+            .position(|j| j.id == id)
+            .map(|i| background.remove(i));
+
+        let found = job.is_some();
+        *foreground = job;
+        found
     }
 }
 
@@ -218,7 +288,7 @@ fn prepare_interactive(command: &mut Command, foreground_pgroup: Option<Pid>) {
             // https://www.gnu.org/software/libc/manual/html_node/Launching-Jobs.html
             // This has to be done *both* in the parent and here in the child due to race conditions.
             if let Some(pgroup) = foreground_pgroup {
-                set_foreground_pid(unistd::getpid(), pgroup);
+                set_foreground(unistd::getpid(), pgroup);
             }
 
             // Reset signal handlers for child, sync with `terminal.rs`
@@ -240,10 +310,17 @@ fn prepare_interactive(command: &mut Command, foreground_pgroup: Option<Pid>) {
     }
 }
 
-fn set_foreground_pid(pid: Pid, pgroup: Pid) {
+fn set_foreground(pid: Pid, pgroup: Pid) {
     // Safety: needs to be async-signal-safe.
     // `setpgid` and `tcsetpgrp` are async-signal-safe.
     let pgroup = if pgroup.as_raw() == 0 { pid } else { pgroup };
     let _ = unistd::setpgid(pid, pgroup);
     let _ = unistd::tcsetpgrp(libc::STDIN_FILENO, pgroup);
+}
+
+/// Makes nushell the owner of the terminal again (the foreground process group)
+fn reset_foreground() {
+    if let Err(e) = unistd::tcsetpgrp(libc::STDIN_FILENO, unistd::getpgrp()) {
+        eprintln!("ERROR: tcsetpgrp failed: {e:?}");
+    }
 }
