@@ -7,7 +7,7 @@ pub mod os_info;
 #[cfg(target_os = "windows")]
 mod windows;
 
-pub use job::ForegroundChild;
+pub use job::*;
 #[cfg(any(target_os = "android", target_os = "linux"))]
 pub use linux::*;
 #[cfg(target_os = "macos")]

@@ -8,7 +8,7 @@ use nu_protocol::{
     Category, Example, ListStream, PipelineData, RawStream, ShellError, Signature, Span, Spanned,
     SyntaxShape, Type, Value,
 };
-use nu_system::ForegroundChild;
+
 use nu_utils::IgnoreCaseExt;
 use os_pipe::PipeReader;
 use pathdiff::diff_paths;
@@ -274,11 +274,9 @@ impl ExternalCommand {
         };
 
         #[cfg(unix)]
-        let child = ForegroundChild::spawn(
-            cmd,
-            engine_state.is_interactive,
-            &engine_state.pipeline_externals_state,
-        );
+        let child = engine_state
+            .jobs
+            .spawn_foreground(cmd, engine_state.is_interactive);
 
         match child {
             Err(err) => {
@@ -392,7 +390,7 @@ impl ExternalCommand {
                     engine_state.config.use_ansi_coloring = false;
 
                     // Pipe input into the external command's stdin
-                    if let Some(mut stdin_write) = child.as_mut().stdin.take() {
+                    if let Some(mut stdin_write) = child.stdin.take() {
                         thread::Builder::new()
                             .name("external stdin worker".to_string())
                             .spawn(move || {
@@ -440,8 +438,8 @@ impl ExternalCommand {
                 let (stdout_tx, stdout_rx) = mpsc::sync_channel(OUTPUT_BUFFERS_IN_FLIGHT);
                 let (exit_code_tx, exit_code_rx) = mpsc::channel();
 
-                let stdout = child.as_mut().stdout.take();
-                let stderr = child.as_mut().stderr.take();
+                let stdout = child.stdout.take();
+                let stderr = child.stderr.take();
 
                 // If this external is not the last expression, then its output is piped to a channel
                 // and we create a ListStream that can be consumed
@@ -464,55 +462,55 @@ impl ExternalCommand {
                             })?;
                             read_and_redirect_message(stdout, stdout_tx, ctrlc)
                         }
+                        Ok::<(), ShellError>(())
+                    // match child.wait() {
+                    //     Err(err) => Err(ShellError::ExternalCommand { label: "External command exited with error".into(), help: err.to_string(), span }),
+                    //     Ok(x) => {
+                    //         #[cfg(unix)]
+                    //         {
+                    //             use nu_ansi_term::{Color, Style};
+                    //             use std::ffi::CStr;
+                    //             use std::os::unix::process::ExitStatusExt;
 
-                    match child.as_mut().wait() {
-                        Err(err) => Err(ShellError::ExternalCommand { label: "External command exited with error".into(), help: err.to_string(), span }),
-                        Ok(x) => {
-                            #[cfg(unix)]
-                            {
-                                use nu_ansi_term::{Color, Style};
-                                use std::ffi::CStr;
-                                use std::os::unix::process::ExitStatusExt;
+                    //             if x.core_dumped() {
+                    //                 let cause = x.signal().and_then(|sig| unsafe {
+                    //                     // SAFETY: We should be the first to call `char * strsignal(int sig)`
+                    //                     let sigstr_ptr = libc::strsignal(sig);
+                    //                     if sigstr_ptr.is_null() {
+                    //                         return None;
+                    //                     }
 
-                                if x.core_dumped() {
-                                    let cause = x.signal().and_then(|sig| unsafe {
-                                        // SAFETY: We should be the first to call `char * strsignal(int sig)`
-                                        let sigstr_ptr = libc::strsignal(sig);
-                                        if sigstr_ptr.is_null() {
-                                            return None;
-                                        }
+                    //                     // SAFETY: The pointer points to a valid non-null string
+                    //                     let sigstr = CStr::from_ptr(sigstr_ptr);
+                    //                     sigstr.to_str().map(String::from).ok()
+                    //                 });
 
-                                        // SAFETY: The pointer points to a valid non-null string
-                                        let sigstr = CStr::from_ptr(sigstr_ptr);
-                                        sigstr.to_str().map(String::from).ok()
-                                    });
+                    //                 let cause = cause.as_deref().unwrap_or("Something went wrong");
 
-                                    let cause = cause.as_deref().unwrap_or("Something went wrong");
-
-                                    let style = Style::new().bold().on(Color::Red);
-                                    eprintln!(
-                                        "{}",
-                                        style.paint(format!(
-                                            "{cause}: oops, process '{commandname}' core dumped"
-                                        ))
-                                    );
-                                    let _ = exit_code_tx.send(Value::error (
-                                        ShellError::ExternalCommand { label: "core dumped".to_string(), help: format!("{cause}: child process '{commandname}' core dumped"), span: head },
-                                        head,
-                                    ));
-                                    return Ok(());
-                                }
-                            }
-                            if let Some(code) = x.code() {
-                                let _ = exit_code_tx.send(Value::int(code as i64, head));
-                            } else if x.success() {
-                                let _ = exit_code_tx.send(Value::int(0, head));
-                            } else {
-                                let _ = exit_code_tx.send(Value::int(-1, head));
-                            }
-                            Ok(())
-                        }
-                    }
+                    //                 let style = Style::new().bold().on(Color::Red);
+                    //                 eprintln!(
+                    //                     "{}",
+                    //                     style.paint(format!(
+                    //                         "{cause}: oops, process '{commandname}' core dumped"
+                    //                     ))
+                    //                 );
+                    //                 let _ = exit_code_tx.send(Value::error (
+                    //                     ShellError::ExternalCommand { label: "core dumped".to_string(), help: format!("{cause}: child process '{commandname}' core dumped"), span: head },
+                    //                     head,
+                    //                 ));
+                    //                 return Ok(());
+                    //             }
+                    //         }
+                    //         if let Some(code) = x.code() {
+                    //             let _ = exit_code_tx.send(Value::int(code as i64, head));
+                    //         } else if x.success() {
+                    //             let _ = exit_code_tx.send(Value::int(0, head));
+                    //         } else {
+                    //             let _ = exit_code_tx.send(Value::int(-1, head));
+                    //         }
+                    //         Ok(())
+                    //     }
+                    // }
                 }).expect("Failed to create thread");
 
                 let (stderr_tx, stderr_rx) = mpsc::sync_channel(OUTPUT_BUFFERS_IN_FLIGHT);

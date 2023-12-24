@@ -569,6 +569,11 @@ pub fn evaluate_repl(
                         false,
                     );
                 }
+
+                engine_state
+                    .jobs
+                    .block_reset_foreground(engine_state.is_interactive);
+
                 let cmd_duration = start_time.elapsed();
 
                 stack.add_env_var(
