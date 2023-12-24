@@ -11,7 +11,7 @@ use std::{
 
 use nix::{
     sys::{
-        signal::{sigaction, SaFlags, SigAction, SigHandler, SigSet, Signal},
+        signal::{killpg, sigaction, SaFlags, SigAction, SigHandler, SigSet, Signal},
         wait::{waitpid, WaitPidFlag, WaitStatus},
     },
     unistd::{self, Pid},
@@ -257,9 +257,20 @@ impl Jobs {
             .position(|j| j.id == id)
             .map(|i| background.remove(i));
 
-        let found = job.is_some();
-        *foreground = job;
-        found
+        if let Some(job) = job {
+            if let Err(e) = unistd::tcsetpgrp(libc::STDIN_FILENO, job.pgroup) {
+                eprintln!("ERROR: failed to set foreground job: {e}");
+                return true;
+            }
+            if let Err(e) = killpg(job.pgroup, Signal::SIGCONT) {
+                eprintln!("ERROR: failed to send SIGCONT: {e}");
+                return true;
+            }
+            *foreground = Some(job);
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -321,6 +332,6 @@ fn set_foreground(pid: Pid, pgroup: Pid) {
 /// Makes nushell the owner of the terminal again (the foreground process group)
 fn reset_foreground() {
     if let Err(e) = unistd::tcsetpgrp(libc::STDIN_FILENO, unistd::getpgrp()) {
-        eprintln!("ERROR: tcsetpgrp failed: {e:?}");
+        eprintln!("ERROR: failed to set foreground job: {e}");
     }
 }

@@ -2,4 +2,4 @@ mod list;
 mod switch;
 
 pub use list::JobList;
-// pub use switch::JobSwitch;
+pub use switch::JobSwitch;
