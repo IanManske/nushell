@@ -135,13 +135,7 @@ impl Jobs {
         let mut foreground = self.foreground_job.lock().expect("unpoisoned");
         let interactive = interactive && io::stdin().is_terminal();
         if interactive {
-            prepare_interactive(
-                &mut command,
-                foreground
-                    .as_ref()
-                    .map(|j| j.pgroup)
-                    .or(Some(Pid::from_raw(0))),
-            );
+            prepare_interactive(&mut command, true, foreground.as_ref().map(|j| j.pgroup));
         }
         match command.spawn() {
             Ok(child) => {
@@ -153,7 +147,10 @@ impl Jobs {
                         &child,
                     );
                     if interactive {
-                        set_foreground(job.pgroup, job.pgroup);
+                        let _ = unistd::setpgid(job.pgroup, job.pgroup);
+                        if let Err(e) = unistd::tcsetpgrp(libc::STDIN_FILENO, job.pgroup) {
+                            eprintln!("ERROR: failed to set foreground job: {e}");
+                        }
                     }
                     *foreground = Some(job);
                 }
@@ -170,7 +167,7 @@ impl Jobs {
 
     pub fn spawn_background(&self, mut command: Command, interactive: bool) -> io::Result<Child> {
         if interactive && io::stdin().is_terminal() {
-            prepare_interactive(&mut command, None);
+            prepare_interactive(&mut command, false, None);
         }
 
         let mut background = self.background_jobs.lock().expect("unpoisoned");
@@ -185,64 +182,135 @@ impl Jobs {
     /// Blocks on the foreground process group, waiting until all of its processes
     /// have either stopped or completed. It then restores the terminal, putting nushell back in control.
     pub fn wait_reset_foreground(&self, interactive: bool) {
-        let pgroup = {
-            self.foreground_job
-                .lock()
-                .expect("unpoisoned")
-                .as_ref()
-                .map(|j| j.pgroup)
-        };
+        if !interactive {
+            return;
+        }
 
-        if let Some(pgroup) = pgroup {
-            let flags = Some(WaitPidFlag::WUNTRACED | WaitPidFlag::WCONTINUED);
-            while let Ok(status) = waitpid(Pid::from_raw(-pgroup.as_raw()), flags) {
-                let mut foreground = self.foreground_job.lock().expect("unpoisoned");
-                let job = foreground.as_mut().expect("foreground exists");
-
-                match status {
-                    WaitStatus::Exited(pid, _code) => job.mark_process(pid, JobStatus::Completed),
-                    WaitStatus::Signaled(pid, _signal, _core_dumped) => {
-                        job.mark_process(pid, JobStatus::Completed)
+        {
+            let mut foreground = self.foreground_job.lock().expect("unpoisoned");
+            if let Some(job) = foreground.as_mut() {
+                let flags = Some(WaitPidFlag::WUNTRACED | WaitPidFlag::WCONTINUED);
+                while let Ok(status) = waitpid(Pid::from_raw(-job.pgroup.as_raw()), flags) {
+                    match status {
+                        WaitStatus::Exited(pid, _code) => {
+                            job.mark_process(pid, JobStatus::Completed)
+                        }
+                        WaitStatus::Signaled(pid, _signal, _core_dumped) => {
+                            job.mark_process(pid, JobStatus::Completed)
+                        }
+                        WaitStatus::Stopped(pid, _signal) => {
+                            job.mark_process(pid, JobStatus::Stopped)
+                        }
+                        WaitStatus::Continued(pid) => job.mark_process(pid, JobStatus::Running),
+                        #[cfg(any(target_os = "linux", target_os = "android"))]
+                        WaitStatus::PtraceEvent(pid, _, _) | WaitStatus::PtraceSyscall(pid) => {
+                            job.mark_process(pid, JobStatus::Stopped)
+                        }
+                        WaitStatus::StillAlive => unreachable!("WNOHANG was not provided"),
                     }
-                    WaitStatus::Stopped(pid, _signal) => job.mark_process(pid, JobStatus::Stopped),
-                    WaitStatus::Continued(pid) => job.mark_process(pid, JobStatus::Running),
+
+                    match job.status() {
+                        JobStatus::Completed => {
+                            *foreground = None;
+                            break;
+                        }
+                        JobStatus::Stopped => {
+                            self.background_jobs
+                                .lock()
+                                .expect("unpoisoned")
+                                .push(foreground.take().expect("foreground exists"));
+
+                            break;
+                        }
+                        JobStatus::Running => (),
+                    }
+                }
+
+                if io::stdin().is_terminal() {
+                    reset_foreground()
+                }
+            }
+        }
+
+        {
+            let mut background = self.background_jobs.lock().expect("unpoisoned");
+
+            let mut try_mark_job = |pid, status| match unistd::getpgid(Some(pid)) {
+                Ok(pgroup) => {
+                    if let Some(job) = background.iter_mut().find(|j| j.pgroup == pgroup) {
+                        job.mark_process(pid, status)
+                    } else {
+                        debug_assert!(false, "unknown pgroup {pgroup}");
+                    }
+                }
+                Err(e) => {
+                    eprint!("ERROR: failed to get process group: {e}")
+                }
+            };
+
+            let flags = Some(WaitPidFlag::WUNTRACED | WaitPidFlag::WCONTINUED);
+            while let Ok(status) = waitpid(None, flags) {
+                match status {
+                    WaitStatus::Exited(pid, _code) => try_mark_job(pid, JobStatus::Completed),
+                    WaitStatus::Signaled(pid, _signal, _core_dumped) => {
+                        try_mark_job(pid, JobStatus::Completed)
+                    }
+                    WaitStatus::Stopped(pid, _signal) => try_mark_job(pid, JobStatus::Stopped),
+                    WaitStatus::Continued(pid) => try_mark_job(pid, JobStatus::Running),
                     #[cfg(any(target_os = "linux", target_os = "android"))]
                     WaitStatus::PtraceEvent(pid, _, _) | WaitStatus::PtraceSyscall(pid) => {
-                        job.mark_process(pid, JobStatus::Stopped)
+                        try_mark_job(pid, JobStatus::Stopped)
                     }
                     WaitStatus::StillAlive => unreachable!("WNOHANG was not provided"),
                 }
-
-                match job.status() {
-                    JobStatus::Completed => {
-                        *foreground = None;
-                        break;
-                    }
-                    JobStatus::Stopped => {
-                        self.background_jobs
-                            .lock()
-                            .expect("unpoisoned")
-                            .push(foreground.take().expect("foreground exists"));
-
-                        break;
-                    }
-                    JobStatus::Running => (),
-                }
-            }
-
-            if interactive && io::stdin().is_terminal() {
-                reset_foreground()
             }
         }
     }
 
     pub fn background_jobs(&self) -> Vec<Job> {
-        let jobs = self.background_jobs.lock().expect("unpoisoned");
-        jobs.iter().map(InternalJob::to_job).collect()
+        let mut foreground = self.foreground_job.lock().expect("unpoisoned");
+        let mut background = self.background_jobs.lock().expect("unpoisoned");
+
+        let mut try_mark_job = |pid, status| match unistd::getpgid(Some(pid)) {
+            Ok(pgroup) => match foreground.as_mut() {
+                Some(foreground) if pgroup == foreground.pgroup => {
+                    foreground.mark_process(pid, status)
+                }
+                _ => {
+                    if let Some(job) = background.iter_mut().find(|j| j.pgroup == pgroup) {
+                        job.mark_process(pid, status)
+                    } else {
+                        debug_assert!(false, "unknown pgroup {pgroup}");
+                    }
+                }
+            },
+            Err(e) => {
+                eprint!("ERROR: failed to get process group: {e}")
+            }
+        };
+
+        let flags = Some(WaitPidFlag::WUNTRACED | WaitPidFlag::WCONTINUED);
+        while let Ok(status) = waitpid(None, flags) {
+            match status {
+                WaitStatus::Exited(pid, _code) => try_mark_job(pid, JobStatus::Completed),
+                WaitStatus::Signaled(pid, _signal, _core_dumped) => {
+                    try_mark_job(pid, JobStatus::Completed)
+                }
+                WaitStatus::Stopped(pid, _signal) => try_mark_job(pid, JobStatus::Stopped),
+                WaitStatus::Continued(pid) => try_mark_job(pid, JobStatus::Running),
+                #[cfg(any(target_os = "linux", target_os = "android"))]
+                WaitStatus::PtraceEvent(pid, _, _) | WaitStatus::PtraceSyscall(pid) => {
+                    try_mark_job(pid, JobStatus::Stopped)
+                }
+                WaitStatus::StillAlive => unreachable!("WNOHANG was not provided"),
+            }
+        }
+
+        background.iter().map(InternalJob::to_job).collect()
     }
 
     /// Brings a background job to the foreground.
-    /// Does nothing if there already is a foreground job.
+    /// Does nothing if there already is a foreground job or the background job is finished.
     /// Otherwise returns `false` if no job exists with the given [`JobId`].
     pub fn switch_foreground(&self, id: JobId) -> bool {
         let mut foreground = self.foreground_job.lock().expect("unpoisoned");
@@ -252,21 +320,41 @@ impl Jobs {
         }
 
         let mut background = self.background_jobs.lock().expect("unpoisoned");
-        let job = background
-            .iter()
-            .position(|j| j.id == id)
-            .map(|i| background.remove(i));
 
-        if let Some(job) = job {
+        if let Some(i) = background.iter().position(|j| j.id == id) {
+            let job = &mut background[i];
+
+            let flags = Some(WaitPidFlag::WNOHANG);
+            while let Ok(status) = waitpid(Pid::from_raw(-job.pgroup.as_raw()), flags) {
+                match status {
+                    WaitStatus::Exited(pid, _code) => job.mark_process(pid, JobStatus::Completed),
+                    WaitStatus::Signaled(pid, _signal, _core_dumped) => {
+                        job.mark_process(pid, JobStatus::Completed)
+                    }
+                    WaitStatus::Stopped(_, _) => unreachable!("WUNTRACED was not provided"),
+                    WaitStatus::Continued(_) => unreachable!("WCONTINUED was not provided"),
+                    #[cfg(any(target_os = "linux", target_os = "android"))]
+                    WaitStatus::PtraceEvent(pid, _, _) | WaitStatus::PtraceSyscall(pid) => {
+                        job.mark_process(pid, JobStatus::Stopped)
+                    }
+                    WaitStatus::StillAlive => break,
+                }
+            }
+
+            if job.status() == JobStatus::Completed {
+                return true;
+            }
+
             if let Err(e) = unistd::tcsetpgrp(libc::STDIN_FILENO, job.pgroup) {
                 eprintln!("ERROR: failed to set foreground job: {e}");
                 return true;
             }
             if let Err(e) = killpg(job.pgroup, Signal::SIGCONT) {
                 eprintln!("ERROR: failed to send SIGCONT: {e}");
+                reset_foreground();
                 return true;
             }
-            *foreground = Some(job);
+            *foreground = Some(background.remove(i));
             true
         } else {
             false
@@ -284,30 +372,32 @@ impl Default for Jobs {
     }
 }
 
-fn prepare_interactive(command: &mut Command, foreground_pgroup: Option<Pid>) {
+fn prepare_interactive(command: &mut Command, foreground: bool, pgroup: Option<Pid>) {
     unsafe {
         // Safety:
         // POSIX only allows async-signal-safe functions to be called.
-        // `sigaction` and `getpid` are async-signal-safe according to:
+        // `sigaction`, `getpid`, `setpgid`, and `tcsetpgrp` are async-signal-safe according to:
         // https://manpages.ubuntu.com/manpages/bionic/man7/signal-safety.7.html
-        // Also, `set_foreground_pid` is async-signal-safe.
         command.pre_exec(move || {
             // When this callback is run, std::process has already:
             // - reset SIGPIPE to SIG_DFL
 
+            let pid = unistd::getpid();
+            let pgroup = pgroup.unwrap_or(pid);
+
             // According to glibc's job control manual:
             // https://www.gnu.org/software/libc/manual/html_node/Launching-Jobs.html
             // This has to be done *both* in the parent and here in the child due to race conditions.
-            if let Some(pgroup) = foreground_pgroup {
-                set_foreground(unistd::getpid(), pgroup);
+            let _ = unistd::setpgid(pid, pgroup);
+            if foreground {
+                let _ = unistd::tcsetpgrp(libc::STDIN_FILENO, pgroup);
             }
 
             // Reset signal handlers for child, sync with `terminal.rs`
             let default = SigAction::new(SigHandler::SigDfl, SaFlags::empty(), SigSet::empty());
             // SIGINT has special handling
             sigaction(Signal::SIGQUIT, &default).expect("signal default");
-            // We don't support background jobs, so keep SIGTSTP blocked?
-            // sigaction(Signal::SIGTSTP, &default).expect("signal default");
+            sigaction(Signal::SIGTSTP, &default).expect("signal default");
             sigaction(Signal::SIGTTIN, &default).expect("signal default");
             sigaction(Signal::SIGTTOU, &default).expect("signal default");
 
@@ -319,14 +409,6 @@ fn prepare_interactive(command: &mut Command, foreground_pgroup: Option<Pid>) {
             Ok(())
         });
     }
-}
-
-fn set_foreground(pid: Pid, pgroup: Pid) {
-    // Safety: needs to be async-signal-safe.
-    // `setpgid` and `tcsetpgrp` are async-signal-safe.
-    let pgroup = if pgroup.as_raw() == 0 { pid } else { pgroup };
-    let _ = unistd::setpgid(pid, pgroup);
-    let _ = unistd::tcsetpgrp(libc::STDIN_FILENO, pgroup);
 }
 
 /// Makes nushell the owner of the terminal again (the foreground process group)
