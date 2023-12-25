@@ -51,19 +51,24 @@ struct InternalJob {
     id: JobId,
     command: String,
     pgroup: Pid,
-    runnning: Vec<Pid>,
-    stopped: Vec<Pid>,
-    completed: Vec<Pid>,
+    /// The number of stopped processes in this job.
+    stopped: usize,
+    /// All the pids of the processes in this job.
+    /// This is partitioned according to `stopped`:
+    /// - all pids before index `stopped` are considered to be stopped
+    /// - all pids at and after index `stopped` are considered to be running
+    /// - processes that have completed are removed
+    processes: Vec<Pid>,
 }
 
 impl InternalJob {
     fn status(&self) -> JobStatus {
-        if !self.runnning.is_empty() {
-            JobStatus::Running
-        } else if !self.stopped.is_empty() {
+        if self.processes.is_empty() {
+            JobStatus::Completed
+        } else if self.stopped == self.processes.len() {
             JobStatus::Stopped
         } else {
-            JobStatus::Completed
+            JobStatus::Running
         }
     }
 
@@ -76,23 +81,30 @@ impl InternalJob {
     }
 
     fn mark_process(&mut self, pid: Pid, status: JobStatus) -> bool {
-        fn try_move(from: &mut Vec<Pid>, to: &mut Vec<Pid>, pid: Pid) -> bool {
-            if let Some(i) = from.iter().position(|&p| p == pid) {
-                from.swap_remove(i);
-                to.push(pid);
-                true
-            } else {
-                false
+        if let Some(i) = self.processes.iter().position(|&p| p == pid) {
+            match status {
+                JobStatus::Completed => {
+                    if i < self.stopped {
+                        self.processes.swap(i, self.stopped - 1);
+                        self.processes.swap_remove(self.stopped - 1);
+                    } else {
+                        self.processes.swap_remove(i);
+                    }
+                }
+                JobStatus::Stopped => {
+                    debug_assert!(i >= self.stopped);
+                    self.processes.swap(i, self.stopped);
+                    self.stopped += 1;
+                }
+                JobStatus::Running => {
+                    debug_assert!(i < self.stopped);
+                    self.processes.swap(i, self.stopped - 1);
+                    self.stopped -= 1;
+                }
             }
-        }
-
-        match status {
-            JobStatus::Completed => {
-                try_move(&mut self.runnning, &mut self.completed, pid)
-                    || try_move(&mut self.stopped, &mut self.completed, pid)
-            }
-            JobStatus::Stopped => try_move(&mut self.runnning, &mut self.stopped, pid),
-            JobStatus::Running => try_move(&mut self.stopped, &mut self.runnning, pid),
+            true
+        } else {
+            false
         }
     }
 }
@@ -147,9 +159,8 @@ impl Jobs {
             id: self.next_id(),
             command,
             pgroup: pid,
-            runnning: vec![pid],
-            stopped: Vec::new(),
-            completed: Vec::new(),
+            stopped: 0,
+            processes: vec![pid],
         }
     }
 
@@ -162,7 +173,7 @@ impl Jobs {
         match command.spawn() {
             Ok(child) => {
                 if let Some(foreground) = state.foreground_job_mut() {
-                    foreground.runnning.push(pid(&child));
+                    foreground.processes.push(pid(&child));
                 } else {
                     let job = self.new_job(
                         command.get_program().to_owned().into_string().unwrap(),
