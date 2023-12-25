@@ -111,20 +111,12 @@ impl InternalJob {
 
 struct JobState {
     foreground: Option<usize>,
-    background: Vec<InternalJob>,
+    jobs: Vec<InternalJob>,
 }
 
 impl JobState {
-    fn foreground_job_mut(&mut self) -> Option<&mut InternalJob> {
-        self.foreground.map(|i| &mut self.background[i])
-    }
-
-    fn foreground_pgroup(&self) -> Option<Pid> {
-        self.foreground.map(|i| self.background[i].pgroup)
-    }
-
     fn mark_process(&mut self, pid: Pid, status: JobStatus) -> Option<&InternalJob> {
-        self.background.iter_mut().find_map(|job| {
+        self.jobs.iter_mut().find_map(|job| {
             if job.mark_process(pid, status) {
                 Some(&*job)
             } else {
@@ -167,12 +159,13 @@ impl Jobs {
     pub fn spawn_foreground(&self, mut command: Command, interactive: bool) -> io::Result<Child> {
         let mut state = self.state.lock().expect("unpoisoned");
         let interactive = interactive && io::stdin().is_terminal();
+        let foreground = state.foreground.map(|i| &mut state.jobs[i]);
         if interactive {
-            prepare_interactive(&mut command, true, state.foreground_pgroup());
+            prepare_interactive(&mut command, true, foreground.as_deref().map(|j| j.pgroup));
         }
         match command.spawn() {
             Ok(child) => {
-                if let Some(foreground) = state.foreground_job_mut() {
+                if let Some(foreground) = foreground {
                     foreground.processes.push(pid(&child));
                 } else {
                     let job = self.new_job(
@@ -185,13 +178,13 @@ impl Jobs {
                             eprintln!("ERROR: failed to set foreground job: {e}");
                         }
                     }
-                    state.foreground = Some(state.background.len());
-                    state.background.push(job);
+                    state.foreground = Some(state.jobs.len());
+                    state.jobs.push(job);
                 }
                 Ok(child)
             }
             Err(e) => {
-                if interactive && state.foreground.is_none() {
+                if interactive && foreground.is_none() {
                     reset_foreground();
                 }
                 Err(e)
@@ -206,7 +199,7 @@ impl Jobs {
 
         let mut state = self.state.lock().expect("unpoisoned");
         let child = command.spawn()?;
-        state.background.push(self.new_job(
+        state.jobs.push(self.new_job(
             command.get_program().to_owned().into_string().unwrap(),
             &child,
         ));
@@ -218,9 +211,11 @@ impl Jobs {
     pub fn wait_reset_foreground(&self, interactive: bool) {
         let mut state = self.state.lock().expect("unpoisoned");
 
-        let Some(foreground) = state.foreground_pgroup() else {
+        let Some(i) = state.foreground else {
             return;
         };
+
+        let foreground = state.jobs[i].pgroup;
 
         let flags = Some(WaitPidFlag::WUNTRACED);
         while let Ok(status) = waitpid(None, flags) {
@@ -241,7 +236,11 @@ impl Jobs {
             debug_assert!(job.is_some());
 
             if let Some(job) = job {
-                if job.pgroup == foreground && job.status() != JobStatus::Running {
+                let status = job.status();
+                if job.pgroup == foreground && status != JobStatus::Running {
+                    if status == JobStatus::Completed {
+                        state.jobs.swap_remove(i);
+                    }
                     state.foreground = None;
                     break;
                 }
@@ -275,12 +274,13 @@ impl Jobs {
             debug_assert!(job.is_some());
         }
 
-        state.background.iter().map(InternalJob::to_job).collect()
+        state.jobs.iter().map(InternalJob::to_job).collect()
     }
 
     /// Brings a background job to the foreground.
-    /// Does nothing if there already is a foreground job or the background job is finished.
-    /// Otherwise returns `false` if no job exists with the given [`JobId`].
+    /// Does nothing if there already is a foreground job.
+    /// If the background job is completed, removes it from the list of jobs.
+    /// Returns `false` if no job exists with the given [`JobId`].
     pub fn switch_foreground(&self, id: JobId) -> bool {
         let mut state = self.state.lock().expect("unpoisoned");
 
@@ -307,10 +307,11 @@ impl Jobs {
             debug_assert!(job.is_some());
         }
 
-        if let Some(i) = state.background.iter().position(|j| j.id == id) {
-            let job = &state.background[i];
+        if let Some(i) = state.jobs.iter().position(|j| j.id == id) {
+            let job = &state.jobs[i];
 
             if job.status() == JobStatus::Completed {
+                state.jobs.swap_remove(i);
                 return true;
             }
 
@@ -337,7 +338,7 @@ impl Default for Jobs {
             next_id: AtomicUsize::new(1),
             state: Mutex::new(JobState {
                 foreground: None,
-                background: Vec::new(),
+                jobs: Vec::new(),
             }),
         }
     }
