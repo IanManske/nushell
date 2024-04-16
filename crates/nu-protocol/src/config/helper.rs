@@ -1,4 +1,4 @@
-use crate::{Record, ShellError, Span, Value};
+use crate::{Error, Record, ShellError, ShellResult, Span, Value};
 use std::{collections::HashMap, fmt::Display, str::FromStr};
 
 pub(super) trait ReconstructVal {
@@ -9,7 +9,7 @@ pub(super) fn process_string_enum<T, E>(
     config_point: &mut T,
     config_path: &[&str],
     value: &mut Value,
-    errors: &mut Vec<ShellError>,
+    errors: &mut Vec<Error>,
 ) where
     T: FromStr<Err = E> + ReconstructVal,
     E: Display,
@@ -21,28 +21,34 @@ pub(super) fn process_string_enum<T, E>(
                 *config_point = format;
             }
             Err(err) => {
-                errors.push(ShellError::GenericError {
-                    error: "Error while applying config changes".into(),
-                    msg: format!(
-                        "unrecognized $env.config.{} option '{v}'",
-                        config_path.join(".")
-                    ),
-                    span: Some(span),
-                    help: Some(err.to_string()),
-                    inner: vec![],
-                });
+                errors.push(
+                    ShellError::GenericError {
+                        error: "Error while applying config changes".into(),
+                        msg: format!(
+                            "unrecognized $env.config.{} option '{v}'",
+                            config_path.join(".")
+                        ),
+                        span: Some(span),
+                        help: Some(err.to_string()),
+                        inner: vec![],
+                    }
+                    .into(),
+                );
                 // Reconstruct
                 *value = config_point.reconstruct_value(span);
             }
         }
     } else {
-        errors.push(ShellError::GenericError {
-            error: "Error while applying config changes".into(),
-            msg: format!("$env.config.{} should be a string", config_path.join(".")),
-            span: Some(span),
-            help: Some("This value will be ignored.".into()),
-            inner: vec![],
-        });
+        errors.push(
+            ShellError::GenericError {
+                error: "Error while applying config changes".into(),
+                msg: format!("$env.config.{} should be a string", config_path.join(".")),
+                span: Some(span),
+                help: Some("This value will be ignored.".into()),
+                inner: vec![],
+            }
+            .into(),
+        );
         // Reconstruct
         *value = config_point.reconstruct_value(span);
     }
@@ -50,19 +56,22 @@ pub(super) fn process_string_enum<T, E>(
 
 pub(super) fn process_bool_config(
     value: &mut Value,
-    errors: &mut Vec<ShellError>,
+    errors: &mut Vec<Error>,
     config_point: &mut bool,
 ) {
     if let Ok(b) = value.as_bool() {
         *config_point = b;
     } else {
-        errors.push(ShellError::GenericError {
-            error: "Error while applying config changes".into(),
-            msg: "should be a bool".to_string(),
-            span: Some(value.span()),
-            help: Some("This value will be ignored.".into()),
-            inner: vec![],
-        });
+        errors.push(
+            ShellError::GenericError {
+                error: "Error while applying config changes".into(),
+                msg: "should be a bool".to_string(),
+                span: Some(value.span()),
+                help: Some("This value will be ignored.".into()),
+                inner: vec![],
+            }
+            .into(),
+        );
         // Reconstruct
         *value = Value::bool(*config_point, value.span());
     }
@@ -70,51 +79,60 @@ pub(super) fn process_bool_config(
 
 pub(super) fn process_int_config(
     value: &mut Value,
-    errors: &mut Vec<ShellError>,
+    errors: &mut Vec<Error>,
     config_point: &mut i64,
 ) {
     if let Ok(b) = value.as_int() {
         *config_point = b;
     } else {
-        errors.push(ShellError::GenericError {
-            error: "Error while applying config changes".into(),
-            msg: "should be an int".into(),
-            span: Some(value.span()),
-            help: Some("This value will be ignored.".into()),
-            inner: vec![],
-        });
+        errors.push(
+            ShellError::GenericError {
+                error: "Error while applying config changes".into(),
+                msg: "should be an int".into(),
+                span: Some(value.span()),
+                help: Some("This value will be ignored.".into()),
+                inner: vec![],
+            }
+            .into(),
+        );
         // Reconstruct
         *value = Value::int(*config_point, value.span());
     }
 }
 
-pub(super) fn report_invalid_key(keys: &[&str], span: Span, errors: &mut Vec<ShellError>) {
+pub(super) fn report_invalid_key(keys: &[&str], span: Span, errors: &mut Vec<Error>) {
     // Because Value::Record discards all of the spans of its
     // column names (by storing them as Strings), the key name cannot be provided
     // as a value, even in key errors.
-    errors.push(ShellError::GenericError {
-        error: "Error while applying config changes".into(),
-        msg: format!(
-            "$env.config.{} is an unknown config setting",
-            keys.join(".")
-        ),
-        span: Some(span),
-        help: Some("This value will not appear in your $env.config record.".into()),
-        inner: vec![],
-    });
+    errors.push(
+        ShellError::GenericError {
+            error: "Error while applying config changes".into(),
+            msg: format!(
+                "$env.config.{} is an unknown config setting",
+                keys.join(".")
+            ),
+            span: Some(span),
+            help: Some("This value will not appear in your $env.config record.".into()),
+            inner: vec![],
+        }
+        .into(),
+    );
 }
 
-pub(super) fn report_invalid_value(msg: &str, span: Span, errors: &mut Vec<ShellError>) {
-    errors.push(ShellError::GenericError {
-        error: "Error while applying config changes".into(),
-        msg: msg.into(),
-        span: Some(span),
-        help: Some("This value will be ignored.".into()),
-        inner: vec![],
-    });
+pub(super) fn report_invalid_value(msg: &str, span: Span, errors: &mut Vec<Error>) {
+    errors.push(
+        ShellError::GenericError {
+            error: "Error while applying config changes".into(),
+            msg: msg.into(),
+            span: Some(span),
+            help: Some("This value will be ignored.".into()),
+            inner: vec![],
+        }
+        .into(),
+    );
 }
 
-pub(super) fn create_map(value: &Value) -> Result<HashMap<String, Value>, ShellError> {
+pub(super) fn create_map(value: &Value) -> ShellResult<HashMap<String, Value>> {
     Ok(value
         .as_record()?
         .iter()
@@ -126,11 +144,12 @@ pub fn extract_value<'record>(
     name: &str,
     record: &'record Record,
     span: Span,
-) -> Result<&'record Value, ShellError> {
-    record
-        .get(name)
-        .ok_or_else(|| ShellError::MissingConfigValue {
+) -> ShellResult<&'record Value> {
+    record.get(name).ok_or_else(|| {
+        ShellError::MissingConfigValue {
             missing_value: name.to_string(),
             span,
-        })
+        }
+        .into()
+    })
 }

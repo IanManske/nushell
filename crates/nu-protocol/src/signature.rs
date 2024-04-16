@@ -1,7 +1,7 @@
 use crate::{
     ast::Call,
     engine::{Command, EngineState, Stack},
-    BlockId, PipelineData, ShellError, SyntaxShape, Type, Value, VarId,
+    BlockId, PipelineData, ShellError, ShellResult, SyntaxShape, Type, Value, VarId,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt::Write;
@@ -638,7 +638,7 @@ impl Command for Predeclaration {
         _stack: &mut Stack,
         _call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, crate::ShellError> {
+    ) -> ShellResult<PipelineData> {
         panic!("Internal error: can't run a predeclaration without a body")
     }
 }
@@ -691,14 +691,15 @@ impl Command for BlockCommand {
         _stack: &mut Stack,
         _call: &Call,
         _input: PipelineData,
-    ) -> Result<crate::PipelineData, crate::ShellError> {
+    ) -> ShellResult<PipelineData> {
         Err(ShellError::GenericError {
             error: "Internal error: can't run custom command with 'run', use block_id".into(),
             msg: "".into(),
             span: None,
             help: None,
             inner: vec![],
-        })
+        }
+        .into())
     }
 
     fn get_block_id(&self) -> Option<BlockId> {

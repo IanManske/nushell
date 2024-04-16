@@ -6,8 +6,9 @@ use crate::{
         CachedFile, Command, CommandType, EnvVars, OverlayFrame, ScopeFrame, Stack, StateDelta,
         Variable, Visibility, DEFAULT_OVERLAY_NAME,
     },
-    BlockId, Category, Config, DeclId, Example, FileId, HistoryConfig, Module, ModuleId, OverlayId,
-    ShellError, Signature, Span, Type, Value, VarId, VirtualPathId,
+    BlockId, Category, Config, DeclId, Example, FileId, HistoryConfig, IntoSpanned, Module,
+    ModuleId, OverlayId, ShellError, ShellResult, Signature, Span, Type, Value, VarId,
+    VirtualPathId,
 };
 use fancy_regex::Regex;
 use lru::LruCache;
@@ -180,7 +181,7 @@ impl EngineState {
     ///
     /// When we want to preserve what the parser has created, we can take its output (the `StateDelta`) and
     /// use this function to merge it into the global state.
-    pub fn merge_delta(&mut self, mut delta: StateDelta) -> Result<(), ShellError> {
+    pub fn merge_delta(&mut self, mut delta: StateDelta) -> ShellResult<()> {
         // Take the mutable reference and extend the permanent state from the working set
         self.files.extend(delta.files);
         self.virtual_paths.extend(delta.virtual_paths);
@@ -276,11 +277,7 @@ impl EngineState {
     }
 
     /// Merge the environment from the runtime Stack into the engine state
-    pub fn merge_env(
-        &mut self,
-        stack: &mut Stack,
-        cwd: impl AsRef<Path>,
-    ) -> Result<(), ShellError> {
+    pub fn merge_env(&mut self, stack: &mut Stack, cwd: impl AsRef<Path>) -> ShellResult<()> {
         let mut config_updated = false;
 
         for mut scope in stack.env_vars.drain(..) {
@@ -311,7 +308,7 @@ impl EngineState {
         }
 
         // TODO: better error
-        std::env::set_current_dir(cwd)?;
+        std::env::set_current_dir(cwd).map_err(|e| e.into_spanned(Span::unknown()))?;
 
         if config_updated {
             // Make plugin GC config changes take effect immediately.
@@ -487,7 +484,7 @@ impl EngineState {
     }
 
     #[cfg(feature = "plugin")]
-    pub fn update_plugin_file(&self) -> Result<(), ShellError> {
+    pub fn update_plugin_file(&self) -> ShellResult<()> {
         use std::io::Write;
 
         use crate::{PluginExample, PluginSignature};
@@ -573,7 +570,9 @@ impl EngineState {
                             })
                         })
                 })
-            })
+            })?;
+
+        Ok(())
     }
 
     /// Update plugins with new garbage collection config
@@ -1056,7 +1055,7 @@ mod engine_state_tests {
     }
 
     #[test]
-    fn merge_states() -> Result<(), ShellError> {
+    fn merge_states() -> ShellResult<()> {
         let mut engine_state = EngineState::new();
         engine_state.add_file("test.nu".into(), Arc::new([]));
 

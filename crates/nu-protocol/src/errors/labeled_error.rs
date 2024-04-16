@@ -3,7 +3,7 @@ use std::fmt;
 use miette::Diagnostic;
 use serde::{Deserialize, Serialize};
 
-use crate::Span;
+use crate::{Error, Span};
 
 use super::ShellError;
 
@@ -237,5 +237,11 @@ impl Diagnostic for LabeledError {
 impl From<ShellError> for LabeledError {
     fn from(err: ShellError) -> Self {
         LabeledError::from_diagnostic(&err)
+    }
+}
+
+impl From<Error> for LabeledError {
+    fn from(value: Error) -> Self {
+        LabeledError::from_diagnostic(&value)
     }
 }

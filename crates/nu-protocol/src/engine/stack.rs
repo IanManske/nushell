@@ -3,7 +3,7 @@ use crate::{
         EngineState, Redirection, StackCallArgGuard, StackCaptureGuard, StackIoGuard, StackOutDest,
         DEFAULT_OVERLAY_NAME,
     },
-    OutDest, ShellError, Span, Value, VarId, ENV_VARIABLE_ID, NU_VARIABLE_ID,
+    OutDest, ShellError, ShellResult, Span, Value, VarId, ENV_VARIABLE_ID, NU_VARIABLE_ID,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -168,10 +168,10 @@ impl Stack {
     /// Lookup a variable, erroring if it is not found
     ///
     /// The passed-in span will be used to tag the value
-    pub fn get_var(&self, var_id: VarId, span: Span) -> Result<Value, ShellError> {
+    pub fn get_var(&self, var_id: VarId, span: Span) -> ShellResult<Value> {
         match self.lookup_var(var_id) {
             Some(v) => Ok(v.with_span(span)),
-            None => Err(ShellError::VariableNotFoundAtRuntime { span }),
+            None => Err(ShellError::VariableNotFoundAtRuntime { span }.into()),
         }
     }
 
@@ -179,7 +179,7 @@ impl Stack {
     ///
     /// While the passed-in span will be used for errors, the returned value
     /// has the span from where it was originally defined
-    pub fn get_var_with_origin(&self, var_id: VarId, span: Span) -> Result<Value, ShellError> {
+    pub fn get_var_with_origin(&self, var_id: VarId, span: Span) -> ShellResult<Value> {
         match self.lookup_var(var_id) {
             Some(v) => Ok(v),
             None => {
@@ -190,9 +190,10 @@ impl Stack {
                         span: Some(span),
                         help: None,
                         inner: vec![],
-                    });
+                    }
+                    .into());
                 }
-                Err(ShellError::VariableNotFoundAtRuntime { span })
+                Err(ShellError::VariableNotFoundAtRuntime { span }.into())
             }
         }
     }
@@ -248,13 +249,13 @@ impl Stack {
         }
     }
 
-    pub fn last_overlay_name(&self) -> Result<String, ShellError> {
-        self.active_overlays
-            .last()
-            .cloned()
-            .ok_or_else(|| ShellError::NushellFailed {
+    pub fn last_overlay_name(&self) -> ShellResult<String> {
+        self.active_overlays.last().cloned().ok_or_else(|| {
+            ShellError::NushellFailed {
                 msg: "No active overlay".into(),
-            })
+            }
+            .into()
+        })
     }
 
     pub fn captures_to_stack(&self, captures: Vec<(VarId, Value)>) -> Stack {
@@ -598,7 +599,7 @@ impl Stack {
 mod test {
     use std::sync::Arc;
 
-    use crate::{engine::EngineState, Span, Value};
+    use crate::{engine::EngineState, ShellError, Span, Value};
 
     use super::Stack;
 
@@ -629,7 +630,7 @@ mod test {
 
         assert_eq!(
             cloned.get_var(0, ZERO_SPAN),
-            Err(crate::ShellError::VariableNotFoundAtRuntime { span: ZERO_SPAN })
+            Err(ShellError::VariableNotFoundAtRuntime { span: ZERO_SPAN }.into())
         );
     }
 
@@ -646,7 +647,7 @@ mod test {
         // the underlying value shouldn't magically re-appear
         assert_eq!(
             cloned.get_var(0, ZERO_SPAN),
-            Err(crate::ShellError::VariableNotFoundAtRuntime { span: ZERO_SPAN })
+            Err(ShellError::VariableNotFoundAtRuntime { span: ZERO_SPAN }.into())
         );
     }
     #[test]
@@ -662,7 +663,7 @@ mod test {
 
         assert_eq!(
             cloned.get_var(0, ZERO_SPAN),
-            Err(crate::ShellError::VariableNotFoundAtRuntime { span: ZERO_SPAN })
+            Err(ShellError::VariableNotFoundAtRuntime { span: ZERO_SPAN }.into())
         );
 
         assert_eq!(cloned.get_var(1, ZERO_SPAN), Ok(string_value("there")));
@@ -686,7 +687,7 @@ mod test {
 
         assert_eq!(
             original.get_var(0, ZERO_SPAN),
-            Err(crate::ShellError::VariableNotFoundAtRuntime { span: ZERO_SPAN })
+            Err(ShellError::VariableNotFoundAtRuntime { span: ZERO_SPAN }.into())
         );
 
         assert_eq!(original.get_var(1, ZERO_SPAN), Ok(string_value("there")));

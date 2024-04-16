@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use super::{extract_value, helper::ReconstructVal};
-use crate::{record, Config, ShellError, Span, Value};
+use crate::{record, Config, ShellResult, Span, Value};
 use serde::{Deserialize, Serialize};
 
 /// Definition of a parsed keybinding from the config object
@@ -135,7 +135,7 @@ impl ReconstructVal for EditBindings {
 }
 
 /// Parses the config object to extract the strings that will compose a keybinding for reedline
-pub(super) fn create_keybindings(value: &Value) -> Result<Vec<ParsedKeybinding>, ShellError> {
+pub(super) fn create_keybindings(value: &Value) -> ShellResult<Vec<ParsedKeybinding>> {
     let span = value.span();
     match value {
         Value::Record { val, .. } => {
@@ -155,19 +155,13 @@ pub(super) fn create_keybindings(value: &Value) -> Result<Vec<ParsedKeybinding>,
             // We return a menu to be able to do recursion on the same function
             Ok(vec![keybinding])
         }
-        Value::List { vals, .. } => {
-            let res = vals
-                .iter()
-                .map(create_keybindings)
-                .collect::<Result<Vec<Vec<ParsedKeybinding>>, ShellError>>();
-
-            let res = res?
-                .into_iter()
-                .flatten()
-                .collect::<Vec<ParsedKeybinding>>();
-
-            Ok(res)
-        }
+        Value::List { vals, .. } => Ok(vals
+            .iter()
+            .map(create_keybindings)
+            .collect::<ShellResult<Vec<_>>>()?
+            .into_iter()
+            .flatten()
+            .collect()),
         _ => Ok(Vec::new()),
     }
 }
@@ -201,7 +195,7 @@ pub(super) fn reconstruct_keybindings(config: &Config, span: Span) -> Value {
 }
 
 /// Parses the config object to extract the strings that will compose a keybinding for reedline
-pub fn create_menus(value: &Value) -> Result<Vec<ParsedMenu>, ShellError> {
+pub fn create_menus(value: &Value) -> ShellResult<Vec<ParsedMenu>> {
     let span = value.span();
     match value {
         Value::Record { val, .. } => {
@@ -230,16 +224,13 @@ pub fn create_menus(value: &Value) -> Result<Vec<ParsedMenu>, ShellError> {
 
             Ok(vec![menu])
         }
-        Value::List { vals, .. } => {
-            let res = vals
-                .iter()
-                .map(create_menus)
-                .collect::<Result<Vec<Vec<ParsedMenu>>, ShellError>>();
-
-            let res = res?.into_iter().flatten().collect::<Vec<ParsedMenu>>();
-
-            Ok(res)
-        }
+        Value::List { vals, .. } => Ok(vals
+            .iter()
+            .map(create_menus)
+            .collect::<ShellResult<Vec<_>>>()?
+            .into_iter()
+            .flatten()
+            .collect()),
         _ => Ok(Vec::new()),
     }
 }

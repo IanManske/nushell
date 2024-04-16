@@ -16,7 +16,7 @@
 use crate::{
     ast::{Block, PipelineElement},
     engine::EngineState,
-    PipelineData, ShellError, Span, Value,
+    PipelineData, ShellResult, Span, Value,
 };
 use std::{fmt::Debug, ops::DerefMut};
 
@@ -44,7 +44,7 @@ pub trait DebugContext: Clone + Copy + Debug {
     fn leave_element(
         engine_state: &EngineState,
         element: &PipelineElement,
-        result: &Result<(PipelineData, bool), ShellError>,
+        result: &ShellResult<(PipelineData, bool)>,
     ) {
     }
 }
@@ -77,7 +77,7 @@ impl DebugContext for WithDebug {
     fn leave_element(
         engine_state: &EngineState,
         element: &PipelineElement,
-        result: &Result<(PipelineData, bool), ShellError>,
+        result: &ShellResult<(PipelineData, bool)>,
     ) {
         if let Ok(mut debugger) = engine_state.debugger.lock() {
             debugger
@@ -128,7 +128,7 @@ pub trait Debugger: Send + Debug {
         &mut self,
         engine_state: &EngineState,
         element: &PipelineElement,
-        result: &Result<(PipelineData, bool), ShellError>,
+        result: &ShellResult<(PipelineData, bool)>,
     ) {
     }
 
@@ -136,7 +136,7 @@ pub trait Debugger: Send + Debug {
     ///
     /// Intended to be called after deactivate()
     #[allow(unused_variables)]
-    fn report(&self, engine_state: &EngineState, debugger_span: Span) -> Result<Value, ShellError> {
+    fn report(&self, engine_state: &EngineState, debugger_span: Span) -> ShellResult<Value> {
         Ok(Value::nothing(debugger_span))
     }
 }

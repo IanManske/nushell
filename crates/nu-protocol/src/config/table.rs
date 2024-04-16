@@ -1,5 +1,5 @@
 use super::helper::ReconstructVal;
-use crate::{record, Config, ShellError, Span, Value};
+use crate::{record, Config, Error, ShellError, ShellResult, Span, Value};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
@@ -204,14 +204,14 @@ impl Default for TrimStrategy {
 
 pub(super) fn try_parse_trim_strategy(
     value: &Value,
-    errors: &mut Vec<ShellError>,
-) -> Result<TrimStrategy, ShellError> {
+    errors: &mut Vec<Error>,
+) -> ShellResult<TrimStrategy> {
     let map = value.as_record().map_err(|e| ShellError::GenericError {
         error: "Error while applying config changes".into(),
         msg: "$env.config.table.trim is not a record".into(),
         span: Some(value.span()),
         help: Some("Please consult the documentation for configuring Nushell.".into()),
-        inner: vec![e],
+        inner: vec![e.into()],
     })?;
 
     let mut methodology = match map.get("methodology") {
@@ -220,13 +220,16 @@ pub(super) fn try_parse_trim_strategy(
             None => return Ok(TrimStrategy::default()),
         },
         None => {
-            errors.push(ShellError::GenericError {
-                error: "Error while applying config changes".into(),
-                msg: "$env.config.table.trim.methodology was not provided".into(),
-                span: Some(value.span()),
-                help: Some("Please consult the documentation for configuring Nushell.".into()),
-                inner: vec![],
-            });
+            errors.push(
+                ShellError::GenericError {
+                    error: "Error while applying config changes".into(),
+                    msg: "$env.config.table.trim.methodology was not provided".into(),
+                    span: Some(value.span()),
+                    help: Some("Please consult the documentation for configuring Nushell.".into()),
+                    inner: vec![],
+                }
+                .into(),
+            );
             return Ok(TrimStrategy::default());
         }
     };
@@ -237,15 +240,19 @@ pub(super) fn try_parse_trim_strategy(
                 if let Ok(b) = value.as_bool() {
                     *try_to_keep_words = b;
                 } else {
-                    errors.push(ShellError::GenericError {
-                        error: "Error while applying config changes".into(),
-                        msg: "$env.config.table.trim.wrapping_try_keep_words is not a bool".into(),
-                        span: Some(value.span()),
-                        help: Some(
-                            "Please consult the documentation for configuring Nushell.".into(),
-                        ),
-                        inner: vec![],
-                    });
+                    errors.push(
+                        ShellError::GenericError {
+                            error: "Error while applying config changes".into(),
+                            msg: "$env.config.table.trim.wrapping_try_keep_words is not a bool"
+                                .into(),
+                            span: Some(value.span()),
+                            help: Some(
+                                "Please consult the documentation for configuring Nushell.".into(),
+                            ),
+                            inner: vec![],
+                        }
+                        .into(),
+                    );
                 }
             }
         }
@@ -254,15 +261,18 @@ pub(super) fn try_parse_trim_strategy(
                 if let Ok(v) = value.coerce_string() {
                     *suffix = Some(v);
                 } else {
-                    errors.push(ShellError::GenericError {
-                        error: "Error while applying config changes".into(),
-                        msg: "$env.config.table.trim.truncating_suffix is not a string".into(),
-                        span: Some(value.span()),
-                        help: Some(
-                            "Please consult the documentation for configuring Nushell.".into(),
-                        ),
-                        inner: vec![],
-                    });
+                    errors.push(
+                        ShellError::GenericError {
+                            error: "Error while applying config changes".into(),
+                            msg: "$env.config.table.trim.truncating_suffix is not a string".into(),
+                            span: Some(value.span()),
+                            help: Some(
+                                "Please consult the documentation for configuring Nushell.".into(),
+                            ),
+                            inner: vec![],
+                        }
+                        .into(),
+                    );
                 }
             }
         }

@@ -1,6 +1,6 @@
 use std::{iter::FusedIterator, ops::RangeBounds};
 
-use crate::{ShellError, Span, Value};
+use crate::{ShellError, ShellResult, Span, Value};
 
 use serde::{de::Visitor, ser::SerializeMap, Deserialize, Serialize};
 
@@ -31,7 +31,7 @@ impl Record {
         vals: Vec<Value>,
         input_span: Span,
         creation_site_span: Span,
-    ) -> Result<Self, ShellError> {
+    ) -> ShellResult<Self> {
         if cols.len() == vals.len() {
             let inner = cols.into_iter().zip(vals).collect();
             Ok(Self { inner })
@@ -39,7 +39,8 @@ impl Record {
             Err(ShellError::RecordColsValsMismatch {
                 bad_value: input_span,
                 creation_site: creation_site_span,
-            })
+            }
+            .into())
         }
     }
 

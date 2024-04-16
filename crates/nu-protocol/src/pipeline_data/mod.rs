@@ -9,7 +9,7 @@ pub use stream::*;
 use crate::{
     ast::{Call, PathMember},
     engine::{EngineState, Stack, StateWorkingSet},
-    format_error, Config, Range, ShellError, Span, Value,
+    format_error, Config, IntoSpanned, Range, ShellError, ShellResult, Span, Value,
 };
 use nu_utils::{stderr_write_all_and_flush, stdout_write_all_and_flush};
 use std::{
@@ -219,7 +219,7 @@ impl PipelineData {
         self,
         engine_state: &EngineState,
         stack: &mut Stack,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         match (self, stack.stdout()) {
             (
                 PipelineData::ExternalStream {
@@ -257,10 +257,11 @@ impl PipelineData {
                                 .spawn(move || consume_child_output(stderr, &err))
                         };
 
-                        consume_child_output(stdout, stack.stdout())?;
+                        consume_child_output(stdout, stack.stdout())
+                            .map_err(|e| e.into_spanned(span))?;
 
-                        match err_thread?.join() {
-                            Ok(result) => result?,
+                        match err_thread.map_err(|e| e.into_spanned(span))?.join() {
+                            Ok(result) => result.map_err(|e| e.into_spanned(span))?,
                             Err(err) => {
                                 return Err(ShellError::GenericError {
                                     error: "Error consuming external command stderr".into(),
@@ -268,7 +269,8 @@ impl PipelineData {
                                     span: Some(span),
                                     help: None,
                                     inner: Vec::new(),
-                                })
+                                }
+                                .into())
                             }
                         }
 
@@ -276,12 +278,14 @@ impl PipelineData {
                     }
                     (Ok(stdout), Err(stderr)) => {
                         // single output stream, we can consume directly
-                        consume_child_output(stdout, stack.stdout())?;
+                        consume_child_output(stdout, stack.stdout())
+                            .map_err(|e| e.into_spanned(span))?;
                         (None, stderr)
                     }
                     (Err(stdout), Ok(stderr)) => {
                         // single output stream, we can consume directly
-                        consume_child_output(stderr, stack.stderr())?;
+                        consume_child_output(stderr, stack.stderr())
+                            .map_err(|e| e.into_spanned(span))?;
                         (stdout, None)
                     }
                     (Err(stdout), Err(stderr)) => (stdout, stderr),
@@ -305,21 +309,26 @@ impl PipelineData {
                 Ok(PipelineData::Empty)
             }
             (PipelineData::Value(value, _), OutDest::File(file)) => {
+                let span = value.span();
                 let bytes = value_to_bytes(value)?;
-                let mut file = file.try_clone()?;
-                file.write_all(&bytes)?;
-                file.flush()?;
+                let mut file = file.try_clone().map_err(|e| e.into_spanned(span))?;
+                file.write_all(&bytes).map_err(|e| e.into_spanned(span))?;
+                file.flush().map_err(|e| e.into_spanned(span))?;
                 Ok(PipelineData::Empty)
             }
             (PipelineData::ListStream(stream, _), OutDest::File(file)) => {
-                let mut file = file.try_clone()?;
+                let mut file = file
+                    .try_clone()
+                    .map_err(|e| e.into_spanned(Span::unknown()))?;
                 // use BufWriter here?
                 for value in stream {
                     let bytes = value_to_bytes(value)?;
-                    file.write_all(&bytes)?;
-                    file.write_all(b"\n")?;
+                    file.write_all(&bytes)
+                        .map_err(|e| e.into_spanned(Span::unknown()))?;
+                    file.write_all(b"\n")
+                        .map_err(|e| e.into_spanned(Span::unknown()))?;
                 }
-                file.flush()?;
+                file.flush().map_err(|e| e.into_spanned(Span::unknown()))?;
                 Ok(PipelineData::Empty)
             }
             (
@@ -346,9 +355,9 @@ impl PipelineData {
         }
     }
 
-    pub fn drain(self) -> Result<(), ShellError> {
+    pub fn drain(self) -> ShellResult<()> {
         match self {
-            PipelineData::Value(Value::Error { error, .. }, _) => Err(*error),
+            PipelineData::Value(Value::Error { error, .. }, _) => Err(error),
             PipelineData::Value(_, _) => Ok(()),
             PipelineData::ListStream(stream, _) => stream.drain(),
             PipelineData::ExternalStream { stdout, stderr, .. } => {
@@ -366,9 +375,9 @@ impl PipelineData {
         }
     }
 
-    pub fn drain_with_exit_code(self) -> Result<i64, ShellError> {
+    pub fn drain_with_exit_code(self) -> ShellResult<i64> {
         match self {
-            PipelineData::Value(Value::Error { error, .. }, _) => Err(*error),
+            PipelineData::Value(Value::Error { error, .. }, _) => Err(error),
             PipelineData::Value(_, _) => Ok(0),
             PipelineData::ListStream(stream, _) => {
                 stream.drain()?;
@@ -402,7 +411,7 @@ impl PipelineData {
     /// Try convert from self into iterator
     ///
     /// It returns Err if the `self` cannot be converted to an iterator.
-    pub fn into_iter_strict(self, span: Span) -> Result<PipelineIterator, ShellError> {
+    pub fn into_iter_strict(self, span: Span) -> ShellResult<PipelineIterator> {
         match self {
             PipelineData::Value(value, metadata) => match value {
                 Value::List { vals, .. } => Ok(PipelineIterator(PipelineData::ListStream(
@@ -422,20 +431,22 @@ impl PipelineData {
                     )))
                 ,
                 // Propagate errors by explicitly matching them before the final case.
-                Value::Error { error, .. } => Err(*error),
+                Value::Error { error, .. } => Err(error),
                 other => Err(ShellError::OnlySupportsThisInputType {
                     exp_input_type: "list, binary, raw data or range".into(),
                     wrong_type: other.get_type().to_string(),
                     dst_span: span,
                     src_span: other.span(),
-                }),
+                }
+                .into()),
             },
             PipelineData::Empty => Err(ShellError::OnlySupportsThisInputType {
                 exp_input_type: "list, binary, raw data or range".into(),
                 wrong_type: "null".into(),
                 dst_span: span,
                 src_span: span,
-            }),
+            }
+            .into()),
             other => Ok(PipelineIterator(other)),
         }
     }
@@ -450,7 +461,7 @@ impl PipelineData {
         iter
     }
 
-    pub fn collect_string(self, separator: &str, config: &Config) -> Result<String, ShellError> {
+    pub fn collect_string(self, separator: &str, config: &Config) -> ShellResult<String> {
         match self {
             PipelineData::Empty => Ok(String::new()),
             PipelineData::Value(v, ..) => Ok(v.to_expanded_string(separator, config)),
@@ -481,18 +492,20 @@ impl PipelineData {
     pub fn collect_string_strict(
         self,
         span: Span,
-    ) -> Result<(String, Span, Option<PipelineMetadata>), ShellError> {
+    ) -> ShellResult<(String, Span, Option<PipelineMetadata>)> {
         match self {
             PipelineData::Empty => Ok((String::new(), span, None)),
             PipelineData::Value(Value::String { val, .. }, metadata) => Ok((val, span, metadata)),
             PipelineData::Value(val, _) => Err(ShellError::TypeMismatch {
                 err_message: "string".into(),
                 span: val.span(),
-            }),
+            }
+            .into()),
             PipelineData::ListStream(_, _) => Err(ShellError::TypeMismatch {
                 err_message: "string".into(),
                 span,
-            }),
+            }
+            .into()),
             PipelineData::ExternalStream {
                 stdout: None,
                 metadata,
@@ -513,7 +526,7 @@ impl PipelineData {
         cell_path: &[PathMember],
         head: Span,
         insensitive: bool,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         match self {
             // FIXME: there are probably better ways of doing this
             PipelineData::ListStream(stream, ..) => {
@@ -523,11 +536,13 @@ impl PipelineData {
             PipelineData::Empty => Err(ShellError::IncompatiblePathAccess {
                 type_name: "empty pipeline".to_string(),
                 span: head,
-            }),
+            }
+            .into()),
             PipelineData::ExternalStream { span, .. } => Err(ShellError::IncompatiblePathAccess {
                 type_name: "external stream".to_string(),
                 span,
-            }),
+            }
+            .into()),
         }
     }
 
@@ -536,7 +551,7 @@ impl PipelineData {
         cell_path: &[PathMember],
         callback: Box<dyn FnOnce(&Value) -> Value>,
         head: Span,
-    ) -> Result<(), ShellError> {
+    ) -> ShellResult<()> {
         match self {
             // FIXME: there are probably better ways of doing this
             PipelineData::ListStream(stream, ..) => {
@@ -548,11 +563,7 @@ impl PipelineData {
     }
 
     /// Simplified mapper to help with simple values also. For full iterator support use `.into_iter()` instead
-    pub fn map<F>(
-        self,
-        mut f: F,
-        ctrlc: Option<Arc<AtomicBool>>,
-    ) -> Result<PipelineData, ShellError>
+    pub fn map<F>(self, mut f: F, ctrlc: Option<Arc<AtomicBool>>) -> ShellResult<PipelineData>
     where
         Self: Sized,
         F: FnMut(Value) -> Value + 'static + Send,
@@ -569,7 +580,7 @@ impl PipelineData {
                         .map(f)
                         .into_pipeline_data(ctrlc)),
                     value => match f(value) {
-                        Value::Error { error, .. } => Err(*error),
+                        Value::Error { error, .. } => Err(error),
                         v => Ok(v.into_pipeline_data()),
                     },
                 }
@@ -601,7 +612,7 @@ impl PipelineData {
         self,
         mut f: F,
         ctrlc: Option<Arc<AtomicBool>>,
-    ) -> Result<PipelineData, ShellError>
+    ) -> ShellResult<PipelineData>
     where
         Self: Sized,
         U: IntoIterator<Item = Value> + 'static,
@@ -650,11 +661,7 @@ impl PipelineData {
         }
     }
 
-    pub fn filter<F>(
-        self,
-        mut f: F,
-        ctrlc: Option<Arc<AtomicBool>>,
-    ) -> Result<PipelineData, ShellError>
+    pub fn filter<F>(self, mut f: F, ctrlc: Option<Arc<AtomicBool>>) -> ShellResult<PipelineData>
     where
         Self: Sized,
         F: FnMut(&Value) -> bool + 'static + Send,
@@ -804,7 +811,7 @@ impl PipelineData {
     /// This is useful to expand Value::Range into array notation, specifically when
     /// converting `to json` or `to nuon`.
     /// `1..3 | to XX -> [1,2,3]`
-    pub fn try_expand_range(self) -> Result<PipelineData, ShellError> {
+    pub fn try_expand_range(self) -> ShellResult<PipelineData> {
         match self {
             PipelineData::Value(v, metadata) => {
                 let span = v.span();
@@ -819,7 +826,7 @@ impl PipelineData {
                                         span: Some(span),
                                         help: Some("Consider using ranges with valid start and end point.".into()),
                                         inner: vec![],
-                                    });
+                                    }.into());
                                 }
                             }
                             Range::FloatRange(range) => {
@@ -830,7 +837,7 @@ impl PipelineData {
                                         span: Some(span),
                                         help: Some("Consider using ranges with valid start and end point.".into()),
                                         inner: vec![],
-                                    });
+                                    }.into());
                                 }
                             }
                         }
@@ -854,7 +861,7 @@ impl PipelineData {
         stack: &mut Stack,
         no_newline: bool,
         to_stderr: bool,
-    ) -> Result<i64, ShellError> {
+    ) -> ShellResult<i64> {
         // If the table function is in the declarations, then we can use it
         // to create the table value that will be printed in the terminal
 
@@ -897,7 +904,7 @@ impl PipelineData {
         engine_state: &EngineState,
         no_newline: bool,
         to_stderr: bool,
-    ) -> Result<i64, ShellError> {
+    ) -> ShellResult<i64> {
         if let PipelineData::ExternalStream {
             stdout: stream,
             stderr: stderr_stream,
@@ -918,14 +925,15 @@ impl PipelineData {
         config: &Config,
         no_newline: bool,
         to_stderr: bool,
-    ) -> Result<i64, ShellError> {
+    ) -> ShellResult<i64> {
+        let span = self.span().unwrap_or(Span::unknown());
         for item in self {
             let mut is_err = false;
             let mut out = if let Value::Error { error, .. } = item {
                 let working_set = StateWorkingSet::new(engine_state);
                 // Value::Errors must always go to stderr, not stdout.
                 is_err = true;
-                format_error(&working_set, &*error)
+                format_error(&working_set, &ShellError::from(error))
             } else if no_newline {
                 item.to_expanded_string("", config)
             } else {
@@ -937,10 +945,11 @@ impl PipelineData {
             }
 
             if !to_stderr && !is_err {
-                stdout_write_all_and_flush(out)?
+                stdout_write_all_and_flush(out)
             } else {
-                stderr_write_all_and_flush(out)?
+                stderr_write_all_and_flush(out)
             }
+            .map_err(|e| e.into_spanned(span))?
         }
 
         Ok(0)
@@ -980,8 +989,9 @@ pub fn print_if_stream(
     stderr_stream: Option<RawStream>,
     to_stderr: bool,
     exit_code: Option<ListStream>,
-) -> Result<i64, ShellError> {
+) -> ShellResult<i64> {
     if let Some(stderr_stream) = stderr_stream {
+        let span = stderr_stream.span;
         thread::Builder::new()
             .name("stderr consumer".to_string())
             .spawn(move || {
@@ -1002,19 +1012,22 @@ pub fn print_if_stream(
                         let _ = stderr.write_all(&bytes);
                     }
                 }
-            })?;
+            })
+            .map_err(|e| e.into_spanned(span))?;
     }
 
     if let Some(stream) = stream {
+        let span = stream.span;
         for s in stream {
             let s_live = s?;
             let bin_output = s_live.coerce_into_binary()?;
 
             if !to_stderr {
-                stdout_write_all_and_flush(&bin_output)?
+                stdout_write_all_and_flush(&bin_output)
             } else {
-                stderr_write_all_and_flush(&bin_output)?
+                stderr_write_all_and_flush(&bin_output)
             }
+            .map_err(|e| e.into_spanned(span))?;
         }
     }
 
@@ -1026,11 +1039,11 @@ pub fn print_if_stream(
     Ok(0)
 }
 
-fn drain_exit_code(exit_code: ListStream) -> Result<i64, ShellError> {
+fn drain_exit_code(exit_code: ListStream) -> ShellResult<i64> {
     let mut exit_codes: Vec<_> = exit_code.into_iter().collect();
     match exit_codes.pop() {
         #[cfg(unix)]
-        Some(Value::Error { error, .. }) => Err(*error),
+        Some(Value::Error { error, .. }) => Err(error),
         Some(Value::Int { val, .. }) => Ok(val),
         _ => Ok(0),
     }
@@ -1145,7 +1158,7 @@ where
     }
 }
 
-fn value_to_bytes(value: Value) -> Result<Vec<u8>, ShellError> {
+fn value_to_bytes(value: Value) -> ShellResult<Vec<u8>> {
     let bytes = match value {
         Value::String { val, .. } => val.into_bytes(),
         Value::Binary { val, .. } => val,
@@ -1153,14 +1166,14 @@ fn value_to_bytes(value: Value) -> Result<Vec<u8>, ShellError> {
             let val = vals
                 .into_iter()
                 .map(Value::coerce_into_string)
-                .collect::<Result<Vec<String>, ShellError>>()?
+                .collect::<ShellResult<Vec<String>>>()?
                 .join("\n")
                 + "\n";
 
             val.into_bytes()
         }
         // Propagate errors by explicitly matching them before the final case.
-        Value::Error { error, .. } => return Err(*error),
+        Value::Error { error, .. } => return Err(error),
         value => value.coerce_into_string()?.into_bytes(),
     };
     Ok(bytes)

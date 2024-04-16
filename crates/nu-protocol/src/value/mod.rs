@@ -21,7 +21,7 @@ use crate::{
     ast::{Bits, Boolean, CellPath, Comparison, Math, Operator, PathMember},
     did_you_mean,
     engine::{Closure, EngineState},
-    BlockId, Config, ShellError, Span, Type,
+    BlockId, Config, Error, ShellError, ShellResult, Span, Type,
 };
 use chrono::{DateTime, Datelike, FixedOffset, Locale, TimeZone};
 use chrono_humanize::HumanTime;
@@ -144,7 +144,7 @@ pub enum Value {
         internal_span: Span,
     },
     Error {
-        error: Box<ShellError>,
+        error: Error,
         // note: spans are being refactored out of Value
         // please use .span() instead of matching this span value
         #[serde(rename = "span")]
@@ -259,17 +259,18 @@ impl Clone for Value {
 }
 
 impl Value {
-    fn cant_convert_to<T>(&self, typ: &str) -> Result<T, ShellError> {
+    fn cant_convert_to<T>(&self, typ: &str) -> ShellResult<T> {
         Err(ShellError::CantConvert {
             to_type: typ.into(),
             from_type: self.get_type().to_string(),
             span: self.span(),
             help: None,
-        })
+        }
+        .into())
     }
 
     /// Returns the inner `bool` value or an error if this `Value` is not a bool
-    pub fn as_bool(&self) -> Result<bool, ShellError> {
+    pub fn as_bool(&self) -> ShellResult<bool> {
         if let Value::Bool { val, .. } = self {
             Ok(*val)
         } else {
@@ -278,7 +279,7 @@ impl Value {
     }
 
     /// Returns the inner `i64` value or an error if this `Value` is not an int
-    pub fn as_int(&self) -> Result<i64, ShellError> {
+    pub fn as_int(&self) -> ShellResult<i64> {
         if let Value::Int { val, .. } = self {
             Ok(*val)
         } else {
@@ -287,7 +288,7 @@ impl Value {
     }
 
     /// Returns the inner `f64` value or an error if this `Value` is not a float
-    pub fn as_float(&self) -> Result<f64, ShellError> {
+    pub fn as_float(&self) -> ShellResult<f64> {
         if let Value::Float { val, .. } = self {
             Ok(*val)
         } else {
@@ -310,7 +311,7 @@ impl Value {
     ///     );
     /// }
     /// ```
-    pub fn coerce_float(&self) -> Result<f64, ShellError> {
+    pub fn coerce_float(&self) -> ShellResult<f64> {
         match self {
             Value::Float { val, .. } => Ok(*val),
             Value::Int { val, .. } => Ok(*val as f64),
@@ -319,7 +320,7 @@ impl Value {
     }
 
     /// Returns the inner `i64` filesize value or an error if this `Value` is not a filesize
-    pub fn as_filesize(&self) -> Result<i64, ShellError> {
+    pub fn as_filesize(&self) -> ShellResult<i64> {
         if let Value::Filesize { val, .. } = self {
             Ok(*val)
         } else {
@@ -328,7 +329,7 @@ impl Value {
     }
 
     /// Returns the inner `i64` duration value or an error if this `Value` is not a duration
-    pub fn as_duration(&self) -> Result<i64, ShellError> {
+    pub fn as_duration(&self) -> ShellResult<i64> {
         if let Value::Duration { val, .. } = self {
             Ok(*val)
         } else {
@@ -337,7 +338,7 @@ impl Value {
     }
 
     /// Returns the inner [`DateTime`] value or an error if this `Value` is not a date
-    pub fn as_date(&self) -> Result<DateTime<FixedOffset>, ShellError> {
+    pub fn as_date(&self) -> ShellResult<DateTime<FixedOffset>> {
         if let Value::Date { val, .. } = self {
             Ok(*val)
         } else {
@@ -346,7 +347,7 @@ impl Value {
     }
 
     /// Returns a reference to the inner [`Range`] value or an error if this `Value` is not a range
-    pub fn as_range(&self) -> Result<Range, ShellError> {
+    pub fn as_range(&self) -> ShellResult<Range> {
         if let Value::Range { val, .. } = self {
             Ok(*val)
         } else {
@@ -355,7 +356,7 @@ impl Value {
     }
 
     /// Unwraps the inner [`Range`] value or returns an error if this `Value` is not a range
-    pub fn into_range(self) -> Result<Range, ShellError> {
+    pub fn into_range(self) -> ShellResult<Range> {
         if let Value::Range { val, .. } = self {
             Ok(val)
         } else {
@@ -364,7 +365,7 @@ impl Value {
     }
 
     /// Returns a reference to the inner `str` value or an error if this `Value` is not a string
-    pub fn as_str(&self) -> Result<&str, ShellError> {
+    pub fn as_str(&self) -> ShellResult<&str> {
         if let Value::String { val, .. } = self {
             Ok(val)
         } else {
@@ -373,7 +374,7 @@ impl Value {
     }
 
     /// Unwraps the inner `String` value or returns an error if this `Value` is not a string
-    pub fn into_string(self) -> Result<String, ShellError> {
+    pub fn into_string(self) -> ShellResult<String> {
         if let Value::String { val, .. } = self {
             Ok(val)
         } else {
@@ -406,7 +407,7 @@ impl Value {
     ///     );
     /// }
     /// ```
-    pub fn coerce_str(&self) -> Result<Cow<str>, ShellError> {
+    pub fn coerce_str(&self) -> ShellResult<Cow<str>> {
         match self {
             Value::Int { val, .. } => Ok(Cow::Owned(val.to_string())),
             Value::Float { val, .. } => Ok(Cow::Owned(val.to_string())),
@@ -456,7 +457,7 @@ impl Value {
     ///     );
     /// }
     /// ```
-    pub fn coerce_string(&self) -> Result<String, ShellError> {
+    pub fn coerce_string(&self) -> ShellResult<String> {
         self.coerce_str().map(Cow::into_owned)
     }
 
@@ -485,7 +486,7 @@ impl Value {
     ///     );
     /// }
     /// ```
-    pub fn coerce_into_string(self) -> Result<String, ShellError> {
+    pub fn coerce_into_string(self) -> ShellResult<String> {
         let span = self.span();
         match self {
             Value::Int { val, .. } => Ok(val.to_string()),
@@ -501,7 +502,7 @@ impl Value {
     }
 
     /// Returns this `Value` as a `char` or an error if it is not a single character string
-    pub fn as_char(&self) -> Result<char, ShellError> {
+    pub fn as_char(&self) -> ShellResult<char> {
         let span = self.span();
         if let Value::String { val, .. } = self {
             let mut chars = val.chars();
@@ -510,7 +511,8 @@ impl Value {
                 _ => Err(ShellError::MissingParameter {
                     param_name: "single character separator".into(),
                     span,
-                }),
+                }
+                .into()),
             }
         } else {
             self.cant_convert_to("char")
@@ -518,7 +520,7 @@ impl Value {
     }
 
     /// Converts this `Value` to a `PathBuf` or returns an error if it is not a string
-    pub fn to_path(&self) -> Result<PathBuf, ShellError> {
+    pub fn to_path(&self) -> ShellResult<PathBuf> {
         if let Value::String { val, .. } = self {
             Ok(PathBuf::from(val))
         } else {
@@ -527,7 +529,7 @@ impl Value {
     }
 
     /// Returns a reference to the inner [`Record`] value or an error if this `Value` is not a record
-    pub fn as_record(&self) -> Result<&Record, ShellError> {
+    pub fn as_record(&self) -> ShellResult<&Record> {
         if let Value::Record { val, .. } = self {
             Ok(val)
         } else {
@@ -536,7 +538,7 @@ impl Value {
     }
 
     /// Unwraps the inner [`Record`] value or returns an error if this `Value` is not a record
-    pub fn into_record(self) -> Result<Record, ShellError> {
+    pub fn into_record(self) -> ShellResult<Record> {
         if let Value::Record { val, .. } = self {
             Ok(val.into_owned())
         } else {
@@ -545,7 +547,7 @@ impl Value {
     }
 
     /// Returns a reference to the inner list slice or an error if this `Value` is not a list
-    pub fn as_list(&self) -> Result<&[Value], ShellError> {
+    pub fn as_list(&self) -> ShellResult<&[Value]> {
         if let Value::List { vals, .. } = self {
             Ok(vals)
         } else {
@@ -554,7 +556,7 @@ impl Value {
     }
 
     /// Unwraps the inner list `Vec` or returns an error if this `Value` is not a list
-    pub fn into_list(self) -> Result<Vec<Value>, ShellError> {
+    pub fn into_list(self) -> ShellResult<Vec<Value>> {
         if let Value::List { vals, .. } = self {
             Ok(vals)
         } else {
@@ -563,7 +565,7 @@ impl Value {
     }
 
     /// Returns the inner [`BlockId`] or an error if this `Value` is not a block
-    pub fn as_block(&self) -> Result<BlockId, ShellError> {
+    pub fn as_block(&self) -> ShellResult<BlockId> {
         if let Value::Block { val, .. } = self {
             Ok(*val)
         } else {
@@ -586,7 +588,7 @@ impl Value {
     ///     );
     /// }
     /// ```
-    pub fn coerce_block(&self) -> Result<BlockId, ShellError> {
+    pub fn coerce_block(&self) -> ShellResult<BlockId> {
         match self {
             Value::Block { val, .. } => Ok(*val),
             Value::Closure { val, .. } => Ok(val.block_id),
@@ -595,7 +597,7 @@ impl Value {
     }
 
     /// Returns a reference to the inner [`Closure`] value or an error if this `Value` is not a closure
-    pub fn as_closure(&self) -> Result<&Closure, ShellError> {
+    pub fn as_closure(&self) -> ShellResult<&Closure> {
         if let Value::Closure { val, .. } = self {
             Ok(val)
         } else {
@@ -604,7 +606,7 @@ impl Value {
     }
 
     /// Unwraps the inner [`Closure`] value or returns an error if this `Value` is not a closure
-    pub fn into_closure(self) -> Result<Closure, ShellError> {
+    pub fn into_closure(self) -> ShellResult<Closure> {
         if let Value::Closure { val, .. } = self {
             Ok(val)
         } else {
@@ -613,7 +615,7 @@ impl Value {
     }
 
     /// Returns a reference to the inner binary slice or an error if this `Value` is not a binary value
-    pub fn as_binary(&self) -> Result<&[u8], ShellError> {
+    pub fn as_binary(&self) -> ShellResult<&[u8]> {
         if let Value::Binary { val, .. } = self {
             Ok(val)
         } else {
@@ -622,7 +624,7 @@ impl Value {
     }
 
     /// Unwraps the inner binary `Vec` or returns an error if this `Value` is not a binary value
-    pub fn into_binary(self) -> Result<Vec<u8>, ShellError> {
+    pub fn into_binary(self) -> ShellResult<Vec<u8>> {
         if let Value::Binary { val, .. } = self {
             Ok(val)
         } else {
@@ -648,7 +650,7 @@ impl Value {
     ///     );
     /// }
     /// ```
-    pub fn coerce_binary(&self) -> Result<&[u8], ShellError> {
+    pub fn coerce_binary(&self) -> ShellResult<&[u8]> {
         match self {
             Value::Binary { val, .. } => Ok(val),
             Value::String { val, .. } => Ok(val.as_bytes()),
@@ -671,7 +673,7 @@ impl Value {
     ///     );
     /// }
     /// ```
-    pub fn coerce_into_binary(self) -> Result<Vec<u8>, ShellError> {
+    pub fn coerce_into_binary(self) -> ShellResult<Vec<u8>> {
         match self {
             Value::Binary { val, .. } => Ok(val),
             Value::String { val, .. } => Ok(val.into_bytes()),
@@ -680,7 +682,7 @@ impl Value {
     }
 
     /// Returns a reference to the inner [`CellPath`] value or an error if this `Value` is not a cell path
-    pub fn as_cell_path(&self) -> Result<&CellPath, ShellError> {
+    pub fn as_cell_path(&self) -> ShellResult<&CellPath> {
         if let Value::CellPath { val, .. } = self {
             Ok(val)
         } else {
@@ -689,7 +691,7 @@ impl Value {
     }
 
     /// Unwraps the inner [`CellPath`] value or returns an error if this `Value` is not a cell path
-    pub fn into_cell_path(self) -> Result<CellPath, ShellError> {
+    pub fn into_cell_path(self) -> ShellResult<CellPath> {
         if let Value::CellPath { val, .. } = self {
             Ok(val)
         } else {
@@ -698,7 +700,7 @@ impl Value {
     }
 
     /// Returns a reference to the inner [`CustomValue`] trait object or an error if this `Value` is not a custom value
-    pub fn as_custom_value(&self) -> Result<&dyn CustomValue, ShellError> {
+    pub fn as_custom_value(&self) -> ShellResult<&dyn CustomValue> {
         if let Value::Custom { val, .. } = self {
             Ok(val.as_ref())
         } else {
@@ -707,7 +709,7 @@ impl Value {
     }
 
     /// Unwraps the inner [`CustomValue`] trait object or returns an error if this `Value` is not a custom value
-    pub fn into_custom_value(self) -> Result<Box<dyn CustomValue>, ShellError> {
+    pub fn into_custom_value(self) -> ShellResult<Box<dyn CustomValue>> {
         if let Value::Custom { val, .. } = self {
             Ok(val)
         } else {
@@ -716,7 +718,7 @@ impl Value {
     }
 
     /// Returns a reference to the inner [`LazyRecord`] trait object or an error if this `Value` is not a lazy record
-    pub fn as_lazy_record(&self) -> Result<&dyn for<'a> LazyRecord<'a>, ShellError> {
+    pub fn as_lazy_record(&self) -> ShellResult<&dyn for<'a> LazyRecord<'a>> {
         if let Value::LazyRecord { val, .. } = self {
             Ok(val.as_ref())
         } else {
@@ -725,7 +727,7 @@ impl Value {
     }
 
     /// Unwraps the inner [`LazyRecord`] trait object or returns an error if this `Value` is not a lazy record
-    pub fn into_lazy_record(self) -> Result<Box<dyn for<'a> LazyRecord<'a>>, ShellError> {
+    pub fn into_lazy_record(self) -> ShellResult<Box<dyn for<'a> LazyRecord<'a>>> {
         if let Value::LazyRecord { val, .. } = self {
             Ok(val)
         } else {
@@ -1059,7 +1061,7 @@ impl Value {
         self,
         cell_path: &[PathMember],
         insensitive: bool,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         let mut current = self;
 
         for member in cell_path {
@@ -1080,12 +1082,15 @@ impl Value {
                             } else if *optional {
                                 return Ok(Value::nothing(*origin_span)); // short-circuit
                             } else if vals.is_empty() {
-                                return Err(ShellError::AccessEmptyContent { span: *origin_span });
+                                return Err(
+                                    ShellError::AccessEmptyContent { span: *origin_span }.into()
+                                );
                             } else {
                                 return Err(ShellError::AccessBeyondEnd {
                                     max_idx: vals.len() - 1,
                                     span: *origin_span,
-                                });
+                                }
+                                .into());
                             }
                         }
                         Value::Binary { val, .. } => {
@@ -1094,12 +1099,15 @@ impl Value {
                             } else if *optional {
                                 return Ok(Value::nothing(*origin_span)); // short-circuit
                             } else if val.is_empty() {
-                                return Err(ShellError::AccessEmptyContent { span: *origin_span });
+                                return Err(
+                                    ShellError::AccessEmptyContent { span: *origin_span }.into()
+                                );
                             } else {
                                 return Err(ShellError::AccessBeyondEnd {
                                     max_idx: val.len() - 1,
                                     span: *origin_span,
-                                });
+                                }
+                                .into());
                             }
                         }
                         Value::Range { val, .. } => {
@@ -1112,7 +1120,8 @@ impl Value {
                             } else {
                                 return Err(ShellError::AccessBeyondEndOfStream {
                                     span: *origin_span,
-                                });
+                                }
+                                .into());
                             }
                         }
                         Value::Custom { ref val, .. } => {
@@ -1138,14 +1147,15 @@ impl Value {
                             return Err(ShellError::TypeMismatch {
                                 err_message:"Can't access record values with a row index. Try specifying a column name instead".into(),
                                 span: *origin_span,
-                            });
+                            }.into());
                         }
-                        Value::Error { error, .. } => return Err(*error),
+                        Value::Error { error, .. } => return Err(error),
                         x => {
                             return Err(ShellError::IncompatiblePathAccess {
                                 type_name: format!("{}", x.get_type()),
                                 span: *origin_span,
-                            });
+                            }
+                            .into());
                         }
                     }
                 }
@@ -1175,13 +1185,15 @@ impl Value {
                                 return Err(ShellError::DidYouMean {
                                     suggestion,
                                     span: *origin_span,
-                                });
+                                }
+                                .into());
                             } else {
                                 return Err(ShellError::CantFindColumn {
                                     col_name: column_name.clone(),
                                     span: *origin_span,
                                     src_span: span,
-                                });
+                                }
+                                .into());
                             }
                         }
                         Value::LazyRecord { val, .. } => {
@@ -1201,13 +1213,15 @@ impl Value {
                                 return Err(ShellError::DidYouMean {
                                     suggestion,
                                     span: *origin_span,
-                                });
+                                }
+                                .into());
                             } else {
                                 return Err(ShellError::CantFindColumn {
                                     col_name: column_name.clone(),
                                     span: *origin_span,
                                     src_span: span,
-                                });
+                                }
+                                .into());
                             }
                         }
                         // String access of Lists always means Table access.
@@ -1281,12 +1295,13 @@ impl Value {
                         Value::Nothing { .. } if *optional => {
                             return Ok(Value::nothing(*origin_span)); // short-circuit
                         }
-                        Value::Error { error, .. } => return Err(*error),
+                        Value::Error { error, .. } => return Err(error),
                         x => {
                             return Err(ShellError::IncompatiblePathAccess {
                                 type_name: format!("{}", x.get_type()),
                                 span: *origin_span,
-                            });
+                            }
+                            .into());
                         }
                     }
                 }
@@ -1295,7 +1310,7 @@ impl Value {
         // If a single Value::Error was produced by the above (which won't happen if nullify_errors is true), unwrap it now.
         // Note that Value::Errors inside Lists remain as they are, so that the rest of the list can still potentially be used.
         if let Value::Error { error, .. } = current {
-            Err(*error)
+            Err(error)
         } else {
             Ok(current)
         }
@@ -1306,13 +1321,13 @@ impl Value {
         &mut self,
         cell_path: &[PathMember],
         callback: Box<dyn FnOnce(&Value) -> Value>,
-    ) -> Result<(), ShellError> {
+    ) -> ShellResult<()> {
         let orig = self.clone();
 
         let new_val = callback(&orig.follow_cell_path(cell_path, false)?);
 
         match new_val {
-            Value::Error { error, .. } => Err(*error),
+            Value::Error { error, .. } => Err(error),
             new_val => self.upsert_data_at_cell_path(cell_path, new_val),
         }
     }
@@ -1321,7 +1336,7 @@ impl Value {
         &mut self,
         cell_path: &[PathMember],
         new_val: Value,
-    ) -> Result<(), ShellError> {
+    ) -> ShellResult<()> {
         let v_span = self.span();
         if let Some((member, path)) = cell_path.split_first() {
             match member {
@@ -1349,13 +1364,14 @@ impl Value {
                                         record.to_mut().push(col_name, new_col);
                                     }
                                 }
-                                Value::Error { error, .. } => return Err(*error.clone()),
+                                Value::Error { error, .. } => return Err(error.clone()),
                                 v => {
                                     return Err(ShellError::CantFindColumn {
                                         col_name: col_name.clone(),
                                         span: *span,
                                         src_span: v.span(),
-                                    });
+                                    }
+                                    .into());
                                 }
                             }
                         }
@@ -1379,13 +1395,14 @@ impl Value {
                         *self = val.collect()?;
                         self.upsert_data_at_cell_path(cell_path, new_val)?;
                     }
-                    Value::Error { error, .. } => return Err(*error.clone()),
+                    Value::Error { error, .. } => return Err(error.clone()),
                     v => {
                         return Err(ShellError::CantFindColumn {
                             col_name: col_name.clone(),
                             span: *span,
                             src_span: v.span(),
-                        });
+                        }
+                        .into());
                     }
                 },
                 PathMember::Int {
@@ -1398,23 +1415,26 @@ impl Value {
                             return Err(ShellError::InsertAfterNextFreeIndex {
                                 available_idx: vals.len(),
                                 span: *span,
-                            });
+                            }
+                            .into());
                         } else if !path.is_empty() {
                             return Err(ShellError::AccessBeyondEnd {
                                 max_idx: vals.len() - 1,
                                 span: *span,
-                            });
+                            }
+                            .into());
                         } else {
                             // If the upsert is at 1 + the end of the list, it's OK.
                             vals.push(new_val);
                         }
                     }
-                    Value::Error { error, .. } => return Err(*error.clone()),
+                    Value::Error { error, .. } => return Err(error.clone()),
                     _ => {
                         return Err(ShellError::NotAList {
                             dst_span: *span,
                             src_span: v_span,
-                        });
+                        }
+                        .into());
                     }
                 },
             }
@@ -1429,13 +1449,13 @@ impl Value {
         &mut self,
         cell_path: &[PathMember],
         callback: Box<dyn FnOnce(&Value) -> Value + 'a>,
-    ) -> Result<(), ShellError> {
+    ) -> ShellResult<()> {
         let orig = self.clone();
 
         let new_val = callback(&orig.follow_cell_path(cell_path, false)?);
 
         match new_val {
-            Value::Error { error, .. } => Err(*error),
+            Value::Error { error, .. } => Err(error),
             new_val => self.update_data_at_cell_path(cell_path, new_val),
         }
     }
@@ -1444,7 +1464,7 @@ impl Value {
         &mut self,
         cell_path: &[PathMember],
         new_val: Value,
-    ) -> Result<(), ShellError> {
+    ) -> ShellResult<()> {
         let v_span = self.span();
         if let Some((member, path)) = cell_path.split_first() {
             match member {
@@ -1465,16 +1485,18 @@ impl Value {
                                             col_name: col_name.clone(),
                                             span: *span,
                                             src_span: v_span,
-                                        });
+                                        }
+                                        .into());
                                     }
                                 }
-                                Value::Error { error, .. } => return Err(*error.clone()),
+                                Value::Error { error, .. } => return Err(error.clone()),
                                 v => {
                                     return Err(ShellError::CantFindColumn {
                                         col_name: col_name.clone(),
                                         span: *span,
                                         src_span: v.span(),
-                                    });
+                                    }
+                                    .into());
                                 }
                             }
                         }
@@ -1487,7 +1509,8 @@ impl Value {
                                 col_name: col_name.clone(),
                                 span: *span,
                                 src_span: v_span,
-                            });
+                            }
+                            .into());
                         }
                     }
                     Value::LazyRecord { val, .. } => {
@@ -1495,13 +1518,14 @@ impl Value {
                         *self = val.collect()?;
                         self.update_data_at_cell_path(cell_path, new_val)?;
                     }
-                    Value::Error { error, .. } => return Err(*error.clone()),
+                    Value::Error { error, .. } => return Err(error.clone()),
                     v => {
                         return Err(ShellError::CantFindColumn {
                             col_name: col_name.clone(),
                             span: *span,
                             src_span: v.span(),
-                        });
+                        }
+                        .into());
                     }
                 },
                 PathMember::Int {
@@ -1511,20 +1535,22 @@ impl Value {
                         if let Some(v) = vals.get_mut(*row_num) {
                             v.update_data_at_cell_path(path, new_val)?;
                         } else if vals.is_empty() {
-                            return Err(ShellError::AccessEmptyContent { span: *span });
+                            return Err(ShellError::AccessEmptyContent { span: *span }.into());
                         } else {
                             return Err(ShellError::AccessBeyondEnd {
                                 max_idx: vals.len() - 1,
                                 span: *span,
-                            });
+                            }
+                            .into());
                         }
                     }
-                    Value::Error { error, .. } => return Err(*error.clone()),
+                    Value::Error { error, .. } => return Err(error.clone()),
                     v => {
                         return Err(ShellError::NotAList {
                             dst_span: *span,
                             src_span: v.span(),
-                        });
+                        }
+                        .into());
                     }
                 },
             }
@@ -1534,7 +1560,7 @@ impl Value {
         Ok(())
     }
 
-    pub fn remove_data_at_cell_path(&mut self, cell_path: &[PathMember]) -> Result<(), ShellError> {
+    pub fn remove_data_at_cell_path(&mut self, cell_path: &[PathMember]) -> ShellResult<()> {
         match cell_path {
             [] => Ok(()),
             [member] => {
@@ -1555,7 +1581,8 @@ impl Value {
                                                 col_name: col_name.clone(),
                                                 span: *span,
                                                 src_span: v_span,
-                                            });
+                                            }
+                                            .into());
                                         }
                                     }
                                     v => {
@@ -1563,7 +1590,8 @@ impl Value {
                                             col_name: col_name.clone(),
                                             span: *span,
                                             src_span: v.span(),
-                                        });
+                                        }
+                                        .into());
                                     }
                                 }
                             }
@@ -1575,7 +1603,8 @@ impl Value {
                                     col_name: col_name.clone(),
                                     span: *span,
                                     src_span: v_span,
-                                });
+                                }
+                                .into());
                             }
                             Ok(())
                         }
@@ -1588,7 +1617,8 @@ impl Value {
                             col_name: col_name.clone(),
                             span: *span,
                             src_span: v.span(),
-                        }),
+                        }
+                        .into()),
                     },
                     PathMember::Int {
                         val: row_num,
@@ -1602,18 +1632,20 @@ impl Value {
                             } else if *optional {
                                 Ok(())
                             } else if vals.is_empty() {
-                                Err(ShellError::AccessEmptyContent { span: *span })
+                                Err(ShellError::AccessEmptyContent { span: *span }.into())
                             } else {
                                 Err(ShellError::AccessBeyondEnd {
                                     max_idx: vals.len() - 1,
                                     span: *span,
-                                })
+                                }
+                                .into())
                             }
                         }
                         v => Err(ShellError::NotAList {
                             dst_span: *span,
                             src_span: v.span(),
-                        }),
+                        }
+                        .into()),
                     },
                 }
             }
@@ -1637,7 +1669,8 @@ impl Value {
                                                 col_name: col_name.clone(),
                                                 span: *span,
                                                 src_span: v_span,
-                                            });
+                                            }
+                                            .into());
                                         }
                                     }
                                     v => {
@@ -1645,7 +1678,8 @@ impl Value {
                                             col_name: col_name.clone(),
                                             span: *span,
                                             src_span: v.span(),
-                                        });
+                                        }
+                                        .into());
                                     }
                                 }
                             }
@@ -1659,7 +1693,8 @@ impl Value {
                                     col_name: col_name.clone(),
                                     span: *span,
                                     src_span: v_span,
-                                });
+                                }
+                                .into());
                             }
                             Ok(())
                         }
@@ -1672,7 +1707,8 @@ impl Value {
                             col_name: col_name.clone(),
                             span: *span,
                             src_span: v.span(),
-                        }),
+                        }
+                        .into()),
                     },
                     PathMember::Int {
                         val: row_num,
@@ -1685,18 +1721,20 @@ impl Value {
                             } else if *optional {
                                 Ok(())
                             } else if vals.is_empty() {
-                                Err(ShellError::AccessEmptyContent { span: *span })
+                                Err(ShellError::AccessEmptyContent { span: *span }.into())
                             } else {
                                 Err(ShellError::AccessBeyondEnd {
                                     max_idx: vals.len() - 1,
                                     span: *span,
-                                })
+                                }
+                                .into())
                             }
                         }
                         v => Err(ShellError::NotAList {
                             dst_span: *span,
                             src_span: v.span(),
-                        }),
+                        }
+                        .into()),
                     },
                 }
             }
@@ -1708,7 +1746,7 @@ impl Value {
         cell_path: &[PathMember],
         new_val: Value,
         head_span: Span,
-    ) -> Result<(), ShellError> {
+    ) -> ShellResult<()> {
         let v_span = self.span();
         if let Some((member, path)) = cell_path.split_first() {
             match member {
@@ -1728,7 +1766,8 @@ impl Value {
                                                 col_name: col_name.clone(),
                                                 span: *span,
                                                 src_span: v_span,
-                                            });
+                                            }
+                                            .into());
                                         } else {
                                             val.insert_data_at_cell_path(
                                                 path,
@@ -1752,14 +1791,15 @@ impl Value {
                                         record.to_mut().push(col_name, new_col);
                                     }
                                 }
-                                Value::Error { error, .. } => return Err(*error.clone()),
+                                Value::Error { error, .. } => return Err(error.clone()),
                                 _ => {
                                     return Err(ShellError::UnsupportedInput {
                                         msg: "expected table or record".into(),
                                         input: format!("input type: {:?}", val.get_type()),
                                         msg_span: head_span,
                                         input_span: *span,
-                                    });
+                                    }
+                                    .into());
                                 }
                             }
                         }
@@ -1771,7 +1811,8 @@ impl Value {
                                     col_name: col_name.clone(),
                                     span: *span,
                                     src_span: v_span,
-                                });
+                                }
+                                .into());
                             } else {
                                 val.insert_data_at_cell_path(path, new_val, head_span)?;
                             }
@@ -1797,7 +1838,8 @@ impl Value {
                             input: format!("input type: {:?}", other.get_type()),
                             msg_span: head_span,
                             input_span: *span,
-                        });
+                        }
+                        .into());
                     }
                 },
                 PathMember::Int {
@@ -1814,12 +1856,14 @@ impl Value {
                             return Err(ShellError::InsertAfterNextFreeIndex {
                                 available_idx: vals.len(),
                                 span: *span,
-                            });
+                            }
+                            .into());
                         } else if !path.is_empty() {
                             return Err(ShellError::AccessBeyondEnd {
                                 max_idx: vals.len() - 1,
                                 span: *span,
-                            });
+                            }
+                            .into());
                         } else {
                             // If the insert is at 1 + the end of the list, it's OK.
                             vals.push(new_val);
@@ -1829,7 +1873,8 @@ impl Value {
                         return Err(ShellError::NotAList {
                             dst_span: *span,
                             src_span: v_span,
-                        });
+                        }
+                        .into());
                     }
                 },
             }
@@ -2025,9 +2070,9 @@ impl Value {
         }
     }
 
-    pub fn error(error: ShellError, span: Span) -> Value {
+    pub fn error(error: impl Into<Error>, span: Span) -> Value {
         Value::Error {
-            error: Box::new(error),
+            error: error.into(),
             internal_span: span,
         }
     }
@@ -2640,13 +2685,17 @@ impl PartialEq for Value {
 }
 
 impl Value {
-    pub fn add(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn add(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         match (self, rhs) {
             (Value::Int { val: lhs, .. }, Value::Int { val: rhs, .. }) => {
                 if let Some(val) = lhs.checked_add(*rhs) {
                     Ok(Value::int(val, span))
                 } else {
-                    Err(ShellError::OperatorOverflow { msg: "add operation overflowed".into(), span, help: "Consider using floating point values for increased range by promoting operand with 'into float'. Note: float has reduced precision!".into() })
+                    Err(ShellError::OperatorOverflow {
+                        msg: "add operation overflowed".into(),
+                        span,
+                        help: "Consider using floating point values for increased range by promoting operand with 'into float'. Note: float has reduced precision!".into()
+                    }.into())
                 }
             }
             (Value::Int { val: lhs, .. }, Value::Float { val: rhs, .. }) => {
@@ -2670,7 +2719,8 @@ impl Value {
                         msg: "addition operation overflowed".into(),
                         span,
                         help: "".into(),
-                    })
+                    }
+                    .into())
                 }
             }
             (Value::Duration { val: lhs, .. }, Value::Duration { val: rhs, .. }) => {
@@ -2681,7 +2731,8 @@ impl Value {
                         msg: "add operation overflowed".into(),
                         span,
                         help: "".into(),
-                    })
+                    }
+                    .into())
                 }
             }
             (Value::Filesize { val: lhs, .. }, Value::Filesize { val: rhs, .. }) => {
@@ -2692,7 +2743,8 @@ impl Value {
                         msg: "add operation overflowed".into(),
                         span,
                         help: "".into(),
-                    })
+                    }
+                    .into())
                 }
             }
 
@@ -2706,11 +2758,12 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            }),
+            }
+            .into()),
         }
     }
 
-    pub fn append(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn append(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         match (self, rhs) {
             (Value::List { vals: lhs, .. }, Value::List { vals: rhs, .. }) => {
                 let mut lhs = lhs.clone();
@@ -2745,17 +2798,22 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            }),
+            }
+            .into()),
         }
     }
 
-    pub fn sub(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn sub(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         match (self, rhs) {
             (Value::Int { val: lhs, .. }, Value::Int { val: rhs, .. }) => {
                 if let Some(val) = lhs.checked_sub(*rhs) {
                     Ok(Value::int(val, span))
                 } else {
-                    Err(ShellError::OperatorOverflow { msg: "subtraction operation overflowed".into(), span, help: "Consider using floating point values for increased range by promoting operand with 'into float'. Note: float has reduced precision!".into() })
+                    Err(ShellError::OperatorOverflow {
+                        msg: "subtraction operation overflowed".into(),
+                        span,
+                        help: "Consider using floating point values for increased range by promoting operand with 'into float'. Note: float has reduced precision!".into()
+                    }.into())
                 }
             }
             (Value::Int { val: lhs, .. }, Value::Float { val: rhs, .. }) => {
@@ -2777,7 +2835,8 @@ impl Value {
                         msg: "subtraction operation overflowed".into(),
                         span,
                         help: "".into(),
-                    })
+                    }
+                    .into())
                 }
             }
             (Value::Date { val: lhs, .. }, Value::Duration { val: rhs, .. }) => {
@@ -2787,7 +2846,8 @@ impl Value {
                         msg: "subtraction operation overflowed".into(),
                         span,
                         help: "".into(),
-                    }),
+                    }
+                    .into()),
                 }
             }
             (Value::Duration { val: lhs, .. }, Value::Duration { val: rhs, .. }) => {
@@ -2798,7 +2858,8 @@ impl Value {
                         msg: "subtraction operation overflowed".into(),
                         span,
                         help: "".into(),
-                    })
+                    }
+                    .into())
                 }
             }
             (Value::Filesize { val: lhs, .. }, Value::Filesize { val: rhs, .. }) => {
@@ -2809,7 +2870,8 @@ impl Value {
                         msg: "add operation overflowed".into(),
                         span,
                         help: "".into(),
-                    })
+                    }
+                    .into())
                 }
             }
 
@@ -2823,17 +2885,22 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            }),
+            }
+            .into()),
         }
     }
 
-    pub fn mul(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn mul(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         match (self, rhs) {
             (Value::Int { val: lhs, .. }, Value::Int { val: rhs, .. }) => {
                 if let Some(val) = lhs.checked_mul(*rhs) {
                     Ok(Value::int(val, span))
                 } else {
-                    Err(ShellError::OperatorOverflow { msg: "multiply operation overflowed".into(), span, help: "Consider using floating point values for increased range by promoting operand with 'into float'. Note: float has reduced precision!".into() })
+                    Err(ShellError::OperatorOverflow {
+                        msg: "multiply operation overflowed".into(),
+                        span,
+                        help: "Consider using floating point values for increased range by promoting operand with 'into float'. Note: float has reduced precision!".into()
+                    }.into())
                 }
             }
             (Value::Int { val: lhs, .. }, Value::Float { val: rhs, .. }) => {
@@ -2878,11 +2945,12 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            }),
+            }
+            .into()),
         }
     }
 
-    pub fn div(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn div(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         match (self, rhs) {
             (Value::Int { val: lhs, .. }, Value::Int { val: rhs, .. }) => {
                 if *rhs != 0 {
@@ -2892,28 +2960,28 @@ impl Value {
                         Ok(Value::float((*lhs as f64) / (*rhs as f64), span))
                     }
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Int { val: lhs, .. }, Value::Float { val: rhs, .. }) => {
                 if *rhs != 0.0 {
                     Ok(Value::float(*lhs as f64 / *rhs, span))
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Float { val: lhs, .. }, Value::Int { val: rhs, .. }) => {
                 if *rhs != 0 {
                     Ok(Value::float(*lhs / *rhs as f64, span))
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Float { val: lhs, .. }, Value::Float { val: rhs, .. }) => {
                 if *rhs != 0.0 {
                     Ok(Value::float(lhs / rhs, span))
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Filesize { val: lhs, .. }, Value::Filesize { val: rhs, .. }) => {
@@ -2924,7 +2992,7 @@ impl Value {
                         Ok(Value::float((*lhs as f64) / (*rhs as f64), span))
                     }
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Filesize { val: lhs, .. }, Value::Int { val: rhs, .. }) => {
@@ -2934,14 +3002,14 @@ impl Value {
                         span,
                     ))
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Filesize { val: lhs, .. }, Value::Float { val: rhs, .. }) => {
                 if *rhs != 0.0 {
                     Ok(Value::filesize((*lhs as f64 / rhs) as i64, span))
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Duration { val: lhs, .. }, Value::Duration { val: rhs, .. }) => {
@@ -2952,7 +3020,7 @@ impl Value {
                         Ok(Value::float((*lhs as f64) / (*rhs as f64), span))
                     }
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Duration { val: lhs, .. }, Value::Int { val: rhs, .. }) => {
@@ -2962,14 +3030,14 @@ impl Value {
                         span,
                     ))
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Duration { val: lhs, .. }, Value::Float { val: rhs, .. }) => {
                 if *rhs != 0.0 {
                     Ok(Value::duration(((*lhs as f64) / rhs) as i64, span))
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Custom { val: lhs, .. }, rhs) => {
@@ -2982,11 +3050,12 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            }),
+            }
+            .into()),
         }
     }
 
-    pub fn floor_div(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn floor_div(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         match (self, rhs) {
             (Value::Int { val: lhs, .. }, Value::Int { val: rhs, .. }) => {
                 if *rhs != 0 {
@@ -2997,7 +3066,7 @@ impl Value {
                         span,
                     ))
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Int { val: lhs, .. }, Value::Float { val: rhs, .. }) => {
@@ -3009,7 +3078,7 @@ impl Value {
                         span,
                     ))
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Float { val: lhs, .. }, Value::Int { val: rhs, .. }) => {
@@ -3021,7 +3090,7 @@ impl Value {
                         span,
                     ))
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Float { val: lhs, .. }, Value::Float { val: rhs, .. }) => {
@@ -3033,7 +3102,7 @@ impl Value {
                         span,
                     ))
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Filesize { val: lhs, .. }, Value::Filesize { val: rhs, .. }) => {
@@ -3045,7 +3114,7 @@ impl Value {
                         span,
                     ))
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Filesize { val: lhs, .. }, Value::Int { val: rhs, .. }) => {
@@ -3057,7 +3126,7 @@ impl Value {
                         span,
                     ))
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Filesize { val: lhs, .. }, Value::Float { val: rhs, .. }) => {
@@ -3069,7 +3138,7 @@ impl Value {
                         span,
                     ))
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Duration { val: lhs, .. }, Value::Duration { val: rhs, .. }) => {
@@ -3081,7 +3150,7 @@ impl Value {
                         span,
                     ))
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Duration { val: lhs, .. }, Value::Int { val: rhs, .. }) => {
@@ -3093,7 +3162,7 @@ impl Value {
                         span,
                     ))
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Duration { val: lhs, .. }, Value::Float { val: rhs, .. }) => {
@@ -3105,7 +3174,7 @@ impl Value {
                         span,
                     ))
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Custom { val: lhs, .. }, rhs) => {
@@ -3118,11 +3187,12 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            }),
+            }
+            .into()),
         }
     }
 
-    pub fn lt(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn lt(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         if let (Value::Custom { val: lhs, .. }, rhs) = (self, rhs) {
             return lhs.operation(
                 self.span(),
@@ -3146,7 +3216,8 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            });
+            }
+            .into());
         }
 
         if let Some(ordering) = self.partial_cmp(rhs) {
@@ -3158,11 +3229,12 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            })
+            }
+            .into())
         }
     }
 
-    pub fn lte(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn lte(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         if let (Value::Custom { val: lhs, .. }, rhs) = (self, rhs) {
             return lhs.operation(
                 self.span(),
@@ -3186,21 +3258,25 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            });
+            }
+            .into());
         }
 
         self.partial_cmp(rhs)
             .map(|ordering| Value::bool(matches!(ordering, Ordering::Less | Ordering::Equal), span))
-            .ok_or(ShellError::OperatorMismatch {
-                op_span: op,
-                lhs_ty: self.get_type().to_string(),
-                lhs_span: self.span(),
-                rhs_ty: rhs.get_type().to_string(),
-                rhs_span: rhs.span(),
-            })
+            .ok_or(
+                ShellError::OperatorMismatch {
+                    op_span: op,
+                    lhs_ty: self.get_type().to_string(),
+                    lhs_span: self.span(),
+                    rhs_ty: rhs.get_type().to_string(),
+                    rhs_span: rhs.span(),
+                }
+                .into(),
+            )
     }
 
-    pub fn gt(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn gt(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         if let (Value::Custom { val: lhs, .. }, rhs) = (self, rhs) {
             return lhs.operation(
                 self.span(),
@@ -3224,21 +3300,25 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            });
+            }
+            .into());
         }
 
         self.partial_cmp(rhs)
             .map(|ordering| Value::bool(matches!(ordering, Ordering::Greater), span))
-            .ok_or(ShellError::OperatorMismatch {
-                op_span: op,
-                lhs_ty: self.get_type().to_string(),
-                lhs_span: self.span(),
-                rhs_ty: rhs.get_type().to_string(),
-                rhs_span: rhs.span(),
-            })
+            .ok_or(
+                ShellError::OperatorMismatch {
+                    op_span: op,
+                    lhs_ty: self.get_type().to_string(),
+                    lhs_span: self.span(),
+                    rhs_ty: rhs.get_type().to_string(),
+                    rhs_span: rhs.span(),
+                }
+                .into(),
+            )
     }
 
-    pub fn gte(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn gte(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         if let (Value::Custom { val: lhs, .. }, rhs) = (self, rhs) {
             return lhs.operation(
                 self.span(),
@@ -3262,7 +3342,8 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            });
+            }
+            .into());
         }
 
         match self.partial_cmp(rhs) {
@@ -3276,11 +3357,12 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            }),
+            }
+            .into()),
         }
     }
 
-    pub fn eq(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn eq(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         if let (Value::Custom { val: lhs, .. }, rhs) = (self, rhs) {
             return lhs.operation(
                 self.span(),
@@ -3303,12 +3385,13 @@ impl Value {
                     lhs_span: self.span(),
                     rhs_ty: rhs.get_type().to_string(),
                     rhs_span: rhs.span(),
-                }),
+                }
+                .into()),
             }
         }
     }
 
-    pub fn ne(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn ne(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         if let (Value::Custom { val: lhs, .. }, rhs) = (self, rhs) {
             return lhs.operation(
                 self.span(),
@@ -3331,12 +3414,13 @@ impl Value {
                     lhs_span: self.span(),
                     rhs_ty: rhs.get_type().to_string(),
                     rhs_span: rhs.span(),
-                }),
+                }
+                .into()),
             }
         }
     }
 
-    pub fn r#in(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn r#in(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         match (self, rhs) {
             (lhs, Value::Range { val: rhs, .. }) => Ok(Value::bool(rhs.contains(lhs), span)),
             (Value::String { val: lhs, .. }, Value::String { val: rhs, .. }) => {
@@ -3380,11 +3464,12 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            }),
+            }
+            .into()),
         }
     }
 
-    pub fn not_in(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn not_in(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         match (self, rhs) {
             (lhs, Value::Range { val: rhs, .. }) => Ok(Value::bool(!rhs.contains(lhs), span)),
             (Value::String { val: lhs, .. }, Value::String { val: rhs, .. }) => {
@@ -3431,7 +3516,8 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            }),
+            }
+            .into()),
         }
     }
 
@@ -3442,7 +3528,7 @@ impl Value {
         rhs: &Value,
         invert: bool,
         span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         let rhs_span = rhs.span();
         match (self, rhs) {
             (Value::String { val: lhs, .. }, Value::String { val: rhs, .. }) => {
@@ -3499,11 +3585,12 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            }),
+            }
+            .into()),
         }
     }
 
-    pub fn starts_with(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn starts_with(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         match (self, rhs) {
             (Value::String { val: lhs, .. }, Value::String { val: rhs, .. }) => {
                 Ok(Value::bool(lhs.starts_with(rhs), span))
@@ -3520,11 +3607,12 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            }),
+            }
+            .into()),
         }
     }
 
-    pub fn ends_with(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn ends_with(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         match (self, rhs) {
             (Value::String { val: lhs, .. }, Value::String { val: rhs, .. }) => {
                 Ok(Value::bool(lhs.ends_with(rhs), span))
@@ -3541,11 +3629,12 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            }),
+            }
+            .into()),
         }
     }
 
-    pub fn bit_shl(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn bit_shl(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         match (self, rhs) {
             (Value::Int { val: lhs, .. }, Value::Int { val: rhs, .. }) => {
                 Ok(Value::int(*lhs << rhs, span))
@@ -3559,11 +3648,12 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            }),
+            }
+            .into()),
         }
     }
 
-    pub fn bit_shr(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn bit_shr(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         match (self, rhs) {
             (Value::Int { val: lhs, .. }, Value::Int { val: rhs, .. }) => {
                 Ok(Value::int(*lhs >> rhs, span))
@@ -3577,11 +3667,12 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            }),
+            }
+            .into()),
         }
     }
 
-    pub fn bit_or(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn bit_or(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         match (self, rhs) {
             (Value::Int { val: lhs, .. }, Value::Int { val: rhs, .. }) => {
                 Ok(Value::int(*lhs | rhs, span))
@@ -3595,11 +3686,12 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            }),
+            }
+            .into()),
         }
     }
 
-    pub fn bit_xor(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn bit_xor(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         match (self, rhs) {
             (Value::Int { val: lhs, .. }, Value::Int { val: rhs, .. }) => {
                 Ok(Value::int(*lhs ^ rhs, span))
@@ -3613,11 +3705,12 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            }),
+            }
+            .into()),
         }
     }
 
-    pub fn bit_and(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn bit_and(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         match (self, rhs) {
             (Value::Int { val: lhs, .. }, Value::Int { val: rhs, .. }) => {
                 Ok(Value::int(*lhs & rhs, span))
@@ -3631,45 +3724,46 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            }),
+            }
+            .into()),
         }
     }
 
-    pub fn modulo(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn modulo(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         match (self, rhs) {
             (Value::Int { val: lhs, .. }, Value::Int { val: rhs, .. }) => {
                 if *rhs != 0 {
                     Ok(Value::int(lhs % rhs, span))
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Int { val: lhs, .. }, Value::Float { val: rhs, .. }) => {
                 if *rhs != 0.0 {
                     Ok(Value::float(*lhs as f64 % *rhs, span))
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Float { val: lhs, .. }, Value::Int { val: rhs, .. }) => {
                 if *rhs != 0 {
                     Ok(Value::float(*lhs % *rhs as f64, span))
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Float { val: lhs, .. }, Value::Float { val: rhs, .. }) => {
                 if *rhs != 0.0 {
                     Ok(Value::float(lhs % rhs, span))
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Duration { val: lhs, .. }, Value::Duration { val: rhs, .. }) => {
                 if *rhs != 0 {
                     Ok(Value::duration(lhs % rhs, span))
                 } else {
-                    Err(ShellError::DivisionByZero { span: op })
+                    Err(ShellError::DivisionByZero { span: op }.into())
                 }
             }
             (Value::Custom { val: lhs, .. }, rhs) => {
@@ -3682,11 +3776,12 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            }),
+            }
+            .into()),
         }
     }
 
-    pub fn and(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn and(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         match (self, rhs) {
             (Value::Bool { val: lhs, .. }, Value::Bool { val: rhs, .. }) => {
                 Ok(Value::bool(*lhs && *rhs, span))
@@ -3700,11 +3795,12 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            }),
+            }
+            .into()),
         }
     }
 
-    pub fn or(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn or(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         match (self, rhs) {
             (Value::Bool { val: lhs, .. }, Value::Bool { val: rhs, .. }) => {
                 Ok(Value::bool(*lhs || *rhs, span))
@@ -3718,11 +3814,12 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            }),
+            }
+            .into()),
         }
     }
 
-    pub fn xor(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn xor(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         match (self, rhs) {
             (Value::Bool { val: lhs, .. }, Value::Bool { val: rhs, .. }) => {
                 Ok(Value::bool((*lhs && !*rhs) || (!*lhs && *rhs), span))
@@ -3736,17 +3833,22 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            }),
+            }
+            .into()),
         }
     }
 
-    pub fn pow(&self, op: Span, rhs: &Value, span: Span) -> Result<Value, ShellError> {
+    pub fn pow(&self, op: Span, rhs: &Value, span: Span) -> ShellResult<Value> {
         match (self, rhs) {
             (Value::Int { val: lhs, .. }, Value::Int { val: rhs, .. }) => {
                 if let Some(val) = lhs.checked_pow(*rhs as u32) {
                     Ok(Value::int(val, span))
                 } else {
-                    Err(ShellError::OperatorOverflow { msg: "pow operation overflowed".into(), span, help: "Consider using floating point values for increased range by promoting operand with 'into float'. Note: float has reduced precision!".into() })
+                    Err(ShellError::OperatorOverflow {
+                        msg: "pow operation overflowed".into(),
+                        span,
+                        help: "Consider using floating point values for increased range by promoting operand with 'into float'. Note: float has reduced precision!".into()
+                    }.into())
                 }
             }
             (Value::Int { val: lhs, .. }, Value::Float { val: rhs, .. }) => {
@@ -3768,7 +3870,8 @@ impl Value {
                 lhs_span: self.span(),
                 rhs_ty: rhs.get_type().to_string(),
                 rhs_span: rhs.span(),
-            }),
+            }
+            .into()),
         }
     }
 }

@@ -1,6 +1,6 @@
 use std::{any::Any, sync::Arc};
 
-use crate::{PluginGcConfig, PluginIdentity, ShellError};
+use crate::{PluginGcConfig, PluginIdentity, ShellResult};
 
 /// Trait for plugins registered in the [`EngineState`](crate::engine::EngineState).
 pub trait RegisteredPlugin: Send + Sync {
@@ -17,11 +17,11 @@ pub trait RegisteredPlugin: Send + Sync {
     fn set_gc_config(&self, gc_config: &PluginGcConfig);
 
     /// Stop the plugin.
-    fn stop(&self) -> Result<(), ShellError>;
+    fn stop(&self) -> ShellResult<()>;
 
     /// Stop the plugin and reset any state so that we don't make any assumptions about the plugin
     /// next time it launches. This is used on `register`.
-    fn reset(&self) -> Result<(), ShellError>;
+    fn reset(&self) -> ShellResult<()>;
 
     /// Cast the pointer to an [`Any`] so that its concrete type can be retrieved.
     ///

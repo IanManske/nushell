@@ -1,6 +1,5 @@
+use crate::{ast::Operator, ShellError, ShellResult, Span, Value};
 use std::{cmp::Ordering, fmt};
-
-use crate::{ast::Operator, ShellError, Span, Value};
 
 /// Trait definition for a custom [`Value`](crate::Value) type
 #[typetag::serde(tag = "type")]
@@ -22,7 +21,7 @@ pub trait CustomValue: fmt::Debug + Send + Sync {
     ///
     /// This imposes the requirement that you can represent the custom value in some form using the
     /// Value representations that already exist in nushell
-    fn to_base_value(&self, span: Span) -> Result<Value, ShellError>;
+    fn to_base_value(&self, span: Span) -> ShellResult<Value>;
 
     /// Any representation used to downcast object to its original type
     fn as_any(&self) -> &dyn std::any::Any;
@@ -36,12 +35,13 @@ pub trait CustomValue: fmt::Debug + Send + Sync {
         self_span: Span,
         index: usize,
         path_span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         let _ = (self_span, index);
         Err(ShellError::IncompatiblePathAccess {
             type_name: self.type_name(),
             span: path_span,
-        })
+        }
+        .into())
     }
 
     /// Follow cell path by string key (e.g. columns)
@@ -50,12 +50,13 @@ pub trait CustomValue: fmt::Debug + Send + Sync {
         self_span: Span,
         column_name: String,
         path_span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         let _ = (self_span, column_name);
         Err(ShellError::IncompatiblePathAccess {
             type_name: self.type_name(),
             span: path_span,
-        })
+        }
+        .into())
     }
 
     /// ordering with other value (see [`std::cmp::PartialOrd`])
@@ -75,9 +76,9 @@ pub trait CustomValue: fmt::Debug + Send + Sync {
         operator: Operator,
         op: Span,
         right: &Value,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         let _ = (lhs_span, right);
-        Err(ShellError::UnsupportedOperator { operator, span: op })
+        Err(ShellError::UnsupportedOperator { operator, span: op }.into())
     }
 
     /// For custom values in plugins: return `true` here if you would like to be notified when all

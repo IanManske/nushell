@@ -1,4 +1,4 @@
-use crate::{Record, ShellError, Span, Value};
+use crate::{Record, ShellResult, Span, Value};
 use std::fmt;
 
 // Trait definition for a lazy record (where columns are evaluated on-demand)
@@ -9,12 +9,12 @@ pub trait LazyRecord<'a>: fmt::Debug + Send + Sync {
     fn column_names(&'a self) -> Vec<&'a str>;
 
     // Get 1 specific column value
-    fn get_column_value(&self, column: &str) -> Result<Value, ShellError>;
+    fn get_column_value(&self, column: &str) -> ShellResult<Value>;
 
     fn span(&self) -> Span;
 
     // Convert the lazy record into a regular Value::Record by collecting all its columns
-    fn collect(&'a self) -> Result<Value, ShellError> {
+    fn collect(&'a self) -> ShellResult<Value> {
         self.column_names()
             .into_iter()
             .map(|col| {

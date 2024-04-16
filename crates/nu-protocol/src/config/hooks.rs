@@ -1,4 +1,4 @@
-use crate::{Config, Record, ShellError, Span, Value};
+use crate::{Config, Record, ShellError, ShellResult, Span, Value};
 use serde::{Deserialize, Serialize};
 
 /// Definition of a parsed hook from the config object
@@ -33,7 +33,7 @@ impl Default for Hooks {
 }
 
 /// Parse the hooks to find the blocks to run when the hooks fire
-pub(super) fn create_hooks(value: &Value) -> Result<Hooks, ShellError> {
+pub(super) fn create_hooks(value: &Value) -> ShellResult<Hooks> {
     let span = value.span();
     match value {
         Value::Record { val, .. } => {
@@ -51,7 +51,7 @@ pub(super) fn create_hooks(value: &Value) -> Result<Hooks, ShellError> {
                             expected: "'pre_prompt', 'pre_execution', 'env_change', 'display_output', 'command_not_found'".into(),
                             value: x.into(),
                             span
-                        });
+                        }.into());
                     }
                 }
             }
@@ -62,7 +62,8 @@ pub(super) fn create_hooks(value: &Value) -> Result<Hooks, ShellError> {
             expected: "record for 'hooks' config".into(),
             value: "non-record value".into(),
             span,
-        }),
+        }
+        .into()),
     }
 }
 

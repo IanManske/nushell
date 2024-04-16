@@ -4,7 +4,8 @@ use crate::{
         ExternalArgument, ListItem, Math, Operator, RecordItem,
     },
     debugger::DebugContext,
-    Config, IntoInterruptiblePipelineData, Range, Record, ShellError, Span, Value, VarId,
+    Config, IntoInterruptiblePipelineData, Range, Record, ShellError, ShellResult, Span, Value,
+    VarId,
 };
 use std::{borrow::Cow, collections::HashMap};
 
@@ -22,7 +23,7 @@ pub trait Eval {
         state: Self::State<'_>,
         mut_state: &mut Self::MutState,
         expr: &Expression,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         match &expr.expr {
             Expr::Bool(b) => Ok(Value::bool(*b, expr.span)),
             Expr::Int(i) => Ok(Value::int(*i, expr.span)),
@@ -47,7 +48,7 @@ pub trait Eval {
                         ListItem::Item(expr) => output.push(Self::eval::<D>(state, mut_state, expr)?),
                         ListItem::Spread(_, expr) => match Self::eval::<D>(state, mut_state, expr)? {
                             Value::List { vals, .. } => output.extend(vals),
-                            _ => return Err(ShellError::CannotSpreadAsList { span: expr.span }),
+                            _ => return Err(ShellError::CannotSpreadAsList { span: expr.span })?,
                         },
                     }
                 }
@@ -66,7 +67,7 @@ pub trait Eval {
                                     col_name,
                                     second_use: col.span,
                                     first_use: *orig_span,
-                                });
+                                }.into());
                             } else {
                                 col_names.insert(col_name.clone(), col.span);
                                 record.push(col_name, Self::eval::<D>(state, mut_state, val)?);
@@ -81,7 +82,7 @@ pub trait Eval {
                                                 col_name,
                                                 second_use: inner.span,
                                                 first_use: *orig_span,
-                                            });
+                                            }.into());
                                         } else {
                                             col_names.insert(col_name.clone(), inner.span);
                                             record.push(col_name, val);
@@ -91,7 +92,7 @@ pub trait Eval {
                                 _ => {
                                     return Err(ShellError::CannotSpreadAsRecord {
                                         span: inner.span,
-                                    })
+                                    }.into())
                                 }
                             }
                         }
@@ -112,7 +113,7 @@ pub trait Eval {
                             col_name: header,
                             second_use: expr.span,
                             first_use: headers[idx].span,
-                        });
+                        }.into());
                     } else {
                         output_headers.push(header);
                     }
@@ -141,7 +142,7 @@ pub trait Eval {
                     from_type: x.get_type().to_string(),
                     span: e.span,
                     help: None,
-                }),
+                }.into()),
             },
             Expr::Call(call) => Self::eval_call::<D>(state, mut_state, call, expr.span),
             Expr::ExternalCall(head, args) => {
@@ -181,7 +182,7 @@ pub trait Eval {
                     other => Err(ShellError::TypeMismatch {
                         err_message: format!("expected bool, found {}", other.get_type()),
                         span: expr.span,
-                    }),
+                    }.into()),
                 }
             }
             Expr::BinaryOp(lhs, op, rhs) => {
@@ -308,7 +309,7 @@ pub trait Eval {
         path: String,
         quoted: bool,
         span: Span,
-    ) -> Result<Value, ShellError>;
+    ) -> ShellResult<Value>;
 
     fn eval_directory(
         state: Self::State<'_>,
@@ -316,21 +317,21 @@ pub trait Eval {
         path: String,
         quoted: bool,
         span: Span,
-    ) -> Result<Value, ShellError>;
+    ) -> ShellResult<Value>;
 
     fn eval_var(
         state: Self::State<'_>,
         mut_state: &mut Self::MutState,
         var_id: VarId,
         span: Span,
-    ) -> Result<Value, ShellError>;
+    ) -> ShellResult<Value>;
 
     fn eval_call<D: DebugContext>(
         state: Self::State<'_>,
         mut_state: &mut Self::MutState,
         call: &Call,
         span: Span,
-    ) -> Result<Value, ShellError>;
+    ) -> ShellResult<Value>;
 
     fn eval_external_call(
         state: Self::State<'_>,
@@ -338,14 +339,14 @@ pub trait Eval {
         head: &Expression,
         args: &[ExternalArgument],
         span: Span,
-    ) -> Result<Value, ShellError>;
+    ) -> ShellResult<Value>;
 
     fn eval_subexpression<D: DebugContext>(
         state: Self::State<'_>,
         mut_state: &mut Self::MutState,
         block_id: usize,
         span: Span,
-    ) -> Result<Value, ShellError>;
+    ) -> ShellResult<Value>;
 
     fn regex_match(
         state: Self::State<'_>,
@@ -354,7 +355,7 @@ pub trait Eval {
         rhs: &Value,
         invert: bool,
         expr_span: Span,
-    ) -> Result<Value, ShellError>;
+    ) -> ShellResult<Value>;
 
     #[allow(clippy::too_many_arguments)]
     fn eval_assignment<D: DebugContext>(
@@ -365,17 +366,17 @@ pub trait Eval {
         assignment: Assignment,
         op_span: Span,
         expr_span: Span,
-    ) -> Result<Value, ShellError>;
+    ) -> ShellResult<Value>;
 
     fn eval_row_condition_or_closure(
         state: Self::State<'_>,
         mut_state: &mut Self::MutState,
         block_id: usize,
         span: Span,
-    ) -> Result<Value, ShellError>;
+    ) -> ShellResult<Value>;
 
-    fn eval_overlay(state: Self::State<'_>, span: Span) -> Result<Value, ShellError>;
+    fn eval_overlay(state: Self::State<'_>, span: Span) -> ShellResult<Value>;
 
     /// For expressions that should never actually be evaluated
-    fn unreachable(expr: &Expression) -> Result<Value, ShellError>;
+    fn unreachable(expr: &Expression) -> ShellResult<Value>;
 }

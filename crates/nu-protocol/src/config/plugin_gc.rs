@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{record, ShellError, Span, Value};
+use crate::{record, Error, Span, Value};
 
 use super::helper::{
     process_bool_config, report_invalid_key, report_invalid_value, ReconstructVal,
@@ -24,12 +24,7 @@ impl PluginGcConfigs {
         self.plugins.get(plugin_name).unwrap_or(&self.default)
     }
 
-    pub(super) fn process(
-        &mut self,
-        path: &[&str],
-        value: &mut Value,
-        errors: &mut Vec<ShellError>,
-    ) {
+    pub(super) fn process(&mut self, path: &[&str], value: &mut Value, errors: &mut Vec<Error>) {
         if let Value::Record { val, .. } = value {
             // Handle resets to default if keys are missing
             if !val.contains("default") {
@@ -81,7 +76,7 @@ impl ReconstructVal for PluginGcConfigs {
 fn process_plugins(
     path: &[&str],
     value: &mut Value,
-    errors: &mut Vec<ShellError>,
+    errors: &mut Vec<Error>,
     plugins: &mut HashMap<String, PluginGcConfig>,
 ) {
     if let Value::Record { val, .. } = value {
@@ -140,7 +135,7 @@ impl Default for PluginGcConfig {
 }
 
 impl PluginGcConfig {
-    fn process(&mut self, path: &[&str], value: &mut Value, errors: &mut Vec<ShellError>) {
+    fn process(&mut self, path: &[&str], value: &mut Value, errors: &mut Vec<Error>) {
         if let Value::Record { val, .. } = value {
             // Handle resets to default if keys are missing
             if !val.contains("enabled") {

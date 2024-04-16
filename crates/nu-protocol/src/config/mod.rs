@@ -5,7 +5,7 @@ use self::output::*;
 use self::reedline::*;
 use self::table::*;
 
-use crate::{record, ShellError, Span, Value};
+use crate::{record, Error, ShellError, Span, Value};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -179,9 +179,9 @@ impl Value {
     /// If any given (sub)value is detected as impossible, this value will be restored to the value
     /// in `existing_config`, thus mutates `self`.
     ///
-    /// Returns a new [`Config`] (that is in a valid state) and if encountered the [`ShellError`]
+    /// Returns a new [`Config`] (that is in a valid state) and if encountered the [`Error`]
     /// containing all observed inner errors.
-    pub fn parse_as_config(&mut self, existing_config: &Config) -> (Config, Option<ShellError>) {
+    pub fn parse_as_config(&mut self, existing_config: &Config) -> (Config, Option<Error>) {
         // Clone the passed-in config rather than mutating it.
         let mut config = existing_config.clone();
 
@@ -779,13 +779,16 @@ impl Value {
         } else {
             return (
                 config,
-                Some(ShellError::GenericError {
-                    error: "Error while applying config changes".into(),
-                    msg: "$env.config is not a record".into(),
-                    span: Some(self.span()),
-                    help: None,
-                    inner: vec![],
-                }),
+                Some(
+                    ShellError::GenericError {
+                        error: "Error while applying config changes".into(),
+                        msg: "$env.config is not a record".into(),
+                        span: Some(self.span()),
+                        help: None,
+                        inner: vec![],
+                    }
+                    .into(),
+                ),
             );
         }
 
@@ -793,13 +796,16 @@ impl Value {
         (
             config,
             if !errors.is_empty() {
-                Some(ShellError::GenericError {
-                    error: "Config record contains invalid values or unknown settings".into(),
-                    msg: "".into(),
-                    span: None,
-                    help: None,
-                    inner: errors,
-                })
+                Some(
+                    ShellError::GenericError {
+                        error: "Config record contains invalid values or unknown settings".into(),
+                        msg: "".into(),
+                        span: None,
+                        help: None,
+                        inner: errors.into_iter().map(Into::into).collect(),
+                    }
+                    .into(),
+                )
             } else {
                 None
             },

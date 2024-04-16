@@ -7,7 +7,7 @@ use std::{
     sync::{atomic::AtomicBool, Arc},
 };
 
-use crate::{ast::RangeInclusion, ShellError, Span, Value};
+use crate::{ast::RangeInclusion, ShellResult, Span, Value};
 
 mod int_range {
     use std::{
@@ -19,7 +19,7 @@ mod int_range {
 
     use serde::{Deserialize, Serialize};
 
-    use crate::{ast::RangeInclusion, ShellError, Span, Value};
+    use crate::{ast::RangeInclusion, ShellError, ShellResult, Span, Value};
 
     #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
     pub struct IntRange {
@@ -35,8 +35,8 @@ mod int_range {
             end: Value,
             inclusion: RangeInclusion,
             span: Span,
-        ) -> Result<Self, ShellError> {
-            fn to_int(value: Value) -> Result<Option<i64>, ShellError> {
+        ) -> ShellResult<Self> {
+            fn to_int(value: Value) -> ShellResult<Option<i64>> {
                 match value {
                     Value::Int { val, .. } => Ok(Some(val)),
                     Value::Nothing { .. } => Ok(None),
@@ -45,7 +45,8 @@ mod int_range {
                         from_type: val.get_type().to_string(),
                         span: val.span(),
                         help: None,
-                    }),
+                    }
+                    .into()),
                 }
             }
 
@@ -54,7 +55,7 @@ mod int_range {
             let next_span = next.span();
             let next = to_int(next)?;
             if next.is_some_and(|next| next == start) {
-                return Err(ShellError::CannotCreateRange { span: next_span });
+                return Err(ShellError::CannotCreateRange { span: next_span }.into());
             }
 
             let end = to_int(end)?;
@@ -62,7 +63,7 @@ mod int_range {
             let step = match (next, end) {
                 (Some(next), Some(end)) => {
                     if (next < start) != (end < start) {
-                        return Err(ShellError::CannotCreateRange { span });
+                        return Err(ShellError::CannotCreateRange { span }.into());
                     }
                     next - start
                 }
@@ -242,7 +243,7 @@ mod float_range {
 
     use serde::{Deserialize, Serialize};
 
-    use crate::{ast::RangeInclusion, IntRange, Range, ShellError, Span, Value};
+    use crate::{ast::RangeInclusion, IntRange, Range, ShellError, ShellResult, Span, Value};
 
     #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
     pub struct FloatRange {
@@ -258,8 +259,8 @@ mod float_range {
             end: Value,
             inclusion: RangeInclusion,
             span: Span,
-        ) -> Result<Self, ShellError> {
-            fn to_float(value: Value) -> Result<Option<f64>, ShellError> {
+        ) -> ShellResult<Self> {
+            fn to_float(value: Value) -> ShellResult<Option<f64>> {
                 match value {
                     Value::Float { val, .. } => Ok(Some(val)),
                     Value::Int { val, .. } => Ok(Some(val as f64)),
@@ -269,7 +270,8 @@ mod float_range {
                         from_type: val.get_type().to_string(),
                         span: val.span(),
                         help: None,
-                    }),
+                    }
+                    .into()),
                 }
             }
 
@@ -282,25 +284,25 @@ mod float_range {
             let start_span = start.span();
             let start = to_float(start)?.unwrap_or(0.0);
             if !start.is_finite() {
-                return Err(ShellError::CannotCreateRange { span: start_span });
+                return Err(ShellError::CannotCreateRange { span: start_span }.into());
             }
 
             let end_span = end.span();
             let end = to_float(end)?;
             if end.is_some_and(f64::is_nan) {
-                return Err(ShellError::CannotCreateRange { span: end_span });
+                return Err(ShellError::CannotCreateRange { span: end_span }.into());
             }
 
             let next_span = next.span();
             let next = to_float(next)?;
             if next.is_some_and(|next| next == start || !next.is_finite()) {
-                return Err(ShellError::CannotCreateRange { span: next_span });
+                return Err(ShellError::CannotCreateRange { span: next_span }.into());
             }
 
             let step = match (next, end) {
                 (Some(next), Some(end)) => {
                     if (next < start) != (end < start) {
-                        return Err(ShellError::CannotCreateRange { span });
+                        return Err(ShellError::CannotCreateRange { span }.into());
                     }
                     next - start
                 }
@@ -525,7 +527,7 @@ impl Range {
         end: Value,
         inclusion: RangeInclusion,
         span: Span,
-    ) -> Result<Self, ShellError> {
+    ) -> ShellResult<Self> {
         // promote to float range if any Value is float
         if matches!(start, Value::Float { .. })
             || matches!(next, Value::Float { .. })

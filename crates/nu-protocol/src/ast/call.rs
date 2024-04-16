@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ast::Expression, engine::StateWorkingSet, eval_const::eval_constant, DeclId, FromValue,
-    ShellError, Span, Spanned, Value,
+    ShellError, ShellResult, Span, Spanned, Value,
 };
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -225,7 +225,7 @@ impl Call {
         &self,
         working_set: &StateWorkingSet,
         flag_name: &str,
-    ) -> Result<bool, ShellError> {
+    ) -> ShellResult<bool> {
         for name in self.named_iter() {
             if flag_name == name.0.item {
                 return if let Some(expr) = &name.2 {
@@ -238,7 +238,8 @@ impl Call {
                             from_type: result.get_type().to_string(),
                             span: result.span(),
                             help: Some("".into()),
-                        }),
+                        }
+                        .into()),
                     }
                 } else {
                     Ok(true)
@@ -253,7 +254,7 @@ impl Call {
         &self,
         working_set: &StateWorkingSet,
         name: &str,
-    ) -> Result<Option<T>, ShellError> {
+    ) -> ShellResult<Option<T>> {
         if let Some(expr) = self.get_flag_expr(name) {
             let result = eval_constant(working_set, expr)?;
             FromValue::from_value(result).map(Some)
@@ -266,7 +267,7 @@ impl Call {
         &self,
         working_set: &StateWorkingSet,
         starting_pos: usize,
-    ) -> Result<Vec<T>, ShellError> {
+    ) -> ShellResult<Vec<T>> {
         let mut output = vec![];
 
         for result in
@@ -278,13 +279,9 @@ impl Call {
         Ok(output)
     }
 
-    pub fn rest_iter_flattened<F>(
-        &self,
-        start: usize,
-        mut eval: F,
-    ) -> Result<Vec<Value>, ShellError>
+    pub fn rest_iter_flattened<F>(&self, start: usize, mut eval: F) -> ShellResult<Vec<Value>>
     where
-        F: FnMut(&Expression) -> Result<Value, ShellError>,
+        F: FnMut(&Expression) -> ShellResult<Value>,
     {
         let mut output = Vec::new();
 
@@ -293,7 +290,7 @@ impl Call {
             if spread {
                 match result {
                     Value::List { mut vals, .. } => output.append(&mut vals),
-                    _ => return Err(ShellError::CannotSpreadAsList { span: expr.span }),
+                    _ => return Err(ShellError::CannotSpreadAsList { span: expr.span }.into()),
                 }
             } else {
                 output.push(result);
@@ -307,17 +304,18 @@ impl Call {
         &self,
         working_set: &StateWorkingSet,
         pos: usize,
-    ) -> Result<T, ShellError> {
+    ) -> ShellResult<T> {
         if let Some(expr) = self.positional_nth(pos) {
             let result = eval_constant(working_set, expr)?;
             FromValue::from_value(result)
         } else if self.positional_len() == 0 {
-            Err(ShellError::AccessEmptyContent { span: self.head })
+            Err(ShellError::AccessEmptyContent { span: self.head }.into())
         } else {
             Err(ShellError::AccessBeyondEnd {
                 max_idx: self.positional_len() - 1,
                 span: self.head,
-            })
+            }
+            .into())
         }
     }
 

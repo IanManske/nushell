@@ -1,7 +1,7 @@
 use crate::{
     ast::{Call, Expression},
     engine::{Command, EngineState, Stack},
-    PipelineData, ShellError, Signature,
+    PipelineData, ShellError, ShellResult, Signature,
 };
 
 #[derive(Clone)]
@@ -40,12 +40,13 @@ impl Command for Alias {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         Err(ShellError::NushellFailedSpanned {
             msg: "Can't run alias directly. Unwrap it first".to_string(),
             label: "originates from here".to_string(),
             span: call.head,
-        })
+        }
+        .into())
     }
 
     fn is_alias(&self) -> bool {

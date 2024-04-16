@@ -72,15 +72,15 @@ impl RawStream {
         }
     }
 
-    pub fn drain(self) -> Result<(), ShellError> {
+    pub fn drain(self) -> ShellResult<()> {
         for next in self {
             match next {
                 Ok(val) => {
                     if let Value::Error { error, .. } = val {
-                        return Err(*error);
+                        return Err(error);
                     }
                 }
-                Err(err) => return Err(err),
+                Err(err) => return Err(err.into()),
             }
         }
         Ok(())
@@ -194,10 +194,10 @@ impl ListStream {
             .join(separator)
     }
 
-    pub fn drain(self) -> Result<(), ShellError> {
+    pub fn drain(self) -> ShellResult<()> {
         for next in self {
             if let Value::Error { error, .. } = next {
-                return Err(*error);
+                return Err(error);
             }
         }
         Ok(())

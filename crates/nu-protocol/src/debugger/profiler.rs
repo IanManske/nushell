@@ -7,7 +7,7 @@ use crate::{
     ast::{Block, Expr, PipelineElement},
     debugger::Debugger,
     engine::EngineState,
-    record, PipelineData, ShellError, Span, Value,
+    record, PipelineData, ShellError, ShellResult, Span, Value,
 };
 use std::time::Instant;
 
@@ -158,7 +158,7 @@ impl Debugger for Profiler {
         &mut self,
         _engine_state: &EngineState,
         element: &PipelineElement,
-        result: &Result<(PipelineData, bool), ShellError>,
+        result: &ShellResult<(PipelineData, bool)>,
     ) {
         if self.depth > self.max_depth {
             return;
@@ -189,7 +189,7 @@ impl Debugger for Profiler {
         self.element_stack.pop();
     }
 
-    fn report(&self, engine_state: &EngineState, profiler_span: Span) -> Result<Value, ShellError> {
+    fn report(&self, engine_state: &EngineState, profiler_span: Span) -> ShellResult<Value> {
         Ok(Value::list(
             collect_data(
                 engine_state,
@@ -270,7 +270,7 @@ fn collect_data(
     element_id: ElementId,
     parent_id: ElementId,
     profiler_span: Span,
-) -> Result<Vec<Value>, ShellError> {
+) -> ShellResult<Vec<Value>> {
     let element = &profiler.elements[element_id.0];
 
     let mut row = record! {

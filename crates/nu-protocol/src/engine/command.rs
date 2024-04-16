@@ -1,4 +1,6 @@
-use crate::{ast::Call, Alias, BlockId, Example, OutDest, PipelineData, ShellError, Signature};
+use crate::{
+    ast::Call, Alias, BlockId, Example, OutDest, PipelineData, ShellError, ShellResult, Signature,
+};
 
 use super::{EngineState, Stack, StateWorkingSet};
 
@@ -30,7 +32,7 @@ pub trait Command: Send + Sync + CommandClone {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError>;
+    ) -> ShellResult<PipelineData>;
 
     /// Used by the parser to run command at parse time
     ///
@@ -41,8 +43,8 @@ pub trait Command: Send + Sync + CommandClone {
         working_set: &StateWorkingSet,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
-        Err(ShellError::MissingConstEvalImpl { span: call.head })
+    ) -> ShellResult<PipelineData> {
+        Err(ShellError::MissingConstEvalImpl { span: call.head }.into())
     }
 
     fn examples(&self) -> Vec<Example> {

@@ -3,7 +3,8 @@ use crate::{
     debugger::{DebugContext, WithoutDebug},
     engine::{EngineState, StateWorkingSet},
     eval_base::Eval,
-    record, Config, HistoryFileFormat, PipelineData, Record, ShellError, Span, Value, VarId,
+    record, Config, HistoryFileFormat, PipelineData, Record, ShellError, ShellResult, Span, Value,
+    VarId,
 };
 use nu_system::os_info::{get_kernel_version, get_os_arch, get_os_family, get_os_name};
 use std::{
@@ -11,7 +12,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub fn create_nu_constant(engine_state: &EngineState, span: Span) -> Result<Value, ShellError> {
+pub fn create_nu_constant(engine_state: &EngineState, span: Span) -> ShellResult<Value> {
     fn canonicalize_path(engine_state: &EngineState, path: &Path) -> PathBuf {
         let cwd = engine_state.current_work_dir();
 
@@ -205,17 +206,17 @@ fn eval_const_call(
     working_set: &StateWorkingSet,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let decl = working_set.get_decl(call.decl_id);
 
     if !decl.is_const() {
-        return Err(ShellError::NotAConstCommand { span: call.head });
+        return Err(ShellError::NotAConstCommand { span: call.head }.into());
     }
 
     if !decl.is_known_external() && call.named_iter().any(|(flag, _, _)| flag.item == "help") {
         // It would require re-implementing get_full_help() for const evaluation. Assuming that
         // getting help messages at parse-time is rare enough, we can simply disallow it.
-        return Err(ShellError::NotAConstHelp { span: call.head });
+        return Err(ShellError::NotAConstHelp { span: call.head }.into());
     }
 
     decl.run_const(working_set, call, input)
@@ -226,11 +227,11 @@ pub fn eval_const_subexpression(
     block: &Block,
     mut input: PipelineData,
     span: Span,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     for pipeline in block.pipelines.iter() {
         for element in pipeline.elements.iter() {
             if element.redirection.is_some() {
-                return Err(ShellError::NotAConstant { span });
+                return Err(ShellError::NotAConstant { span }.into());
             }
 
             input = eval_constant_with_input(working_set, &element.expr, input)?
@@ -244,7 +245,7 @@ pub fn eval_constant_with_input(
     working_set: &StateWorkingSet,
     expr: &Expression,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     match &expr.expr {
         Expr::Call(call) => eval_const_call(working_set, call, input),
         Expr::Subexpression(block_id) => {
@@ -256,10 +257,7 @@ pub fn eval_constant_with_input(
 }
 
 /// Evaluate a constant value at parse time
-pub fn eval_constant(
-    working_set: &StateWorkingSet,
-    expr: &Expression,
-) -> Result<Value, ShellError> {
+pub fn eval_constant(working_set: &StateWorkingSet, expr: &Expression) -> ShellResult<Value> {
     // TODO: Allow debugging const eval
     <EvalConst as Eval>::eval::<WithoutDebug>(working_set, &mut (), expr)
 }
@@ -281,7 +279,7 @@ impl Eval for EvalConst {
         path: String,
         _: bool,
         span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         Ok(Value::string(path, span))
     }
 
@@ -291,8 +289,8 @@ impl Eval for EvalConst {
         _: String,
         _: bool,
         span: Span,
-    ) -> Result<Value, ShellError> {
-        Err(ShellError::NotAConstant { span })
+    ) -> ShellResult<Value> {
+        Err(ShellError::NotAConstant { span }.into())
     }
 
     fn eval_var(
@@ -300,10 +298,10 @@ impl Eval for EvalConst {
         _: &mut (),
         var_id: VarId,
         span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         match working_set.get_variable(var_id).const_val.as_ref() {
             Some(val) => Ok(val.clone()),
-            None => Err(ShellError::NotAConstant { span }),
+            None => Err(ShellError::NotAConstant { span }.into()),
         }
     }
 
@@ -312,7 +310,7 @@ impl Eval for EvalConst {
         _: &mut (),
         call: &Call,
         span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         // TODO: Allow debugging const eval
         // TODO: eval.rs uses call.head for the span rather than expr.span
         Ok(eval_const_call(working_set, call, PipelineData::empty())?.into_value(span))
@@ -324,9 +322,9 @@ impl Eval for EvalConst {
         _: &Expression,
         _: &[ExternalArgument],
         span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         // TODO: It may be more helpful to give not_a_const_command error
-        Err(ShellError::NotAConstant { span })
+        Err(ShellError::NotAConstant { span }.into())
     }
 
     fn eval_subexpression<D: DebugContext>(
@@ -334,7 +332,7 @@ impl Eval for EvalConst {
         _: &mut (),
         block_id: usize,
         span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         // TODO: Allow debugging const eval
         let block = working_set.get_block(block_id);
         Ok(
@@ -350,8 +348,8 @@ impl Eval for EvalConst {
         _: &Value,
         _: bool,
         expr_span: Span,
-    ) -> Result<Value, ShellError> {
-        Err(ShellError::NotAConstant { span: expr_span })
+    ) -> ShellResult<Value> {
+        Err(ShellError::NotAConstant { span: expr_span }.into())
     }
 
     fn eval_assignment<D: DebugContext>(
@@ -362,9 +360,9 @@ impl Eval for EvalConst {
         _: Assignment,
         _op_span: Span,
         expr_span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         // TODO: Allow debugging const eval
-        Err(ShellError::NotAConstant { span: expr_span })
+        Err(ShellError::NotAConstant { span: expr_span }.into())
     }
 
     fn eval_row_condition_or_closure(
@@ -372,15 +370,15 @@ impl Eval for EvalConst {
         _: &mut (),
         _: usize,
         span: Span,
-    ) -> Result<Value, ShellError> {
-        Err(ShellError::NotAConstant { span })
+    ) -> ShellResult<Value> {
+        Err(ShellError::NotAConstant { span }.into())
     }
 
-    fn eval_overlay(_: &StateWorkingSet, span: Span) -> Result<Value, ShellError> {
-        Err(ShellError::NotAConstant { span })
+    fn eval_overlay(_: &StateWorkingSet, span: Span) -> ShellResult<Value> {
+        Err(ShellError::NotAConstant { span }.into())
     }
 
-    fn unreachable(expr: &Expression) -> Result<Value, ShellError> {
-        Err(ShellError::NotAConstant { span: expr.span })
+    fn unreachable(expr: &Expression) -> ShellResult<Value> {
+        Err(ShellError::NotAConstant { span: expr.span }.into())
     }
 }

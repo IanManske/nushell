@@ -1,4 +1,4 @@
-use crate::{ShellError, Span, Value};
+use crate::{ShellError, ShellResult, Span, Value};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -32,7 +32,7 @@ pub enum Unit {
 }
 
 impl Unit {
-    pub fn build_value(self, size: i64, span: Span) -> Result<Value, ShellError> {
+    pub fn build_value(self, size: i64, span: Span) -> ShellResult<Value> {
         match self {
             Unit::Byte => Ok(Value::filesize(size, span)),
             Unit::Kilobyte => Ok(Value::filesize(size * 1000, span)),
@@ -73,7 +73,8 @@ impl Unit {
                     span: Some(span),
                     help: None,
                     inner: vec![],
-                }),
+                }
+                .into()),
             },
             Unit::Hour => match size.checked_mul(1000 * 1000 * 1000 * 60 * 60) {
                 Some(val) => Ok(Value::duration(val, span)),
@@ -83,7 +84,8 @@ impl Unit {
                     span: Some(span),
                     help: None,
                     inner: vec![],
-                }),
+                }
+                .into()),
             },
             Unit::Day => match size.checked_mul(1000 * 1000 * 1000 * 60 * 60 * 24) {
                 Some(val) => Ok(Value::duration(val, span)),
@@ -93,7 +95,8 @@ impl Unit {
                     span: Some(span),
                     help: None,
                     inner: vec![],
-                }),
+                }
+                .into()),
             },
             Unit::Week => match size.checked_mul(1000 * 1000 * 1000 * 60 * 60 * 24 * 7) {
                 Some(val) => Ok(Value::duration(val, span)),
@@ -103,7 +106,8 @@ impl Unit {
                     span: Some(span),
                     help: None,
                     inner: vec![],
-                }),
+                }
+                .into()),
             },
         }
     }
