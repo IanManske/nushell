@@ -1,4 +1,4 @@
-use crate::ShellError;
+use crate::{ShellError, ShellResult};
 use std::io::{BufRead, BufReader, Read};
 
 pub struct BufferedReader<R: Read> {
@@ -12,7 +12,7 @@ impl<R: Read> BufferedReader<R> {
 }
 
 impl<R: Read> Iterator for BufferedReader<R> {
-    type Item = Result<Vec<u8>, ShellError>;
+    type Item = ShellResult<Vec<u8>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let buffer = self.input.fill_buf();
@@ -30,7 +30,7 @@ impl<R: Read> Iterator for BufferedReader<R> {
                     Some(Ok(result))
                 }
             }
-            Err(e) => Some(Err(ShellError::IOError { msg: e.to_string() })),
+            Err(e) => Some(Err(ShellError::IOError { msg: e.to_string() }.into())),
         }
     }
 }

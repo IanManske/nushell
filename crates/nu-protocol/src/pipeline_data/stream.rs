@@ -5,7 +5,7 @@ use std::{
 };
 
 pub struct RawStream {
-    pub stream: Box<dyn Iterator<Item = Result<Vec<u8>, ShellError>> + Send + 'static>,
+    pub stream: Box<dyn Iterator<Item = ShellResult<Vec<u8>>> + Send + 'static>,
     pub leftover: Vec<u8>,
     pub ctrlc: Option<Arc<AtomicBool>>,
     pub is_binary: bool,
@@ -15,7 +15,7 @@ pub struct RawStream {
 
 impl RawStream {
     pub fn new(
-        stream: Box<dyn Iterator<Item = Result<Vec<u8>, ShellError>> + Send + 'static>,
+        stream: Box<dyn Iterator<Item = ShellResult<Vec<u8>>> + Send + 'static>,
         ctrlc: Option<Arc<AtomicBool>>,
         span: Span,
         known_size: Option<u64>,
@@ -30,7 +30,7 @@ impl RawStream {
         }
     }
 
-    pub fn into_bytes(self) -> Result<Spanned<Vec<u8>>, ShellError> {
+    pub fn into_bytes(self) -> ShellResult<Spanned<Vec<u8>>> {
         let mut output = vec![];
 
         for item in self.stream {
@@ -46,7 +46,7 @@ impl RawStream {
         })
     }
 
-    pub fn into_string(self) -> Result<Spanned<String>, ShellError> {
+    pub fn into_string(self) -> ShellResult<Spanned<String>> {
         let mut output = String::new();
         let span = self.span;
         let ctrlc = &self.ctrlc.clone();
@@ -80,7 +80,7 @@ impl RawStream {
                         return Err(error);
                     }
                 }
-                Err(err) => return Err(err.into()),
+                Err(err) => return Err(err),
             }
         }
         Ok(())
@@ -92,7 +92,7 @@ impl Debug for RawStream {
     }
 }
 impl Iterator for RawStream {
-    type Item = Result<Value, ShellError>;
+    type Item = ShellResult<Value>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if nu_utils::ctrl_c::was_pressed(&self.ctrlc) {

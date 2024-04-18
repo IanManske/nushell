@@ -1180,7 +1180,7 @@ fn value_to_bytes(value: Value) -> ShellResult<Vec<u8>> {
 }
 
 struct ReadRawStream {
-    iter: Box<dyn Iterator<Item = Result<Vec<u8>, ShellError>>>,
+    iter: Box<dyn Iterator<Item = ShellResult<Vec<u8>>>>,
     cursor: Option<Cursor<Vec<u8>>>,
 }
 
