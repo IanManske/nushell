@@ -1,12 +1,11 @@
 use crate::util::get_guaranteed_cwd;
-use miette::Result;
 use nu_engine::{eval_block, eval_block_with_early_return};
 use nu_parser::parse;
 use nu_protocol::{
     cli_error::{report_error, report_error_new},
     debugger::WithoutDebug,
     engine::{EngineState, Stack, StateWorkingSet},
-    BlockId, PipelineData, PositionalArg, ShellError, Span, Type, Value, VarId,
+    BlockId, PipelineData, PositionalArg, ShellError, ShellResult, Span, Type, Value, VarId,
 };
 use std::sync::Arc;
 
@@ -14,7 +13,7 @@ pub fn eval_env_change_hook(
     env_change_hook: Option<Value>,
     engine_state: &mut EngineState,
     stack: &mut Stack,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     if let Some(hook) = env_change_hook {
         match hook {
             Value::Record { val, .. } => {
@@ -45,10 +44,10 @@ pub fn eval_env_change_hook(
                 }
             }
             x => {
-                return Err(ShellError::TypeMismatch {
+                Err(ShellError::TypeMismatch {
                     err_message: "record for the 'env_change' hook".to_string(),
                     span: x.span(),
-                });
+                })?;
             }
         }
     }
@@ -63,7 +62,7 @@ pub fn eval_hook(
     arguments: Vec<(String, Value)>,
     value: &Value,
     hook_name: &str,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let mut output = PipelineData::empty();
 
     let span = value.span();
@@ -93,11 +92,11 @@ pub fn eval_hook(
                 if let Some(err) = working_set.parse_errors.first() {
                     report_error(&working_set, err);
 
-                    return Err(ShellError::UnsupportedConfigValue {
+                    Err(ShellError::UnsupportedConfigValue {
                         expected: "valid source code".into(),
                         value: "source code with syntax errors".into(),
                         span,
-                    });
+                    })?;
                 }
 
                 (output, working_set.render(), vars)
@@ -171,7 +170,7 @@ pub fn eval_hook(
                                     expected: "boolean output".to_string(),
                                     value: "other PipelineData variant".to_string(),
                                     span: other_span,
-                                });
+                                })?;
                             }
                         }
                         Err(err) => {
@@ -183,7 +182,7 @@ pub fn eval_hook(
                         expected: "block".to_string(),
                         value: format!("{}", condition.get_type()),
                         span: other_span,
-                    });
+                    })?;
                 }
             } else {
                 // always run the hook
@@ -196,7 +195,7 @@ pub fn eval_hook(
                         col_name: "code".into(),
                         span,
                         src_span: span,
-                    });
+                    })?;
                 };
                 let source_span = follow.span();
                 match follow {
@@ -225,11 +224,11 @@ pub fn eval_hook(
                             if let Some(err) = working_set.parse_errors.first() {
                                 report_error(&working_set, err);
 
-                                return Err(ShellError::UnsupportedConfigValue {
+                                Err(ShellError::UnsupportedConfigValue {
                                     expected: "valid source code".into(),
                                     value: "source code with syntax errors".into(),
                                     span: source_span,
-                                });
+                                })?;
                             }
 
                             (output, working_set.render(), vars)
@@ -280,11 +279,11 @@ pub fn eval_hook(
                         )?;
                     }
                     other => {
-                        return Err(ShellError::UnsupportedConfigValue {
+                        Err(ShellError::UnsupportedConfigValue {
                             expected: "block or string".to_string(),
                             value: format!("{}", other.get_type()),
                             span: source_span,
-                        });
+                        })?;
                     }
                 }
             }
@@ -296,11 +295,11 @@ pub fn eval_hook(
             output = run_hook_block(engine_state, stack, val.block_id, input, arguments, span)?;
         }
         other => {
-            return Err(ShellError::UnsupportedConfigValue {
+            Err(ShellError::UnsupportedConfigValue {
                 expected: "string, block, record, or list of commands".into(),
                 value: format!("{}", other.get_type()),
                 span: other.span(),
-            });
+            })?;
         }
     }
 
@@ -317,7 +316,7 @@ fn run_hook_block(
     optional_input: Option<PipelineData>,
     arguments: Vec<(String, Value)>,
     span: Span,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let block = engine_state.get_block(block_id);
 
     let input = optional_input.unwrap_or_else(PipelineData::empty);
@@ -333,10 +332,10 @@ fn run_hook_block(
             if let Some(arg) = arguments.get(idx) {
                 callee_stack.add_var(*var_id, arg.1.clone())
             } else {
-                return Err(ShellError::IncompatibleParametersSingle {
+                Err(ShellError::IncompatibleParametersSingle {
                     msg: "This hook block has too many parameters".into(),
                     span,
-                });
+                })?;
             }
         }
     }
@@ -349,7 +348,7 @@ fn run_hook_block(
     )?;
 
     if let PipelineData::Value(Value::Error { error, .. }, _) = pipeline_data {
-        return Err(*error);
+        return Err(error);
     }
 
     // If all went fine, preserve the environment of the called block

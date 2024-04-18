@@ -1,6 +1,6 @@
 use nu_protocol::{
     engine::{EngineState, Stack, StateWorkingSet},
-    report_error, Range, ShellError, Span, Value,
+    report_error, Error, Range, ShellError, ShellResult, Span, Value,
 };
 use std::{ops::Bound, path::PathBuf};
 
@@ -20,7 +20,7 @@ pub fn get_guaranteed_cwd(engine_state: &EngineState, stack: &Stack) -> PathBuf 
     })
 }
 
-type MakeRangeError = fn(&str, Span) -> ShellError;
+type MakeRangeError = fn(&str, Span) -> Error;
 
 pub fn process_range(range: &Range) -> Result<(isize, isize), MakeRangeError> {
     match range {
@@ -33,9 +33,12 @@ pub fn process_range(range: &Range) -> Result<(isize, isize), MakeRangeError> {
             };
             Ok((start, end))
         }
-        Range::FloatRange(_) => Err(|msg, span| ShellError::TypeMismatch {
-            err_message: msg.to_string(),
-            span,
+        Range::FloatRange(_) => Err(|msg, span| {
+            ShellError::TypeMismatch {
+                err_message: msg.to_string(),
+                span,
+            }
+            .into()
         }),
     }
 }
@@ -43,17 +46,14 @@ pub fn process_range(range: &Range) -> Result<(isize, isize), MakeRangeError> {
 const HELP_MSG: &str = "Nushell's config file can be found with the command: $nu.config-path. \
 For more help: (https://nushell.sh/book/configuration.html#configurations-with-built-in-commands)";
 
-fn get_editor_commandline(
-    value: &Value,
-    var_name: &str,
-) -> Result<(String, Vec<String>), ShellError> {
+fn get_editor_commandline(value: &Value, var_name: &str) -> ShellResult<(String, Vec<String>)> {
     match value {
         Value::String { val, .. } if !val.is_empty() => Ok((val.to_string(), Vec::new())),
         Value::List { vals, .. } if !vals.is_empty() => {
             let mut editor_cmd = vals.iter().map(|l| l.coerce_string());
             match editor_cmd.next().transpose()? {
                 Some(editor) if !editor.is_empty() => {
-                    let params = editor_cmd.collect::<Result<_, ShellError>>()?;
+                    let params = editor_cmd.collect::<ShellResult<_>>()?;
                     Ok((editor, params))
                 }
                 _ => Err(ShellError::GenericError {
@@ -62,7 +62,7 @@ fn get_editor_commandline(
                     span: Some(value.span()),
                     help: Some(HELP_MSG.into()),
                     inner: vec![],
-                }),
+                })?,
             }
         }
         Value::String { .. } | Value::List { .. } => Err(ShellError::GenericError {
@@ -71,13 +71,13 @@ fn get_editor_commandline(
             span: Some(value.span()),
             help: Some(HELP_MSG.into()),
             inner: vec![],
-        }),
+        })?,
         x => Err(ShellError::CantConvert {
             to_type: "string or list<string>".into(),
             from_type: x.get_type().to_string(),
             span: value.span(),
             help: None,
-        }),
+        })?,
     }
 }
 
@@ -85,7 +85,7 @@ pub fn get_editor(
     engine_state: &EngineState,
     stack: &Stack,
     span: Span,
-) -> Result<(String, Vec<String>), ShellError> {
+) -> ShellResult<(String, Vec<String>)> {
     let config = engine_state.get_config();
     let env_vars = stack.get_env_vars(engine_state);
 
@@ -106,6 +106,6 @@ pub fn get_editor(
             span: Some(span),
             help: Some(HELP_MSG.into()),
             inner: vec![],
-        })
+        })?
     }
 }
