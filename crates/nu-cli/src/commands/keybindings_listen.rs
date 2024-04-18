@@ -2,7 +2,7 @@ use crossterm::{
     event::Event, event::KeyCode, event::KeyEvent, execute, terminal, QueueableCommand,
 };
 use nu_engine::command_prelude::*;
-use std::io::{stdout, Write};
+use std::io::{self, stdout, Write};
 
 #[derive(Clone)]
 pub struct KeybindingsListen;
@@ -31,22 +31,22 @@ impl Command for KeybindingsListen {
         &self,
         engine_state: &EngineState,
         _stack: &mut Stack,
-        _call: &Call,
+        call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         println!("Type any key combination to see key details. Press ESC to abort.");
 
         match print_events(engine_state) {
             Ok(v) => Ok(v.into_pipeline_data()),
             Err(e) => {
-                terminal::disable_raw_mode()?;
+                terminal::disable_raw_mode().map_err(|e| e.into_spanned(call.head))?;
                 Err(ShellError::GenericError {
                     error: "Error with input".into(),
                     msg: "".into(),
                     span: None,
                     help: Some(e.to_string()),
                     inner: vec![],
-                })
+                })?
             }
         }
     }
@@ -60,7 +60,7 @@ impl Command for KeybindingsListen {
     }
 }
 
-pub fn print_events(engine_state: &EngineState) -> Result<Value, ShellError> {
+pub fn print_events(engine_state: &EngineState) -> io::Result<Value> {
     let config = engine_state.get_config();
 
     stdout().flush()?;
@@ -135,7 +135,7 @@ pub fn print_events(engine_state: &EngineState) -> Result<Value, ShellError> {
 // even seeing the events. if you press a key and no events
 // are printed, it's a good chance your terminal is eating
 // those events.
-fn print_events_helper(event: Event) -> Result<Value, ShellError> {
+fn print_events_helper(event: Event) -> io::Result<Value> {
     if let Event::Key(KeyEvent {
         code,
         modifiers,

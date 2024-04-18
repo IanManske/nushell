@@ -32,7 +32,7 @@ impl Command for HistorySession {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         Ok(Value::int(engine_state.history_session_id, call.head).into_pipeline_data())
     }
 }

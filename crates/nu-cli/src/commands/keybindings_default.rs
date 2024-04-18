@@ -33,7 +33,7 @@ impl Command for KeybindingsDefault {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let records = get_reedline_default_keybindings()
             .into_iter()
             .map(|(mode, modifier, code, event)| {

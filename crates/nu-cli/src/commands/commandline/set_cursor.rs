@@ -36,7 +36,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let mut repl = engine_state.repl_state.lock().expect("repl state mutex");
         if let Some(pos) = call.opt::<i64>(engine_state, stack, 0)? {
             repl.cursor_pos = if pos <= 0 {
@@ -59,7 +59,7 @@ impl Command for SubCommand {
                 span: None,
                 help: None,
                 inner: vec![],
-            })
+            })?
         }
     }
 }

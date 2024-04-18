@@ -46,7 +46,7 @@ Since this command has no output, there is no point in piping it with other comm
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let args: Vec<Value> = call.rest(engine_state, stack, 0)?;
         let no_newline = call.has_flag(engine_state, stack, "no-newline")?;
         let to_stderr = call.has_flag(engine_state, stack, "stderr")?;

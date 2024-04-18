@@ -36,7 +36,7 @@ impl Command for History {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
 
         let Some(history) = engine_state.history_config() else {
@@ -126,7 +126,7 @@ impl Command for History {
                 }
             }
         } else {
-            Err(ShellError::ConfigDirNotFound { span: Some(head) })
+            Err(ShellError::ConfigDirNotFound { span: Some(head) })?
         }
     }
 

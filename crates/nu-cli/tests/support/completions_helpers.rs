@@ -4,7 +4,7 @@ use nu_protocol::{
     debugger::WithoutDebug,
     engine::{EngineState, Stack, StateWorkingSet},
     eval_const::create_nu_constant,
-    PipelineData, ShellError, Span, Value, NU_VARIABLE_ID,
+    PipelineData, ShellResult, Span, Value, NU_VARIABLE_ID,
 };
 use nu_test_support::fs;
 use reedline::Suggestion;
@@ -182,7 +182,7 @@ pub fn merge_input(
     engine_state: &mut EngineState,
     stack: &mut Stack,
     dir: PathBuf,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     let (block, delta) = {
         let mut working_set = StateWorkingSet::new(engine_state);
 

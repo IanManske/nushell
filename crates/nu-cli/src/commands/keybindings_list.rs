@@ -53,7 +53,7 @@ impl Command for KeybindingsList {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let records = if call.named_len() == 0 {
             let all_options = ["modifiers", "keycodes", "edits", "modes", "events"];
             all_options

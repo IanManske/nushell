@@ -30,7 +30,7 @@ impl Command for SubCommand {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let repl = engine_state.repl_state.lock().expect("repl state mutex");
         let char_pos = repl
             .buffer
@@ -46,7 +46,7 @@ impl Command for SubCommand {
                 span: None,
                 help: None,
                 inner: vec![],
-            }),
+            })?,
         }
     }
 }

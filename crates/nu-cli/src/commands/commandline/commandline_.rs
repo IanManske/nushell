@@ -62,7 +62,7 @@ impl Command for Commandline {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         if let Some(cmd) = call.opt::<Value>(engine_state, stack, 0)? {
             let span = cmd.span();
             let cmd = cmd.coerce_into_string()?;
@@ -98,7 +98,7 @@ impl Command for Commandline {
                             from_type: "string".to_string(),
                             span,
                             help: Some(format!(r#"string "{cmd}" does not represent a valid int"#)),
-                        })
+                        })?
                     }
                 }
             } else if call.has_flag(engine_state, stack, "append")? {

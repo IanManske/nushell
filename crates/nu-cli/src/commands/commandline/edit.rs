@@ -48,7 +48,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let str: String = call.req(engine_state, stack, 0)?;
         let mut repl = engine_state.repl_state.lock().expect("repl state mutex");
         if call.has_flag(engine_state, stack, "append")? {

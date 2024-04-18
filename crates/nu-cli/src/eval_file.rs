@@ -131,19 +131,19 @@ pub fn evaluate_file(
 
         let pipeline_data =
             eval_block::<WithoutDebug>(engine_state, stack, &block, PipelineData::empty());
-        let pipeline_data = match pipeline_data {
-            Err(ShellError::Return { .. }) => {
-                // allows early exists before `main` is run.
-                return Ok(());
-            }
 
-            x => x,
-        }
-        .unwrap_or_else(|e| {
-            let working_set = StateWorkingSet::new(engine_state);
-            report_error(&working_set, &e);
-            std::process::exit(1);
-        });
+        let pipeline_data = match pipeline_data {
+            Ok(data) => data,
+            Err(err) => {
+                return if let ShellError::Return { .. } = *err {
+                    Ok(())
+                } else {
+                    let working_set = StateWorkingSet::new(engine_state);
+                    report_error(&working_set, &err);
+                    std::process::exit(1)
+                }
+            }
+        };
 
         let result = pipeline_data.print(engine_state, stack, true, false);
 

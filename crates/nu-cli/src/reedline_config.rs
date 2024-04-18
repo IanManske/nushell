@@ -9,7 +9,7 @@ use nu_protocol::{
     debugger::WithoutDebug,
     engine::{EngineState, Stack, StateWorkingSet},
     extract_value, Config, EditBindings, ParsedKeybinding, ParsedMenu, PipelineData, Record,
-    ShellError, Span, Value,
+    ShellError, ShellResult, Span, Value,
 };
 use reedline::{
     default_emacs_keybindings, default_vi_insert_keybindings, default_vi_normal_keybindings,
@@ -78,7 +78,7 @@ pub(crate) fn add_menus(
     engine_state: Arc<EngineState>,
     stack: &Stack,
     config: &Config,
-) -> Result<Reedline, ShellError> {
+) -> ShellResult<Reedline> {
     trace!("add_menus: config: {:#?}", &config);
     line_editor = line_editor.clear_menus();
 
@@ -133,7 +133,7 @@ fn add_menu(
     engine_state: Arc<EngineState>,
     stack: &Stack,
     config: &Config,
-) -> Result<Reedline, ShellError> {
+) -> ShellResult<Reedline> {
     let span = menu.menu_type.span();
     if let Value::Record { val, .. } = &menu.menu_type {
         let layout = extract_value("layout", val, span)?.to_expanded_string("", config);
@@ -147,14 +147,14 @@ fn add_menu(
                 expected: "columnar, list, ide or description".to_string(),
                 value: menu.menu_type.to_abbreviated_string(config),
                 span: menu.menu_type.span(),
-            }),
+            })?,
         }
     } else {
         Err(ShellError::UnsupportedConfigValue {
             expected: "only record type".to_string(),
             value: menu.menu_type.to_abbreviated_string(config),
             span: menu.menu_type.span(),
-        })
+        })?
     }
 }
 
@@ -182,7 +182,7 @@ pub(crate) fn add_columnar_menu(
     engine_state: Arc<EngineState>,
     stack: &Stack,
     config: &Config,
-) -> Result<Reedline, ShellError> {
+) -> ShellResult<Reedline> {
     let span = menu.menu_type.span();
     let name = menu.name.to_expanded_string("", config);
     let mut columnar_menu = ColumnarMenu::default().with_name(&name);
@@ -285,7 +285,7 @@ pub(crate) fn add_columnar_menu(
             expected: "block or omitted value".to_string(),
             value: menu.source.to_abbreviated_string(config),
             span,
-        }),
+        })?,
     }
 }
 
@@ -296,7 +296,7 @@ pub(crate) fn add_list_menu(
     engine_state: Arc<EngineState>,
     stack: &Stack,
     config: &Config,
-) -> Result<Reedline, ShellError> {
+) -> ShellResult<Reedline> {
     let name = menu.name.to_expanded_string("", config);
     let mut list_menu = ListMenu::default().with_name(&name);
 
@@ -367,7 +367,7 @@ pub(crate) fn add_list_menu(
             expected: "block or omitted value".to_string(),
             value: menu.source.to_abbreviated_string(config),
             span: menu.source.span(),
-        }),
+        })?,
     }
 }
 
@@ -378,7 +378,7 @@ pub(crate) fn add_ide_menu(
     engine_state: Arc<EngineState>,
     stack: &Stack,
     config: &Config,
-) -> Result<Reedline, ShellError> {
+) -> ShellResult<Reedline> {
     let span = menu.menu_type.span();
     let name = menu.name.to_expanded_string("", config);
     let mut ide_menu = IdeMenu::default().with_name(&name);
@@ -447,7 +447,7 @@ pub(crate) fn add_ide_menu(
                         expected: "bool or record".to_string(),
                         value: border.to_abbreviated_string(config),
                         span: border.span(),
-                    });
+                    })?;
                 }
             }
             Err(_) => ide_menu.with_default_border(),
@@ -471,7 +471,7 @@ pub(crate) fn add_ide_menu(
                         expected: "\"left\", \"right\" or \"prefer_right\"".to_string(),
                         value: description_mode.to_abbreviated_string(config),
                         span: description_mode.span(),
-                    });
+                    })?;
                 }
             },
             Err(_) => ide_menu,
@@ -590,7 +590,7 @@ pub(crate) fn add_ide_menu(
             expected: "block or omitted value".to_string(),
             value: menu.source.to_abbreviated_string(config),
             span,
-        }),
+        })?,
     }
 }
 
@@ -601,7 +601,7 @@ pub(crate) fn add_description_menu(
     engine_state: Arc<EngineState>,
     stack: &Stack,
     config: &Config,
-) -> Result<Reedline, ShellError> {
+) -> ShellResult<Reedline> {
     let name = menu.name.to_expanded_string("", config);
     let mut description_menu = DescriptionMenu::default().with_name(&name);
 
@@ -708,7 +708,7 @@ pub(crate) fn add_description_menu(
             expected: "closure or omitted value".to_string(),
             value: menu.source.to_abbreviated_string(config),
             span: menu.source.span(),
-        }),
+        })?,
     }
 }
 
@@ -773,7 +773,7 @@ pub enum KeybindingsMode {
     },
 }
 
-pub(crate) fn create_keybindings(config: &Config) -> Result<KeybindingsMode, ShellError> {
+pub(crate) fn create_keybindings(config: &Config) -> ShellResult<KeybindingsMode> {
     let parsed_keybindings = &config.keybindings;
 
     let mut emacs_keybindings = default_emacs_keybindings();
@@ -816,7 +816,7 @@ fn add_keybinding(
     emacs_keybindings: &mut Keybindings,
     insert_keybindings: &mut Keybindings,
     normal_keybindings: &mut Keybindings,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     let span = mode.span();
     match &mode {
         Value::String { val, .. } => match val.as_str() {
@@ -827,7 +827,7 @@ fn add_keybinding(
                 expected: "emacs, vi_insert or vi_normal".to_string(),
                 value: m.to_string(),
                 span,
-            }),
+            })?,
         },
         Value::List { vals, .. } => {
             for inner_mode in vals {
@@ -847,7 +847,7 @@ fn add_keybinding(
             expected: "string or list of strings".to_string(),
             value: v.to_abbreviated_string(config),
             span: v.span(),
-        }),
+        })?,
     }
 }
 
@@ -855,7 +855,7 @@ fn add_parsed_keybinding(
     keybindings: &mut Keybindings,
     keybinding: &ParsedKeybinding,
     config: &Config,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     let modifier = match keybinding
         .modifier
         .to_expanded_string("", config)
@@ -877,7 +877,7 @@ fn add_parsed_keybinding(
                 expected: "CONTROL, SHIFT, ALT or NONE".to_string(),
                 value: keybinding.modifier.to_abbreviated_string(config),
                 span: keybinding.modifier.span(),
-            })
+            })?
         }
     };
 
@@ -901,7 +901,7 @@ fn add_parsed_keybinding(
                     expected: "char_<CHAR: unicode codepoint>".to_string(),
                     value: c.to_string(),
                     span: keybinding.keycode.span(),
-                });
+                })?;
             };
 
             KeyCode::Char(char)
@@ -938,7 +938,7 @@ fn add_parsed_keybinding(
                 expected: "crossterm KeyCode".to_string(),
                 value: keybinding.keycode.to_abbreviated_string(config),
                 span: keybinding.keycode.span(),
-            })
+            })?
         }
     };
     if let Some(event) = parse_event(&keybinding.event, config)? {
@@ -957,19 +957,22 @@ enum EventType<'config> {
 }
 
 impl<'config> EventType<'config> {
-    fn try_from_record(record: &'config Record, span: Span) -> Result<Self, ShellError> {
+    fn try_from_record(record: &'config Record, span: Span) -> ShellResult<Self> {
         extract_value("send", record, span)
             .map(Self::Send)
             .or_else(|_| extract_value("edit", record, span).map(Self::Edit))
             .or_else(|_| extract_value("until", record, span).map(Self::Until))
-            .map_err(|_| ShellError::MissingConfigValue {
-                missing_value: "send, edit or until".to_string(),
-                span,
+            .map_err(|_| {
+                ShellError::MissingConfigValue {
+                    missing_value: "send, edit or until".to_string(),
+                    span,
+                }
+                .into()
             })
     }
 }
 
-fn parse_event(value: &Value, config: &Config) -> Result<Option<ReedlineEvent>, ShellError> {
+fn parse_event(value: &Value, config: &Config) -> ShellResult<Option<ReedlineEvent>> {
     let span = value.span();
     match value {
         Value::Record { val: record, .. } => match EventType::try_from_record(record, span)? {
@@ -1005,12 +1008,12 @@ fn parse_event(value: &Value, config: &Config) -> Result<Option<ReedlineEvent>, 
                                     expected: "List containing valid events".to_string(),
                                     value: "Nothing value (null)".to_string(),
                                     span: value.span(),
-                                }),
+                                })?,
                                 Some(event) => Ok(event),
                             },
                             Err(e) => Err(e),
                         })
-                        .collect::<Result<Vec<ReedlineEvent>, ShellError>>()?;
+                        .collect::<ShellResult<_>>()?;
 
                     Ok(Some(ReedlineEvent::UntilFound(events)))
                 }
@@ -1018,7 +1021,7 @@ fn parse_event(value: &Value, config: &Config) -> Result<Option<ReedlineEvent>, 
                     expected: "list of events".to_string(),
                     value: v.to_abbreviated_string(config),
                     span: v.span(),
-                }),
+                })?,
             },
         },
         Value::List { vals, .. } => {
@@ -1030,12 +1033,12 @@ fn parse_event(value: &Value, config: &Config) -> Result<Option<ReedlineEvent>, 
                             expected: "List containing valid events".to_string(),
                             value: "Nothing value (null)".to_string(),
                             span: value.span(),
-                        }),
+                        })?,
                         Some(event) => Ok(event),
                     },
                     Err(e) => Err(e),
                 })
-                .collect::<Result<Vec<ReedlineEvent>, ShellError>>()?;
+                .collect::<ShellResult<_>>()?;
 
             Ok(Some(ReedlineEvent::Multiple(events)))
         }
@@ -1044,7 +1047,7 @@ fn parse_event(value: &Value, config: &Config) -> Result<Option<ReedlineEvent>, 
             expected: "record or list of records, null to unbind key".to_string(),
             value: v.to_abbreviated_string(config),
             span: v.span(),
-        }),
+        })?,
     }
 }
 
@@ -1053,7 +1056,7 @@ fn event_from_record(
     record: &Record,
     config: &Config,
     span: Span,
-) -> Result<ReedlineEvent, ShellError> {
+) -> ShellResult<ReedlineEvent> {
     let event = match name {
         "none" => ReedlineEvent::None,
         "clearscreen" => ReedlineEvent::ClearScreen,
@@ -1096,7 +1099,7 @@ fn event_from_record(
                 expected: "Reedline event".to_string(),
                 value: v.to_string(),
                 span,
-            })
+            })?
         }
     };
 
@@ -1108,7 +1111,7 @@ fn edit_from_record(
     record: &Record,
     config: &Config,
     span: Span,
-) -> Result<EditCommand, ShellError> {
+) -> ShellResult<EditCommand> {
     let edit = match name {
         "movetostart" => EditCommand::MoveToStart {
             select: extract_value("select", record, span)
@@ -1292,22 +1295,25 @@ fn edit_from_record(
                 expected: "reedline EditCommand".to_string(),
                 value: e.to_string(),
                 span,
-            })
+            })?
         }
     };
 
     Ok(edit)
 }
 
-fn extract_char(value: &Value, config: &Config) -> Result<char, ShellError> {
+fn extract_char(value: &Value, config: &Config) -> ShellResult<char> {
     let span = value.span();
     value
         .to_expanded_string("", config)
         .chars()
         .next()
-        .ok_or_else(|| ShellError::MissingConfigValue {
-            missing_value: "char to insert".to_string(),
-            span,
+        .ok_or_else(|| {
+            ShellError::MissingConfigValue {
+                missing_value: "char to insert".to_string(),
+                span,
+            }
+            .into()
         })
 }
 
@@ -1436,7 +1442,7 @@ mod test {
         };
 
         let span = Span::test_data();
-        let b = EventType::try_from_record(&event, span);
+        let b = EventType::try_from_record(&event, span).map_err(Into::into);
         assert!(matches!(b, Err(ShellError::MissingConfigValue { .. })));
     }
 
