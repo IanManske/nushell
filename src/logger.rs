@@ -1,5 +1,5 @@
 use log::{Level, LevelFilter, SetLoggerError};
-use nu_protocol::ShellError;
+use nu_protocol::ShellResult;
 use simplelog::{
     format_description, Color, ColorChoice, Config, ConfigBuilder, LevelPadding, TermLogger,
     TerminalMode, WriteLogger,
@@ -25,9 +25,7 @@ impl From<&str> for LogTarget {
     }
 }
 
-pub fn logger(
-    f: impl FnOnce(&mut ConfigBuilder) -> (LevelFilter, LogTarget),
-) -> Result<(), ShellError> {
+pub fn logger(f: impl FnOnce(&mut ConfigBuilder) -> (LevelFilter, LogTarget)) -> ShellResult<()> {
     let mut builder = ConfigBuilder::new();
     let (level, target) = f(&mut builder);
 

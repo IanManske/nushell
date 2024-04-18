@@ -57,7 +57,7 @@ pub(crate) fn gather_commandline_args() -> (Vec<String>, String, Vec<String>) {
 pub(crate) fn parse_commandline_args(
     commandline_args: &str,
     engine_state: &mut EngineState,
-) -> Result<NushellCliArgs, ShellError> {
+) -> ShellResult<NushellCliArgs> {
     let (block, delta) = {
         let mut working_set = StateWorkingSet::new(engine_state);
         working_set.add_decl(Box::new(Nu));
@@ -112,7 +112,7 @@ pub(crate) fn parse_commandline_args(
 
             fn extract_contents(
                 expression: Option<&Expression>,
-            ) -> Result<Option<Spanned<String>>, ShellError> {
+            ) -> ShellResult<Option<Spanned<String>>> {
                 if let Some(expr) = expression {
                     let str = expr.as_string();
                     if let Some(str) = str {
@@ -124,7 +124,7 @@ pub(crate) fn parse_commandline_args(
                         Err(ShellError::TypeMismatch {
                             err_message: "string".into(),
                             span: expr.span,
-                        })
+                        })?
                     }
                 } else {
                     Ok(None)
@@ -394,7 +394,7 @@ impl Command for Nu {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         Ok(Value::string(
             get_full_help(&Nu.signature(), &Nu.examples(), engine_state, stack, true),
             call.head,
