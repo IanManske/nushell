@@ -33,7 +33,7 @@ impl Command for Ignore {
         _stack: &mut Stack,
         _call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         input.drain()?;
         Ok(PipelineData::empty())
     }
@@ -43,7 +43,7 @@ impl Command for Ignore {
         _working_set: &StateWorkingSet,
         _call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         input.drain()?;
         Ok(PipelineData::empty())
     }

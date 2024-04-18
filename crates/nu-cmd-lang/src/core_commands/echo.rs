@@ -33,7 +33,7 @@ little reason to use this over just writing the values as-is."#
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let mut args = call.rest(engine_state, stack, 0)?;
         let value = match args.len() {
             0 => Value::string("", call.head),

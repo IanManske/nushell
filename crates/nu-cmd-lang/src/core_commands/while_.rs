@@ -36,7 +36,7 @@ impl Command for While {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let cond = call.positional_nth(0).expect("checked through parser");
         let block: Block = call.req(engine_state, stack, 1)?;
 
@@ -58,15 +58,17 @@ impl Command for While {
                         let block = engine_state.get_block(block.block_id);
 
                         match eval_block(engine_state, stack, block, PipelineData::empty()) {
-                            Err(ShellError::Break { .. }) => {
-                                break;
-                            }
-                            Err(ShellError::Continue { .. }) => {
-                                continue;
-                            }
-                            Err(err) => {
-                                return Err(err);
-                            }
+                            Err(err) => match *err {
+                                ShellError::Break { .. } => {
+                                    break;
+                                }
+                                ShellError::Continue { .. } => {
+                                    continue;
+                                }
+                                _ => {
+                                    return Err(err);
+                                }
+                            },
                             Ok(pipeline) => {
                                 let exit_code = pipeline.drain_with_exit_code()?;
                                 if exit_code != 0 {
@@ -88,7 +90,7 @@ impl Command for While {
                         from_type: x.get_type().to_string(),
                         span: result.span(),
                         help: None,
-                    })
+                    })?
                 }
             }
         }

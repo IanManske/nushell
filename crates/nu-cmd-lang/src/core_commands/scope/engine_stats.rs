@@ -25,7 +25,7 @@ impl Command for ScopeEngineStats {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
 
         let scope_data = ScopeData::new(engine_state, stack);

@@ -53,7 +53,7 @@ impl Command for LazyMake {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
         let columns: Vec<Spanned<String>> = call
             .get_flag(engine_state, stack, "columns")?
@@ -72,7 +72,7 @@ impl Command for LazyMake {
                         col_name: col.item.clone(),
                         second_use: col.span,
                         first_use: *entry.get(),
-                    });
+                    })?;
                 }
                 Entry::Vacant(entry) => {
                     entry.insert(col.span);
@@ -132,7 +132,7 @@ impl<'a> LazyRecord<'a> for NuLazyRecord {
         self.columns.iter().map(|column| column.as_str()).collect()
     }
 
-    fn get_column_value(&self, column: &str) -> Result<Value, ShellError> {
+    fn get_column_value(&self, column: &str) -> ShellResult<Value> {
         let block = self.engine_state.get_block(self.get_value.block_id);
         let mut stack = self.stack.lock().expect("lock must not be poisoned");
         let column_value = Value::string(column, self.span);

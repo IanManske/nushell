@@ -41,7 +41,7 @@ This command is a parser keyword. For details, check:
         _stack: &mut Stack,
         _call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         Ok(PipelineData::empty())
     }
 

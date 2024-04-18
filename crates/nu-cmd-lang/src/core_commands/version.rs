@@ -33,7 +33,7 @@ impl Command for Version {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         version(engine_state, call)
     }
 
@@ -42,7 +42,7 @@ impl Command for Version {
         working_set: &StateWorkingSet,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         version(working_set.permanent(), call)
     }
 
@@ -55,7 +55,7 @@ impl Command for Version {
     }
 }
 
-pub fn version(engine_state: &EngineState, call: &Call) -> Result<PipelineData, ShellError> {
+pub fn version(engine_state: &EngineState, call: &Call) -> ShellResult<PipelineData> {
     // Pre-allocate the arrays in the worst case (12 items):
     // - version
     // - branch

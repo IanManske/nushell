@@ -50,7 +50,7 @@ This command is a parser keyword. For details, check:
         caller_stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let Some(Expression {
             expr: Expr::ImportPattern(import_pattern),
             ..
@@ -62,7 +62,7 @@ This command is a parser keyword. For details, check:
                 span: Some(call.head),
                 help: None,
                 inner: vec![],
-            });
+            })?;
         };
 
         if let Some(module_id) = import_pattern.head.id {
@@ -77,7 +77,7 @@ This command is a parser keyword. For details, check:
                         msg: "Missing Constant".to_string(),
                         label: "constant not added by the parser".to_string(),
                         span: var.declaration_span,
-                    });
+                    })?;
                 }
             }
 
@@ -135,7 +135,7 @@ This command is a parser keyword. For details, check:
                 span: Some(import_pattern.head.span),
                 help: None,
                 inner: vec![],
-            });
+            })?;
         }
 
         Ok(PipelineData::empty())

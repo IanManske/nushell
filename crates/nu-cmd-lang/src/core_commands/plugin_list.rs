@@ -61,7 +61,7 @@ impl Command for PluginList {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.span();
         // Group plugin decls by plugin identity
         let decls = engine_state.plugin_decls().into_group_map_by(|decl| {

@@ -44,7 +44,7 @@ impl Command for PluginStop {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let name: Spanned<String> = call.req(engine_state, stack, 0)?;
 
         let mut found = false;
@@ -64,7 +64,7 @@ impl Command for PluginStop {
                 span: Some(name.span),
                 help: Some("you may need to `register` the plugin first".into()),
                 inner: vec![],
-            })
+            })?
         }
     }
 }

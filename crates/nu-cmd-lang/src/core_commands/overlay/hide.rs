@@ -45,7 +45,7 @@ impl Command for OverlayHide {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let overlay_name: Spanned<String> = if let Some(name) = call.opt(engine_state, stack, 0)? {
             name
         } else {
@@ -59,7 +59,7 @@ impl Command for OverlayHide {
             return Err(ShellError::OverlayNotFoundAtRuntime {
                 overlay_name: overlay_name.item,
                 span: overlay_name.span,
-            });
+            })?;
         }
 
         let keep_env: Option<Vec<Spanned<String>>> =
@@ -75,7 +75,7 @@ impl Command for OverlayHide {
                         return Err(ShellError::EnvVarNotFoundAtRuntime {
                             envvar_name: name.item,
                             span: name.span,
-                        })
+                        })?
                     }
                 }
             }

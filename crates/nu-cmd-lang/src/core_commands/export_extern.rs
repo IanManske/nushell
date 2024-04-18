@@ -35,7 +35,7 @@ impl Command for ExportExtern {
         _stack: &mut Stack,
         _call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         Ok(PipelineData::empty())
     }
 

@@ -24,8 +24,8 @@ impl Command for Break {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
-        Err(ShellError::Break { span: call.head })
+    ) -> ShellResult<PipelineData> {
+        Err(ShellError::Break { span: call.head })?
     }
 
     fn examples(&self) -> Vec<Example> {

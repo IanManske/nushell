@@ -39,7 +39,7 @@ impl Command for ErrorMake {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let arg: Value = call.req(engine_state, stack, 0)?;
 
         let throw_span = if call.has_flag(engine_state, stack, "unspanned")? {
@@ -48,7 +48,7 @@ impl Command for ErrorMake {
             Some(call.head)
         };
 
-        Err(make_other_error(&arg, throw_span))
+        Err(make_other_error(&arg, throw_span))?
     }
 
     fn examples(&self) -> Vec<Example> {

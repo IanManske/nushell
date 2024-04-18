@@ -27,7 +27,7 @@ impl Command for Loop {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let block: Block = call.req(engine_state, stack, 0)?;
         let eval_block = get_eval_block(engine_state);
 
@@ -41,15 +41,17 @@ impl Command for Loop {
             let block = engine_state.get_block(block.block_id);
 
             match eval_block(engine_state, stack, block, PipelineData::empty()) {
-                Err(ShellError::Break { .. }) => {
-                    break;
-                }
-                Err(ShellError::Continue { .. }) => {
-                    continue;
-                }
-                Err(err) => {
-                    return Err(err);
-                }
+                Err(err) => match *err {
+                    ShellError::Break { .. } => {
+                        break;
+                    }
+                    ShellError::Continue { .. } => {
+                        continue;
+                    }
+                    _ => {
+                        return Err(err);
+                    }
+                },
                 Ok(pipeline) => {
                     let exit_code = pipeline.drain_with_exit_code()?;
                     if exit_code != 0 {

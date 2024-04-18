@@ -33,7 +33,7 @@ impl Command for ExportCommand {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         Ok(Value::string(
             get_full_help(
                 &ExportCommand.signature(),

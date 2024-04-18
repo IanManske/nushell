@@ -38,18 +38,18 @@ impl Command for Return {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let return_value: Option<Value> = call.opt(engine_state, stack, 0)?;
         if let Some(value) = return_value {
             Err(ShellError::Return {
                 span: call.head,
                 value: Box::new(value),
-            })
+            })?
         } else {
             Err(ShellError::Return {
                 span: call.head,
                 value: Box::new(Value::nothing(call.head)),
-            })
+            })?
         }
     }
 

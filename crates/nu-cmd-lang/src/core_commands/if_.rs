@@ -50,7 +50,7 @@ impl Command for If {
         working_set: &StateWorkingSet,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let cond = call.positional_nth(0).expect("checked through parser");
         let then_block: Block = call.req_const(working_set, 1)?;
         let else_case = call.positional_nth(2);
@@ -91,7 +91,7 @@ impl Command for If {
                 from_type: x.get_type().to_string(),
                 span: result.span(),
                 help: None,
-            }),
+            })?,
         }
     }
 
@@ -101,7 +101,7 @@ impl Command for If {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let cond = call.positional_nth(0).expect("checked through parser");
         let then_block: Block = call.req(engine_state, stack, 1)?;
         let else_case = call.positional_nth(2);
@@ -137,7 +137,7 @@ impl Command for If {
                 from_type: x.get_type().to_string(),
                 span: result.span(),
                 help: None,
-            }),
+            })?,
         }
     }
 

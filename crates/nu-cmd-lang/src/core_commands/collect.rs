@@ -35,7 +35,7 @@ impl Command for Collect {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let capture_block: Closure = call.req(engine_state, stack, 0)?;
 
         let block = engine_state.get_block(capture_block.block_id).clone();

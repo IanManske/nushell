@@ -28,7 +28,7 @@ impl Command for OverlayList {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let active_overlays_engine: Vec<Value> = stack
             .active_overlays
             .iter()

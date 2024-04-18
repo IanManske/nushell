@@ -60,7 +60,7 @@ impl Command for OverlayUse {
         caller_stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let mut name_arg: Spanned<String> = call.req(engine_state, caller_stack, 0)?;
         name_arg.item = trim_quotes_str(&name_arg.item).to_string();
 
@@ -73,14 +73,14 @@ impl Command for OverlayUse {
                         msg: "Not an overlay".to_string(),
                         label: "requires an overlay (path or a string)".to_string(),
                         span: overlay_expr.span,
-                    });
+                    })?;
                 }
             } else {
                 return Err(ShellError::NushellFailedSpanned {
                     msg: "Missing positional".to_string(),
                     label: "missing required overlay".to_string(),
                     span: call.head,
-                });
+                })?;
             };
 
         let overlay_name = if let Some(name) = call.opt(engine_state, caller_stack, 1)? {
@@ -96,13 +96,13 @@ impl Command for OverlayUse {
             } else {
                 return Err(ShellError::NonUtf8 {
                     span: name_arg.span,
-                });
+                })?;
             }
         } else {
             return Err(ShellError::OverlayNotFoundAtRuntime {
                 overlay_name: name_arg.item,
                 span: name_arg.span,
-            });
+            })?;
         };
 
         if let Some(module_id) = maybe_origin_module_id {

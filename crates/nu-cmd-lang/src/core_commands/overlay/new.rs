@@ -43,7 +43,7 @@ This command is a parser keyword. For details, check:
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let name_arg: Spanned<String> = call.req(engine_state, stack, 0)?;
 
         stack.add_overlay(name_arg.item);

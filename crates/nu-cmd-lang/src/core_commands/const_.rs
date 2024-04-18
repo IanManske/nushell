@@ -44,7 +44,7 @@ impl Command for Const {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let var_id = if let Some(id) = call.positional_nth(0).and_then(|pos| pos.as_var()) {
             id
         } else {
@@ -52,7 +52,7 @@ impl Command for Const {
                 msg: "Could not get variable".to_string(),
                 label: "variable not added by the parser".to_string(),
                 span: call.head,
-            });
+            })?;
         };
 
         if let Some(constval) = &engine_state.get_var(var_id).const_val {
@@ -64,7 +64,7 @@ impl Command for Const {
                 msg: "Missing Constant".to_string(),
                 label: "constant not added by the parser".to_string(),
                 span: call.head,
-            })
+            })?
         }
     }
 

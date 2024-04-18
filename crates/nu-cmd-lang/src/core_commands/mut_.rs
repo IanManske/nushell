@@ -44,7 +44,7 @@ impl Command for Mut {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let var_id = call
             .positional_nth(0)
             .expect("checked through parser")

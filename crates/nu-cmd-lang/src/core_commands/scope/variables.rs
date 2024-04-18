@@ -25,7 +25,7 @@ impl Command for ScopeVariables {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
         let ctrlc = engine_state.ctrlc.clone();
 

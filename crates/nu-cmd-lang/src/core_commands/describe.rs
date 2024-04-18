@@ -43,7 +43,7 @@ impl Command for Describe {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let options = Options {
             no_collect: call.has_flag(engine_state, stack, "no-collect")?,
             detailed: call.has_flag(engine_state, stack, "detailed")?,
@@ -57,7 +57,7 @@ impl Command for Describe {
         working_set: &StateWorkingSet,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let options = Options {
             no_collect: call.has_flag_const(working_set, "no-collect")?,
             detailed: call.has_flag_const(working_set, "detailed")?,
@@ -166,7 +166,7 @@ fn run(
     call: &Call,
     input: PipelineData,
     options: Options,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let metadata = input.metadata().clone().map(Box::new);
     let head = call.head;
 
@@ -279,7 +279,7 @@ fn describe_value(
     head: nu_protocol::Span,
     engine_state: Option<&EngineState>,
     options: Options,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     Ok(match value {
         Value::Custom { val, .. } => Value::record(
             record!(
@@ -332,7 +332,7 @@ fn describe_value(
                         describe_value(v, head, engine_state, options)?
                     ))
                 )
-                .collect::<Result<Vec<Value>, ShellError>>()?, head),
+                .collect::<ShellResult<Vec<Value>, >>()?, head),
             ),
             head,
         ),

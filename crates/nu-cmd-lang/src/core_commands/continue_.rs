@@ -24,8 +24,8 @@ impl Command for Continue {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
-        Err(ShellError::Continue { span: call.head })
+    ) -> ShellResult<PipelineData> {
+        Err(ShellError::Continue { span: call.head })?
     }
 
     fn examples(&self) -> Vec<Example> {

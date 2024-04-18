@@ -36,7 +36,7 @@ impl Command for Match {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let value: Value = call.req(engine_state, stack, 0)?;
         let block = call.positional_nth(1);
         let eval_expression = get_eval_expression(engine_state);
@@ -59,7 +59,7 @@ impl Command for Match {
                     let guard_matches = if let Some(guard) = &match_.0.guard {
                         let Value::Bool { val, .. } = eval_expression(engine_state, stack, guard)?
                         else {
-                            return Err(ShellError::MatchGuardNotBool { span: guard.span });
+                            return Err(ShellError::MatchGuardNotBool { span: guard.span })?;
                         };
 
                         val

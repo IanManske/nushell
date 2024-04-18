@@ -35,7 +35,7 @@ impl Command for HideEnv {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let env_var_names: Vec<Spanned<String>> = call.rest(engine_state, stack, 0)?;
         let ignore_errors = call.has_flag(engine_state, stack, "ignore-errors")?;
 
@@ -51,12 +51,12 @@ impl Command for HideEnv {
                         msg: format!("Environment variable '{}' not found", name.item),
                         suggestion: closest_match,
                         span: name.span,
-                    });
+                    })?;
                 } else {
                     return Err(ShellError::EnvVarNotFoundAtRuntime {
                         envvar_name: name.item,
                         span: name.span,
-                    });
+                    })?;
                 }
             }
         }

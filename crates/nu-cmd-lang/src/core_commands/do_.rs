@@ -61,7 +61,7 @@ impl Command for Do {
         caller_stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let block: Closure = call.req(engine_state, caller_stack, 0)?;
         let rest: Vec<Value> = call.rest(engine_state, caller_stack, 1)?;
         let ignore_all_errors = call.has_flag(engine_state, caller_stack, "ignore-errors")?;
@@ -140,7 +140,7 @@ impl Command for Do {
                                     .to_string(),
                                 help: format!("{err:?}"),
                                 span,
-                            });
+                            })?;
                         }
                         Ok(res) => Some(res),
                     }
@@ -162,7 +162,7 @@ impl Command for Do {
                             label: "External command failed".to_string(),
                             help: stderr_msg,
                             span,
-                        });
+                        })?;
                     }
                 }
 
@@ -281,7 +281,7 @@ fn bind_args_to(
     signature: &Signature,
     args: Vec<Value>,
     head_span: Span,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     let mut val_iter = args.into_iter();
     for (param, required) in signature
         .required_positional
@@ -303,12 +303,12 @@ fn bind_args_to(
                     .unwrap_or(false);
 
                 if !empty_list_matches {
-                    return Err(ShellError::CantConvert {
+                    Err(ShellError::CantConvert {
                         to_type: param.shape.to_type().to_string(),
                         from_type: result.get_type().to_string(),
                         span: result.span(),
                         help: None,
-                    });
+                    })?;
                 }
             }
             stack.add_var(var_id, result);
@@ -317,10 +317,10 @@ fn bind_args_to(
         } else if !required {
             stack.add_var(var_id, Value::nothing(head_span))
         } else {
-            return Err(ShellError::MissingParameter {
+            Err(ShellError::MissingParameter {
                 param_name: param.name.to_string(),
                 span: head_span,
-            });
+            })?;
         }
     }
 
