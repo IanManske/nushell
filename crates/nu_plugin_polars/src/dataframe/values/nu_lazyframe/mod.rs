@@ -7,7 +7,7 @@ use super::{
     PolarsPluginType,
 };
 use core::fmt;
-use nu_protocol::{record, PipelineData, ShellError, Span, Value};
+use nu_protocol::{record, PipelineData, ShellError, ShellResult, Span, Value};
 use polars::prelude::{Expr, IntoLazy, LazyFrame};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -54,15 +54,18 @@ impl NuLazyFrame {
         (*self.lazy).clone()
     }
 
-    pub fn collect(self, span: Span) -> Result<NuDataFrame, ShellError> {
+    pub fn collect(self, span: Span) -> ShellResult<NuDataFrame> {
         self.to_polars()
             .collect()
-            .map_err(|e| ShellError::GenericError {
-                error: "Error collecting lazy frame".into(),
-                msg: e.to_string(),
-                span: Some(span),
-                help: None,
-                inner: vec![],
+            .map_err(|e| {
+                ShellError::GenericError {
+                    error: "Error collecting lazy frame".into(),
+                    msg: e.to_string(),
+                    span: Some(span),
+                    help: None,
+                    inner: vec![],
+                }
+                .into()
             })
             .map(|df| NuDataFrame::new(true, df))
     }
@@ -77,7 +80,7 @@ impl NuLazyFrame {
         Self::new(self.from_eager, new_frame)
     }
 
-    pub fn schema(&self) -> Result<NuSchema, ShellError> {
+    pub fn schema(&self) -> ShellResult<NuSchema> {
         let internal_schema = self.lazy.schema().map_err(|e| ShellError::GenericError {
             error: "Error getting schema from lazy frame".into(),
             msg: e.to_string(),
@@ -90,10 +93,7 @@ impl NuLazyFrame {
 
     /// Get a NuLazyFrame from the value. This differs from try_from_value as it will coerce a
     /// NuDataFrame into a NuLazyFrame
-    pub fn try_from_value_coerce(
-        plugin: &PolarsPlugin,
-        value: &Value,
-    ) -> Result<NuLazyFrame, ShellError> {
+    pub fn try_from_value_coerce(plugin: &PolarsPlugin, value: &Value) -> ShellResult<NuLazyFrame> {
         match PolarsPluginObject::try_from_value(plugin, value)? {
             PolarsPluginObject::NuDataFrame(df) => Ok(df.lazy()),
             PolarsPluginObject::NuLazyFrame(lazy) => Ok(lazy),
@@ -110,7 +110,7 @@ impl NuLazyFrame {
         plugin: &PolarsPlugin,
         input: PipelineData,
         span: Span,
-    ) -> Result<Self, ShellError> {
+    ) -> ShellResult<Self> {
         let value = input.into_value(span);
         Self::try_from_value_coerce(plugin, &value)
     }
@@ -121,11 +121,11 @@ impl Cacheable for NuLazyFrame {
         &self.id
     }
 
-    fn to_cache_value(&self) -> Result<PolarsPluginObject, ShellError> {
+    fn to_cache_value(&self) -> ShellResult<PolarsPluginObject> {
         Ok(PolarsPluginObject::NuLazyFrame(self.clone()))
     }
 
-    fn from_cache_value(cv: PolarsPluginObject) -> Result<Self, ShellError> {
+    fn from_cache_value(cv: PolarsPluginObject) -> ShellResult<Self> {
         match cv {
             PolarsPluginObject::NuLazyFrame(df) => Ok(df),
             _ => Err(ShellError::GenericError {
@@ -134,7 +134,7 @@ impl Cacheable for NuLazyFrame {
                 span: None,
                 help: None,
                 inner: vec![],
-            }),
+            })?,
         }
     }
 }
@@ -153,7 +153,7 @@ impl CustomValueSupport for NuLazyFrame {
         PolarsPluginType::NuLazyFrame
     }
 
-    fn base_value(self, span: Span) -> Result<Value, ShellError> {
+    fn base_value(self, span: Span) -> ShellResult<Value> {
         let optimized_plan = self
             .lazy
             .describe_optimized_plan()

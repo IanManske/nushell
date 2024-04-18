@@ -6,7 +6,7 @@ use crate::{
 
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Span, SyntaxShape, Type,
+    Category, Example, LabeledError, PipelineData, ShellResult, Signature, Span, SyntaxShape, Type,
     Value,
 };
 
@@ -84,7 +84,7 @@ fn command(
     call: &EvaluatedCall,
     lazy: NuLazyFrame,
     filter_expr: NuExpression,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let lazy = NuLazyFrame::new(
         lazy.from_eager,
         lazy.to_polars().filter(filter_expr.to_polars()),
@@ -98,7 +98,7 @@ mod test {
     use crate::test::test_polars_plugin_command;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&LazyFilter)
     }
 }

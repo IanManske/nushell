@@ -8,8 +8,8 @@ use nu_path::expand_path_with;
 use super::super::values::NuDataFrame;
 use nu_plugin::PluginCommand;
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Span, Spanned,
-    SyntaxShape, Type, Value,
+    Category, Example, LabeledError, PipelineData, ShellError, ShellResult, Signature, Span,
+    Spanned, SyntaxShape, Type, Value,
 };
 
 use std::{
@@ -115,7 +115,7 @@ fn command(
     plugin: &PolarsPlugin,
     engine: &nu_plugin::EngineInterface,
     call: &nu_plugin::EvaluatedCall,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let spanned_file: Spanned<PathBuf> = call.req(0)?;
     let file_path = expand_path_with(&spanned_file.item, engine.get_current_dir()?, true);
     let file_span = spanned_file.span;
@@ -146,12 +146,12 @@ fn command(
                     "{msg}. Supported values: csv, tsv, parquet, ipc, arrow, json, jsonl, avro"
                 ),
                 span: blamed,
-            }),
+            })?,
         },
         None => Err(ShellError::FileNotFoundCustom {
             msg: "File without extension".into(),
             span: spanned_file.span,
-        }),
+        })?,
     }
     .map(|value| PipelineData::Value(value, None))
 }
@@ -162,7 +162,7 @@ fn from_parquet(
     call: &nu_plugin::EvaluatedCall,
     file_path: &Path,
     file_span: Span,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     if call.has_flag("lazy")? {
         let file: String = call.req(0)?;
         let args = ScanArgsParquet {
@@ -226,7 +226,7 @@ fn from_avro(
     call: &nu_plugin::EvaluatedCall,
     file_path: &Path,
     file_span: Span,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     let columns: Option<Vec<String>> = call.get_flag("columns")?;
 
     let r = File::open(file_path).map_err(|e| ShellError::GenericError {
@@ -263,7 +263,7 @@ fn from_ipc(
     call: &nu_plugin::EvaluatedCall,
     file_path: &Path,
     file_span: Span,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     if call.has_flag("lazy")? {
         let file: String = call.req(0)?;
         let args = ScanArgsIpc {
@@ -324,7 +324,7 @@ fn from_json(
     call: &nu_plugin::EvaluatedCall,
     file_path: &Path,
     file_span: Span,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     let file = File::open(file_path).map_err(|e| ShellError::GenericError {
         error: "Error opening file".into(),
         msg: e.to_string(),
@@ -365,7 +365,7 @@ fn from_jsonl(
     call: &nu_plugin::EvaluatedCall,
     file_path: &Path,
     file_span: Span,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     let infer_schema: Option<usize> = call.get_flag("infer-schema")?;
     let maybe_schema = call
         .get_flag("schema")?
@@ -409,7 +409,7 @@ fn from_csv(
     call: &nu_plugin::EvaluatedCall,
     file_path: &Path,
     file_span: Span,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     let delimiter: Option<Spanned<String>> = call.get_flag("delimiter")?;
     let no_header: bool = call.has_flag("no-header")?;
     let infer_schema: Option<usize> = call.get_flag("infer-schema")?;
@@ -434,7 +434,7 @@ fn from_csv(
                         span: Some(d.span),
                         help: None,
                         inner: vec![],
-                    });
+                    })?;
                 } else {
                     let delimiter = match d.item.chars().next() {
                         Some(d) => d as u8,
@@ -495,7 +495,7 @@ fn from_csv(
                         span: Some(d.span),
                         help: None,
                         inner: vec![],
-                    });
+                    })?;
                 } else {
                     let delimiter = match d.item.chars().next() {
                         Some(d) => d as u8,

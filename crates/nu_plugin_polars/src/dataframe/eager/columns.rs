@@ -3,7 +3,7 @@ use crate::PolarsPlugin;
 use super::super::values::NuDataFrame;
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Span, Type, Value,
+    Category, Example, LabeledError, PipelineData, ShellResult, Signature, Span, Type, Value,
 };
 
 #[derive(Clone)]
@@ -52,7 +52,7 @@ fn command(
     plugin: &PolarsPlugin,
     call: &EvaluatedCall,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let df = NuDataFrame::try_from_pipeline_coerce(plugin, input, call.head)?;
 
     let names: Vec<Value> = df
@@ -73,7 +73,7 @@ mod test {
     use crate::test::test_polars_plugin_command;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&ColumnsDF)
     }
 }

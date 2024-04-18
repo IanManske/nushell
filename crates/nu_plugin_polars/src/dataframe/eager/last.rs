@@ -6,7 +6,7 @@ use crate::{
 use super::super::values::{utils::DEFAULT_ROWS, NuDataFrame, NuExpression};
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Span, SyntaxShape, Type,
+    Category, Example, LabeledError, PipelineData, ShellResult, Signature, Span, SyntaxShape, Type,
     Value,
 };
 
@@ -91,7 +91,7 @@ fn command(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     df: NuDataFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let rows: Option<usize> = call.opt(0)?;
     let rows = rows.unwrap_or(DEFAULT_ROWS);
 
@@ -107,7 +107,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&LastDF)
     }
 }

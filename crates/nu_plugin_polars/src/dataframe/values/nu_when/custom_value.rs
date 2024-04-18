@@ -1,7 +1,7 @@
 use crate::values::{CustomValueSupport, PolarsPluginCustomValue};
 
 use super::NuWhen;
-use nu_protocol::{CustomValue, ShellError, Span, Value};
+use nu_protocol::{CustomValue, ShellResult, Span, Value};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -23,7 +23,7 @@ impl CustomValue for NuWhenCustomValue {
         "NuWhenCustomValue".into()
     }
 
-    fn to_base_value(&self, span: Span) -> Result<Value, ShellError> {
+    fn to_base_value(&self, span: Span) -> ShellResult<Value> {
         Ok(Value::string(
             "NuWhenCustomValue: custom_value_to_base_value should've been called",
             span,
@@ -50,7 +50,7 @@ impl PolarsPluginCustomValue for NuWhenCustomValue {
         &self,
         plugin: &crate::PolarsPlugin,
         _engine: &nu_plugin::EngineInterface,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         let when = NuWhen::try_from_custom_value(plugin, self)?;
         when.base_value(Span::unknown())
     }

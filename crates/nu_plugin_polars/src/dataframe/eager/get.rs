@@ -1,7 +1,7 @@
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Span, SyntaxShape, Type,
-    Value,
+    Category, Example, LabeledError, PipelineData, ShellError, ShellResult, Signature, Span,
+    SyntaxShape, Type, Value,
 };
 
 use crate::{
@@ -68,7 +68,7 @@ fn command(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let columns: Vec<Value> = call.rest(0)?;
     let (col_string, col_span) = convert_columns_string(columns, call.head)?;
 
@@ -95,7 +95,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&GetDF)
     }
 }

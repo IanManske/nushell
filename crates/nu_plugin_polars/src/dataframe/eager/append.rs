@@ -1,6 +1,6 @@
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Span, SyntaxShape, Type,
+    Category, Example, LabeledError, PipelineData, ShellResult, Signature, Span, SyntaxShape, Type,
     Value,
 };
 
@@ -116,7 +116,7 @@ fn command(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let other: Value = call.req(0)?;
 
     let axis = if call.has_flag("col")? {
@@ -138,7 +138,7 @@ mod test {
     use crate::test::test_polars_plugin_command;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&AppendDF)
     }
 }

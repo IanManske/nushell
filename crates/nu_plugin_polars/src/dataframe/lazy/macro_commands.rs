@@ -56,10 +56,9 @@ macro_rules! lazy_command {
         mod $test {
             use super::*;
             use crate::test::test_polars_plugin_command;
-            use nu_protocol::ShellError;
 
             #[test]
-            fn test_examples() -> Result<(), ShellError> {
+            fn test_examples() -> nu_protocol::ShellResult<()> {
                 test_polars_plugin_command(&$command)
             }
         }
@@ -105,7 +104,7 @@ macro_rules! lazy_command {
             use nu_protocol::ShellError;
 
             #[test]
-            fn test_examples() -> Result<(), ShellError> {
+            fn test_examples() -> ShellResult<()> {
                 test_polars_plugin_command(&$command)
             }
         }
@@ -174,7 +173,7 @@ macro_rules! lazy_command {
             use nu_protocol::ShellError;
 
             #[test]
-            fn test_examples() -> Result<(), ShellError> {
+            fn test_examples() -> ShellResult<()> {
                 test_polars_plugin_command(&$command)
             }
         }

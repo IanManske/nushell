@@ -7,8 +7,8 @@ use crate::{
 use super::super::values::NuDataFrame;
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    record, Category, Example, LabeledError, PipelineData, ShellError, Signature, Span,
-    SyntaxShape, Type, Value,
+    record, Category, Example, LabeledError, PipelineData, ShellError, ShellResult, Signature,
+    Span, SyntaxShape, Type, Value,
 };
 use polars::prelude::*;
 
@@ -114,13 +114,13 @@ impl PluginCommand for CastDF {
                     PolarsPluginType::NuLazyFrame,
                     PolarsPluginType::NuExpression,
                 ],
-            )),
+            ))?,
         }
         .map_err(LabeledError::from)
     }
 }
 
-fn df_args(call: &EvaluatedCall) -> Result<(DataType, String), ShellError> {
+fn df_args(call: &EvaluatedCall) -> ShellResult<(DataType, String)> {
     let dtype = dtype_arg(call)?;
     let column_nm: String = call.opt(1)?.ok_or(ShellError::MissingParameter {
         param_name: "column_name".into(),
@@ -129,7 +129,7 @@ fn df_args(call: &EvaluatedCall) -> Result<(DataType, String), ShellError> {
     Ok((dtype, column_nm))
 }
 
-fn dtype_arg(call: &EvaluatedCall) -> Result<DataType, ShellError> {
+fn dtype_arg(call: &EvaluatedCall) -> ShellResult<DataType> {
     let dtype: String = call.req(0)?;
     str_to_dtype(&dtype, call.head)
 }
@@ -141,7 +141,7 @@ fn command_lazy(
     column_nm: String,
     dtype: DataType,
     lazy: NuLazyFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let column = col(&column_nm).cast(dtype);
     let lazy = lazy.to_polars().with_columns(&[column]);
     let lazy = NuLazyFrame::new(false, lazy);
@@ -155,7 +155,7 @@ fn command_eager(
     column_nm: String,
     dtype: DataType,
     nu_df: NuDataFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let mut df = (*nu_df.df).clone();
     let column = df
         .column(&column_nm)
@@ -196,7 +196,7 @@ mod test {
     use crate::test::test_polars_plugin_command;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&CastDF)
     }
 }

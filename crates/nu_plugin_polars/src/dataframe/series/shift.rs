@@ -8,7 +8,7 @@ use super::super::values::{Column, NuDataFrame};
 
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Span, SyntaxShape, Type,
+    Category, Example, LabeledError, PipelineData, ShellResult, Signature, Span, SyntaxShape, Type,
     Value,
 };
 
@@ -80,7 +80,7 @@ impl PluginCommand for Shift {
                     PolarsPluginType::NuDataFrame,
                     PolarsPluginType::NuLazyGroupBy,
                 ],
-            )),
+            ))?,
         }
         .map_err(LabeledError::from)
     }
@@ -91,7 +91,7 @@ fn command_eager(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     df: NuDataFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let period: i64 = call.req(0)?;
     let series = df.as_series(call.head)?.shift(period);
 
@@ -104,7 +104,7 @@ fn command_lazy(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     lazy: NuLazyFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let shift: i64 = call.req(0)?;
     let fill: Option<Value> = call.get_flag("fill")?;
 
@@ -127,7 +127,7 @@ mod test {
     use crate::test::test_polars_plugin_command;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&Shift)
     }
 }

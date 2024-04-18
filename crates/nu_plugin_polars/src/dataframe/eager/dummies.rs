@@ -2,7 +2,7 @@ use super::super::values::NuDataFrame;
 use crate::{values::CustomValueSupport, PolarsPlugin};
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Span, Type,
+    Category, Example, LabeledError, PipelineData, ShellError, ShellResult, Signature, Span, Type,
 };
 use polars::{prelude::*, series::Series};
 
@@ -84,7 +84,7 @@ fn command(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let drop_first: bool = call.has_flag("drop-first")?;
     let df = NuDataFrame::try_from_pipeline_coerce(plugin, input, call.head)?;
 
@@ -110,7 +110,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&Dummies)
     }
 }

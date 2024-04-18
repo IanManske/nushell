@@ -7,8 +7,8 @@ use crate::{
 };
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Span, SyntaxShape, Type,
-    Value,
+    Category, Example, LabeledError, PipelineData, ShellError, ShellResult, Signature, Span,
+    SyntaxShape, Type, Value,
 };
 use polars::prelude::{lit, QuantileInterpolOptions};
 
@@ -118,7 +118,7 @@ impl PluginCommand for LazyQuantile {
                     PolarsPluginType::NuLazyFrame,
                     PolarsPluginType::NuExpression,
                 ],
-            )),
+            ))?,
         }
         .map_err(LabeledError::from)
     }
@@ -130,7 +130,7 @@ fn command(
     call: &EvaluatedCall,
     lazy: NuLazyFrame,
     quantile: f64,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let lazy = NuLazyFrame::new(
         lazy.from_eager,
         lazy.to_polars()
@@ -153,7 +153,7 @@ mod test {
     use crate::test::test_polars_plugin_command;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&LazyQuantile)
     }
 }

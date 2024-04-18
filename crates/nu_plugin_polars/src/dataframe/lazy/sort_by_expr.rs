@@ -162,7 +162,7 @@ mod test {
     use crate::test::test_polars_plugin_command;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> nu_protocol::ShellResult<()> {
         test_polars_plugin_command(&LazySortBy)
     }
 }

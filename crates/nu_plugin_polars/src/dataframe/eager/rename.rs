@@ -1,7 +1,7 @@
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Span, SyntaxShape, Type,
-    Value,
+    Category, Example, LabeledError, PipelineData, ShellError, ShellResult, Signature, Span,
+    SyntaxShape, Type, Value,
 };
 
 use crate::{
@@ -139,7 +139,7 @@ fn command_eager(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     df: NuDataFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let columns: Value = call.req(0)?;
     let columns = extract_strings(columns)?;
 
@@ -169,7 +169,7 @@ fn command_lazy(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     lazy: NuLazyFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let columns: Value = call.req(0)?;
     let columns = extract_strings(columns)?;
 
@@ -178,10 +178,10 @@ fn command_lazy(
 
     if columns.len() != new_names.len() {
         let value: Value = call.req(1)?;
-        return Err(ShellError::IncompatibleParametersSingle {
+        Err(ShellError::IncompatibleParametersSingle {
             msg: "New name list has different size to column list".into(),
             span: value.span(),
-        });
+        })?;
     }
 
     let lazy = lazy.to_polars();
@@ -197,7 +197,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&RenameDF)
     }
 }

@@ -4,8 +4,8 @@ use super::super::super::values::{Column, NuDataFrame};
 
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Span, SyntaxShape, Type,
-    Value,
+    Category, Example, LabeledError, PipelineData, ShellError, ShellResult, Signature, Span,
+    SyntaxShape, Type, Value,
 };
 use polars::prelude::{ChunkSet, DataType, IntoSeries};
 
@@ -81,7 +81,7 @@ fn command(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let value: Value = call.req(0)?;
 
     let mask_value: Value = call
@@ -188,7 +188,7 @@ fn command(
             span: Some(span),
             help: None,
             inner: vec![],
-        }),
+        })?,
     }?;
 
     res.to_pipeline_data(plugin, engine, call.head)
@@ -200,7 +200,7 @@ mod test {
     use crate::test::test_polars_plugin_command;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&SetSeries)
     }
 }

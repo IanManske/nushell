@@ -2,7 +2,8 @@ use crate::{values::PolarsPluginObject, PolarsPlugin};
 
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    record, Category, Example, LabeledError, PipelineData, ShellError, Signature, Span, Type, Value,
+    record, Category, Example, LabeledError, PipelineData, ShellError, ShellResult, Signature,
+    Span, Type, Value,
 };
 
 #[derive(Clone)]
@@ -63,7 +64,7 @@ fn command(
     _engine: &EngineInterface,
     call: &EvaluatedCall,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     match PolarsPluginObject::try_from_pipeline(plugin, input, call.head)? {
         PolarsPluginObject::NuDataFrame(df) => {
             let schema = df.schema();
@@ -81,7 +82,7 @@ fn command(
             span: Some(call.head),
             help: None,
             inner: vec![],
-        }),
+        })?,
     }
 }
 
@@ -127,7 +128,7 @@ mod test {
     use crate::test::test_polars_plugin_command;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&SchemaCmd)
     }
 }

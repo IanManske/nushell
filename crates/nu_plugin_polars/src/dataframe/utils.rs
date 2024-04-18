@@ -1,6 +1,6 @@
-use nu_protocol::{FromValue, ShellError, Value};
+use nu_protocol::{FromValue, ShellError, ShellResult, Value};
 
-pub fn extract_strings(value: Value) -> Result<Vec<String>, ShellError> {
+pub fn extract_strings(value: Value) -> ShellResult<Vec<String>> {
     let span = value.span();
     match (
         <String as FromValue>::from_value(value.clone()),
@@ -11,6 +11,6 @@ pub fn extract_strings(value: Value) -> Result<Vec<String>, ShellError> {
         _ => Err(ShellError::IncompatibleParametersSingle {
             msg: "Expected a string or list of strings".into(),
             span,
-        }),
+        })?,
     }
 }

@@ -6,8 +6,8 @@ use crate::{
 };
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Span, SyntaxShape, Type,
-    Value,
+    Category, Example, LabeledError, PipelineData, ShellError, ShellResult, Signature, Span,
+    SyntaxShape, Type, Value,
 };
 
 #[derive(Clone)]
@@ -122,7 +122,7 @@ impl PluginCommand for WithColumn {
                 from_type: value.get_type().to_string(),
                 span: value.span(),
                 help: None,
-            }),
+            })?,
         }
         .map_err(LabeledError::from)
     }
@@ -133,7 +133,7 @@ fn command_eager(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     df: NuDataFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let new_column: Value = call.req(0)?;
     let column_span = new_column.span();
 
@@ -176,7 +176,7 @@ fn command_lazy(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     lazy: NuLazyFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let vals: Vec<Value> = call.rest(0)?;
     let value = Value::list(vals, call.head);
     let expressions = NuExpression::extract_exprs(plugin, value)?;
@@ -190,7 +190,7 @@ mod test {
     use crate::test::test_polars_plugin_command;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&WithColumn)
     }
 }

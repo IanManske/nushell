@@ -8,8 +8,8 @@ use super::super::values::{Column, NuDataFrame};
 
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Span, SyntaxShape, Type,
-    Value,
+    Category, Example, LabeledError, PipelineData, ShellError, ShellResult, Signature, Span,
+    SyntaxShape, Type, Value,
 };
 use polars::prelude::{IntoSeries, UniqueKeepStrategy};
 
@@ -92,7 +92,7 @@ impl PluginCommand for Unique {
                     PolarsPluginType::NuDataFrame,
                     PolarsPluginType::NuLazyGroupBy,
                 ],
-            )),
+            ))?,
         }
         .map_err(LabeledError::from)
     }
@@ -103,7 +103,7 @@ fn command_eager(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     df: NuDataFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let series = df.as_series(call.head)?;
 
     let res = series.unique().map_err(|e| ShellError::GenericError {
@@ -123,7 +123,7 @@ fn command_lazy(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     lazy: NuLazyFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let last = call.has_flag("last")?;
     let maintain = call.has_flag("maintain-order")?;
 
@@ -154,7 +154,7 @@ mod test {
     use crate::test::test_polars_plugin_command;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&Unique)
     }
 }

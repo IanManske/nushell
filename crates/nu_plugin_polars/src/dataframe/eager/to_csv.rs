@@ -3,8 +3,8 @@ use std::{fs::File, path::PathBuf};
 use nu_path::expand_path_with;
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Spanned, SyntaxShape,
-    Type, Value,
+    Category, Example, LabeledError, PipelineData, ShellError, ShellResult, Signature, Spanned,
+    SyntaxShape, Type, Value,
 };
 use polars::prelude::{CsvWriter, SerWriter};
 
@@ -71,7 +71,7 @@ fn command(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let file_name: Spanned<PathBuf> = call.req(0)?;
     let file_path = expand_path_with(&file_name.item, engine.get_current_dir()?, true);
     let delimiter: Option<Spanned<String>> = call.get_flag("delimiter")?;
@@ -105,7 +105,7 @@ fn command(
                     span: Some(d.span),
                     help: None,
                     inner: vec![],
-                });
+                })?;
             } else {
                 let delimiter = match d.item.chars().next() {
                     Some(d) => d as u8,

@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
 use nu_plugin::EngineInterface;
-use nu_protocol::{CustomValue, ShellError, Span, Value};
+use nu_protocol::{CustomValue, ShellResult, Span, Value};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -30,7 +30,7 @@ impl CustomValue for NuLazyFrameCustomValue {
         "NuLazyFrameCustomValue".into()
     }
 
-    fn to_base_value(&self, span: Span) -> Result<Value, ShellError> {
+    fn to_base_value(&self, span: Span) -> ShellResult<Value> {
         Ok(Value::string(
             "NuLazyFrameCustomValue: custom_value_to_base_value should've been called",
             span,
@@ -57,7 +57,7 @@ impl PolarsPluginCustomValue for NuLazyFrameCustomValue {
         &self,
         plugin: &crate::PolarsPlugin,
         _engine: &nu_plugin::EngineInterface,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         let lazy = NuLazyFrame::try_from_custom_value(plugin, self)?;
         lazy.base_value(Span::unknown())
     }
@@ -75,7 +75,7 @@ impl PolarsPluginCustomValue for NuLazyFrameCustomValue {
         plugin: &PolarsPlugin,
         _engine: &EngineInterface,
         other_value: Value,
-    ) -> Result<Option<Ordering>, ShellError> {
+    ) -> ShellResult<Option<Ordering>> {
         // to compare, we need to convert to NuDataframe
         let df = NuLazyFrame::try_from_custom_value(plugin, self)?;
         let df = df.collect(other_value.span())?;

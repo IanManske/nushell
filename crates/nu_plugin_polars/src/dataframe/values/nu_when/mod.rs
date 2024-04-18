@@ -1,7 +1,7 @@
 mod custom_value;
 
 use core::fmt;
-use nu_protocol::{ShellError, Span, Value};
+use nu_protocol::{ShellError, ShellResult, Span, Value};
 use polars::prelude::{ChainedThen, Then};
 use serde::{Serialize, Serializer};
 use uuid::Uuid;
@@ -84,11 +84,11 @@ impl Cacheable for NuWhen {
         &self.id
     }
 
-    fn to_cache_value(&self) -> Result<PolarsPluginObject, ShellError> {
+    fn to_cache_value(&self) -> ShellResult<PolarsPluginObject> {
         Ok(PolarsPluginObject::NuWhen(self.clone()))
     }
 
-    fn from_cache_value(cv: PolarsPluginObject) -> Result<Self, ShellError> {
+    fn from_cache_value(cv: PolarsPluginObject) -> ShellResult<Self> {
         match cv {
             PolarsPluginObject::NuWhen(when) => Ok(when),
             _ => Err(ShellError::GenericError {
@@ -97,7 +97,7 @@ impl Cacheable for NuWhen {
                 span: None,
                 help: None,
                 inner: vec![],
-            }),
+            })?,
         }
     }
 }
@@ -116,7 +116,7 @@ impl CustomValueSupport for NuWhen {
         PolarsPluginType::NuWhen
     }
 
-    fn base_value(self, _span: nu_protocol::Span) -> Result<nu_protocol::Value, ShellError> {
+    fn base_value(self, _span: nu_protocol::Span) -> ShellResult<Value> {
         let val: String = match self.when_type {
             NuWhenType::Then(_) => "whenthen".into(),
             NuWhenType::ChainedThen(_) => "whenthenthen".into(),

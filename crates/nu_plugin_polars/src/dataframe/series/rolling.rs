@@ -4,8 +4,8 @@ use super::super::values::{Column, NuDataFrame};
 
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Span, Spanned,
-    SyntaxShape, Type, Value,
+    Category, Example, LabeledError, PipelineData, ShellError, ShellResult, Signature, Span,
+    Spanned, SyntaxShape, Type, Value,
 };
 use polars::prelude::{DataType, Duration, IntoSeries, RollingOptionsImpl, SeriesOpsTime};
 
@@ -17,7 +17,7 @@ enum RollType {
 }
 
 impl RollType {
-    fn from_str(roll_type: &str, span: Span) -> Result<Self, ShellError> {
+    fn from_str(roll_type: &str, span: Span) -> ShellResult<Self> {
         match roll_type {
             "min" => Ok(Self::Min),
             "max" => Ok(Self::Max),
@@ -29,7 +29,7 @@ impl RollType {
                 span: Some(span),
                 help: Some("Allowed values: min, max, sum, mean".into()),
                 inner: vec![],
-            }),
+            })?,
         }
     }
 
@@ -129,7 +129,7 @@ fn command(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let roll_type: Spanned<String> = call.req(0)?;
     let window_size: i64 = call.req(1)?;
 
@@ -137,13 +137,13 @@ fn command(
     let series = df.as_series(call.head)?;
 
     if let DataType::Object(..) = series.dtype() {
-        return Err(ShellError::GenericError {
+        Err(ShellError::GenericError {
             error: "Found object series".into(),
             msg: "Series of type object cannot be used for rolling operation".into(),
             span: Some(call.head),
             help: None,
             inner: vec![],
-        });
+        })?;
     }
 
     let roll_type = RollType::from_str(&roll_type.item, roll_type.span)?;
@@ -187,7 +187,7 @@ mod test {
     use crate::test::test_polars_plugin_command;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&Rolling)
     }
 }

@@ -4,8 +4,8 @@ use super::super::values::{Column, NuDataFrame};
 
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Span, SyntaxShape, Type,
-    Value,
+    Category, Example, LabeledError, PipelineData, ShellError, ShellResult, Signature, Span,
+    SyntaxShape, Type, Value,
 };
 use polars::{
     chunked_array::ChunkedArray,
@@ -121,7 +121,7 @@ fn command(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let quantiles: Option<Vec<Value>> = call.get_flag("quantiles")?;
     let quantiles = quantiles.map(|values| {
         values
@@ -139,20 +139,20 @@ fn command(
                                 span: Some(span),
                                 help: None,
                                 inner: vec![],
-                            })
+                            })?
                         }
                     }
-                    Value::Error { error, .. } => Err(*error.clone()),
+                    Value::Error { error, .. } => Err(error.clone()),
                     _ => Err(ShellError::GenericError {
                         error: "Incorrect value for quantile".into(),
                         msg: "value should be a float".into(),
                         span: Some(span),
                         help: None,
                         inner: vec![],
-                    }),
+                    })?,
                 }
             })
-            .collect::<Result<Vec<f64>, ShellError>>()
+            .collect::<ShellResult<Vec<f64>>>()
     });
 
     let quantiles = match quantiles {
@@ -284,7 +284,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&Summary)
     }
 }

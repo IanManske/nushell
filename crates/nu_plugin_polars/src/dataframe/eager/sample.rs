@@ -1,7 +1,7 @@
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Spanned, SyntaxShape,
-    Type,
+    Category, Example, LabeledError, PipelineData, ShellError, ShellResult, Signature, Spanned,
+    SyntaxShape, Type,
 };
 use polars::prelude::NamedFrom;
 use polars::series::Series;
@@ -85,7 +85,7 @@ fn command(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let rows: Option<Spanned<i64>> = call.get_flag("n-rows")?;
     let fraction: Option<Spanned<f64>> = call.get_flag("fraction")?;
     let seed: Option<u64> = call.get_flag::<i64>("seed")?.map(|val| val as u64);

@@ -8,7 +8,7 @@ use super::NuExpression;
 use nu_plugin::EngineInterface;
 use nu_protocol::{
     ast::{Comparison, Math, Operator},
-    CustomValue, ShellError, Span, Type, Value,
+    CustomValue, ShellError, ShellResult, Span, Type, Value,
 };
 use polars::prelude::Expr;
 use serde::{Deserialize, Serialize};
@@ -35,7 +35,7 @@ impl CustomValue for NuExpressionCustomValue {
         TYPE_NAME.into()
     }
 
-    fn to_base_value(&self, span: Span) -> Result<Value, ShellError> {
+    fn to_base_value(&self, span: Span) -> ShellResult<Value> {
         Ok(Value::string(
             "NuExpressionCustomValue: custom_value_to_base_value should've been called",
             span,
@@ -62,7 +62,7 @@ fn compute_with_value(
     operator: Operator,
     op: Span,
     right: &Value,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     let rhs_span = right.span();
     match right {
         Value::Custom { val: rhs, .. } => {
@@ -86,7 +86,7 @@ fn compute_with_value(
                 _ => Err(ShellError::TypeMismatch {
                     err_message: "Only literal expressions or number".into(),
                     span: right.span(),
-                }),
+                })?,
             }
         }
         _ => {
@@ -112,7 +112,7 @@ fn with_operator(
     lhs_span: Span,
     rhs_span: Span,
     op_span: Span,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     match operator {
         Operator::Math(Math::Plus) => {
             apply_arithmetic(plugin, engine, left, right, lhs_span, Add::add)
@@ -168,7 +168,7 @@ fn with_operator(
             lhs_span,
             rhs_ty: Type::Custom(TYPE_NAME.into()).to_string(),
             rhs_span,
-        }),
+        })?,
     }
 }
 
@@ -179,7 +179,7 @@ fn apply_arithmetic<F>(
     right: &NuExpression,
     span: Span,
     f: F,
-) -> Result<Value, ShellError>
+) -> ShellResult<Value>
 where
     F: Fn(Expr, Expr) -> Expr,
 {
@@ -198,7 +198,7 @@ impl PolarsPluginCustomValue for NuExpressionCustomValue {
         lhs_span: Span,
         operator: nu_protocol::Spanned<nu_protocol::ast::Operator>,
         right: Value,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         let expr = NuExpression::try_from_custom_value(plugin, self)?;
         compute_with_value(
             (plugin, engine),
@@ -214,7 +214,7 @@ impl PolarsPluginCustomValue for NuExpressionCustomValue {
         &self,
         plugin: &crate::PolarsPlugin,
         _engine: &nu_plugin::EngineInterface,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         let expr = NuExpression::try_from_custom_value(plugin, self)?;
         expr.base_value(Span::unknown())
     }

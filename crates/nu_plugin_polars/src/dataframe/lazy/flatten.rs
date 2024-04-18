@@ -53,7 +53,7 @@ Example {
                 result: Some(
                     NuDataFrame::try_from_columns(vec![
                         Column::new(
-                            "id".to_string(), 
+                            "id".to_string(),
                             vec![
                                 Value::test_int(1),
                                 Value::test_int(1),
@@ -61,7 +61,7 @@ Example {
                                 Value::test_int(2),
                             ]),
                         Column::new(
-                            "name".to_string(), 
+                            "name".to_string(),
                             vec![
                                 Value::test_string("Mercy"),
                                 Value::test_string("Mercy"),
@@ -69,7 +69,7 @@ Example {
                                 Value::test_string("Bob"),
                             ]),
                         Column::new(
-                            "hobbies".to_string(), 
+                            "hobbies".to_string(),
                             vec![
                                 Value::test_string("Cycling"),
                                 Value::test_string("Knitting"),
@@ -87,7 +87,7 @@ Example {
                 result: Some(
                     NuDataFrame::try_from_columns(vec![
                         Column::new(
-                            "hobbies".to_string(), 
+                            "hobbies".to_string(),
                             vec![
                                 Value::test_string("Cycling"),
                                 Value::test_string("Knitting"),
@@ -119,7 +119,7 @@ mod test {
     use crate::test::test_polars_plugin_command;
 
     #[test]
-    fn test_examples() -> Result<(), nu_protocol::ShellError> {
+    fn test_examples() -> nu_protocol::ShellResult<()> {
         test_polars_plugin_command(&LazyFlatten)
     }
 }

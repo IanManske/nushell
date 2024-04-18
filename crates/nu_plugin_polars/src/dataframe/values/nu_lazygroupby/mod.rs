@@ -1,7 +1,7 @@
 mod custom_value;
 
 use core::fmt;
-use nu_protocol::{record, ShellError, Span, Value};
+use nu_protocol::{record, ShellError, ShellResult, Span, Value};
 use polars::prelude::LazyGroupBy;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -49,11 +49,11 @@ impl Cacheable for NuLazyGroupBy {
         &self.id
     }
 
-    fn to_cache_value(&self) -> Result<PolarsPluginObject, ShellError> {
+    fn to_cache_value(&self) -> ShellResult<PolarsPluginObject> {
         Ok(PolarsPluginObject::NuLazyGroupBy(self.clone()))
     }
 
-    fn from_cache_value(cv: PolarsPluginObject) -> Result<Self, ShellError> {
+    fn from_cache_value(cv: PolarsPluginObject) -> ShellResult<Self> {
         match cv {
             PolarsPluginObject::NuLazyGroupBy(df) => Ok(df),
             _ => Err(ShellError::GenericError {
@@ -62,7 +62,7 @@ impl Cacheable for NuLazyGroupBy {
                 span: None,
                 help: None,
                 inner: vec![],
-            }),
+            })?,
         }
     }
 }
@@ -81,7 +81,7 @@ impl CustomValueSupport for NuLazyGroupBy {
         PolarsPluginType::NuLazyGroupBy
     }
 
-    fn base_value(self, _span: nu_protocol::Span) -> Result<nu_protocol::Value, ShellError> {
+    fn base_value(self, _span: nu_protocol::Span) -> ShellResult<Value> {
         Ok(Value::record(
             record! {
                 "LazyGroupBy" => Value::string("apply aggregation to complete execution plan", Span::unknown())

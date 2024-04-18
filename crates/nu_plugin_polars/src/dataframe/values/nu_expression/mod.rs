@@ -1,6 +1,6 @@
 mod custom_value;
 
-use nu_protocol::{record, ShellError, Span, Value};
+use nu_protocol::{record, ShellError, ShellResult, Span, Value};
 use polars::prelude::{col, AggExpr, Expr, Literal};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use uuid::Uuid;
@@ -89,12 +89,12 @@ impl NuExpression {
         f(expr, other).into()
     }
 
-    pub fn to_value(&self, span: Span) -> Result<Value, ShellError> {
+    pub fn to_value(&self, span: Span) -> ShellResult<Value> {
         expr_to_value(self.as_ref(), span)
     }
 
     // Convenient function to extract multiple Expr that could be inside a nushell Value
-    pub fn extract_exprs(plugin: &PolarsPlugin, value: Value) -> Result<Vec<Expr>, ShellError> {
+    pub fn extract_exprs(plugin: &PolarsPlugin, value: Value) -> ShellResult<Vec<Expr>> {
         ExtractedExpr::extract_exprs(plugin, value).map(ExtractedExpr::into_exprs)
     }
 }
@@ -117,7 +117,7 @@ impl ExtractedExpr {
         }
     }
 
-    fn extract_exprs(plugin: &PolarsPlugin, value: Value) -> Result<ExtractedExpr, ShellError> {
+    fn extract_exprs(plugin: &PolarsPlugin, value: Value) -> ShellResult<ExtractedExpr> {
         match value {
             Value::String { val, .. } => Ok(ExtractedExpr::Single(col(val.as_str()))),
             Value::Custom { .. } => NuExpression::try_from_value(plugin, &value)
@@ -126,19 +126,19 @@ impl ExtractedExpr {
             Value::List { vals, .. } => vals
                 .into_iter()
                 .map(|x| Self::extract_exprs(plugin, x))
-                .collect::<Result<Vec<ExtractedExpr>, ShellError>>()
+                .collect::<ShellResult<_>>()
                 .map(ExtractedExpr::List),
             x => Err(ShellError::CantConvert {
                 to_type: "expression".into(),
                 from_type: x.get_type().to_string(),
                 span: x.span(),
                 help: None,
-            }),
+            })?,
         }
     }
 }
 
-pub fn expr_to_value(expr: &Expr, span: Span) -> Result<Value, ShellError> {
+pub fn expr_to_value(expr: &Expr, span: Span) -> ShellResult<Value> {
     match expr {
         Expr::Alias(expr, alias) => Ok(Value::record(
             record! {
@@ -291,8 +291,7 @@ pub fn expr_to_value(expr: &Expr, span: Span) -> Result<Value, ShellError> {
             by,
             sort_options,
         } => {
-            let by: Result<Vec<Value>, ShellError> =
-                by.iter().map(|b| expr_to_value(b, span)).collect();
+            let by: ShellResult<Vec<Value>> = by.iter().map(|b| expr_to_value(b, span)).collect();
             let descending: Vec<Value> = sort_options
                 .descending
                 .iter()
@@ -354,7 +353,7 @@ pub fn expr_to_value(expr: &Expr, span: Span) -> Result<Value, ShellError> {
             output_type,
             options,
         } => {
-            let input: Result<Vec<Value>, ShellError> =
+            let input: ShellResult<Vec<Value>> =
                 input.iter().map(|e| expr_to_value(e, span)).collect();
             Ok(Value::record(
                 record! {
@@ -371,7 +370,7 @@ pub fn expr_to_value(expr: &Expr, span: Span) -> Result<Value, ShellError> {
             function,
             options,
         } => {
-            let input: Result<Vec<Value>, ShellError> =
+            let input: ShellResult<Vec<Value>> =
                 input.iter().map(|e| expr_to_value(e, span)).collect();
             Ok(Value::record(
                 record! {
@@ -387,7 +386,7 @@ pub fn expr_to_value(expr: &Expr, span: Span) -> Result<Value, ShellError> {
             partition_by,
             options,
         } => {
-            let partition_by: Result<Vec<Value>, ShellError> = partition_by
+            let partition_by: ShellResult<Vec<Value>> = partition_by
                 .iter()
                 .map(|e| expr_to_value(e, span))
                 .collect();
@@ -406,7 +405,7 @@ pub fn expr_to_value(expr: &Expr, span: Span) -> Result<Value, ShellError> {
             input: format!("Expression is {expr:?}"),
             msg_span: span,
             input_span: Span::unknown(),
-        }),
+        })?,
         // the parameter polars_plan::dsl::selector::Selector is not publicly exposed.
         // I am not sure what we can meaningfully do with this at this time.
         Expr::Selector(_) => Err(ShellError::UnsupportedInput {
@@ -414,7 +413,7 @@ pub fn expr_to_value(expr: &Expr, span: Span) -> Result<Value, ShellError> {
             input: format!("Expression is {expr:?}"),
             msg_span: span,
             input_span: Span::unknown(),
-        }),
+        })?,
     }
 }
 
@@ -423,11 +422,11 @@ impl Cacheable for NuExpression {
         &self.id
     }
 
-    fn to_cache_value(&self) -> Result<PolarsPluginObject, ShellError> {
+    fn to_cache_value(&self) -> ShellResult<PolarsPluginObject> {
         Ok(PolarsPluginObject::NuExpression(self.clone()))
     }
 
-    fn from_cache_value(cv: PolarsPluginObject) -> Result<Self, ShellError> {
+    fn from_cache_value(cv: PolarsPluginObject) -> ShellResult<Self> {
         match cv {
             PolarsPluginObject::NuExpression(df) => Ok(df),
             _ => Err(ShellError::GenericError {
@@ -436,7 +435,7 @@ impl Cacheable for NuExpression {
                 span: None,
                 help: None,
                 inner: vec![],
-            }),
+            })?,
         }
     }
 }
@@ -455,7 +454,7 @@ impl CustomValueSupport for NuExpression {
         PolarsPluginType::NuExpression
     }
 
-    fn try_from_value(plugin: &PolarsPlugin, value: &Value) -> Result<Self, ShellError> {
+    fn try_from_value(plugin: &PolarsPlugin, value: &Value) -> ShellResult<Self> {
         match value {
             Value::Custom { val, .. } => {
                 if let Some(cv) = val.as_any().downcast_ref::<Self::CV>() {
@@ -466,7 +465,7 @@ impl CustomValueSupport for NuExpression {
                         from_type: value.get_type().to_string(),
                         span: value.span(),
                         help: None,
-                    })
+                    })?
                 }
             }
             Value::String { val, .. } => Ok(val.to_owned().lit().into()),
@@ -478,7 +477,7 @@ impl CustomValueSupport for NuExpression {
                 from_type: x.get_type().to_string(),
                 span: x.span(),
                 help: None,
-            }),
+            })?,
         }
     }
 
@@ -493,7 +492,7 @@ impl CustomValueSupport for NuExpression {
         }
     }
 
-    fn base_value(self, _span: Span) -> Result<Value, ShellError> {
+    fn base_value(self, _span: Span) -> ShellResult<Value> {
         self.to_value(Span::unknown())
     }
 }

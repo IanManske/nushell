@@ -1,6 +1,6 @@
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    record, Category, Example, LabeledError, PipelineData, ShellError, Signature, Span,
+    record, Category, Example, LabeledError, PipelineData, ShellResult, Signature, Span,
     SyntaxShape, Type, Value,
 };
 
@@ -103,7 +103,7 @@ fn dataframe_command(
     plugin: &PolarsPlugin,
     call: &EvaluatedCall,
     input: Value,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let rows: Option<usize> = call.get_flag("rows")?;
     let tail: bool = call.has_flag("tail")?;
 
@@ -129,7 +129,7 @@ fn expression_command(
     plugin: &PolarsPlugin,
     call: &EvaluatedCall,
     input: Value,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let expr = NuExpression::try_from_value(plugin, &input)?;
     let value = expr.to_value(call.head)?;
 
@@ -142,7 +142,7 @@ mod test {
     use crate::test::test_polars_plugin_command;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&ToNu)
     }
 }

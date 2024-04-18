@@ -3,7 +3,8 @@ use crate::{values::CustomValueSupport, PolarsPlugin};
 use super::super::super::values::{Column, NuDataFrame};
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Span, Type, Value,
+    Category, Example, LabeledError, PipelineData, ShellError, ShellResult, Signature, Span, Type,
+    Value,
 };
 use polars::prelude::IntoSeries;
 
@@ -71,7 +72,7 @@ fn command(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     df: NuDataFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let series = df.as_series(call.head)?;
 
     let bool = series.bool().map_err(|e| ShellError::GenericError {
@@ -94,7 +95,7 @@ mod test {
     use crate::test::test_polars_plugin_command;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&NotSeries)
     }
 }

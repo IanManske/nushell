@@ -1,7 +1,6 @@
-use std::sync::Arc;
-
-use nu_protocol::{ShellError, Span, Value};
+use nu_protocol::{Error, ShellError, ShellResult, Span, Value};
 use polars::prelude::{DataType, Field, Schema, SchemaRef, TimeUnit};
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct NuSchema {
@@ -17,7 +16,8 @@ impl NuSchema {
 }
 
 impl TryFrom<&Value> for NuSchema {
-    type Error = ShellError;
+    type Error = Error;
+
     fn try_from(value: &Value) -> Result<Self, Self::Error> {
         let schema = value_to_schema(value, Span::unknown())?;
         Ok(Self::new(schema))
@@ -61,14 +61,14 @@ fn dtype_to_value(dtype: &DataType, span: Span) -> Value {
     }
 }
 
-fn value_to_schema(value: &Value, span: Span) -> Result<Schema, ShellError> {
+fn value_to_schema(value: &Value, span: Span) -> ShellResult<Schema> {
     let fields = value_to_fields(value, span)?;
     let schema = Schema::from_iter(fields);
     Ok(schema)
 }
 
-fn value_to_fields(value: &Value, span: Span) -> Result<Vec<Field>, ShellError> {
-    let fields = value
+fn value_to_fields(value: &Value, span: Span) -> ShellResult<Vec<Field>> {
+    value
         .as_record()?
         .into_iter()
         .map(|(col, val)| match val {
@@ -82,11 +82,10 @@ fn value_to_fields(value: &Value, span: Span) -> Result<Vec<Field>, ShellError> 
                 Ok(Field::new(col, dtype))
             }
         })
-        .collect::<Result<Vec<Field>, ShellError>>()?;
-    Ok(fields)
+        .collect()
 }
 
-pub fn str_to_dtype(dtype: &str, span: Span) -> Result<DataType, ShellError> {
+pub fn str_to_dtype(dtype: &str, span: Span) -> ShellResult<DataType> {
     match dtype {
         "bool" => Ok(DataType::Boolean),
         "u8" => Ok(DataType::UInt8),
@@ -171,11 +170,11 @@ pub fn str_to_dtype(dtype: &str, span: Span) -> Result<DataType, ShellError> {
             span: Some(span),
             help: None,
             inner: vec![],
-        }),
+        })?,
     }
 }
 
-fn str_to_time_unit(ts_string: &str, span: Span) -> Result<TimeUnit, ShellError> {
+fn str_to_time_unit(ts_string: &str, span: Span) -> ShellResult<TimeUnit> {
     match ts_string {
         "ms" => Ok(TimeUnit::Milliseconds),
         "us" | "μs" => Ok(TimeUnit::Microseconds),
@@ -186,7 +185,7 @@ fn str_to_time_unit(ts_string: &str, span: Span) -> Result<TimeUnit, ShellError>
             span: Some(span),
             help: None,
             inner: vec![],
-        }),
+        })?,
     }
 }
 

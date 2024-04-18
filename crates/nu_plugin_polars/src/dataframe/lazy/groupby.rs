@@ -5,8 +5,8 @@ use crate::{
 };
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Span, SyntaxShape, Type,
-    Value,
+    Category, Example, LabeledError, PipelineData, ShellError, ShellResult, Signature, Span,
+    SyntaxShape, Type, Value,
 };
 use polars::prelude::Expr;
 
@@ -150,7 +150,7 @@ fn command(
     call: &EvaluatedCall,
     lazy: NuLazyFrame,
     expressions: Vec<Expr>,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let group_by = lazy.to_polars().group_by(expressions);
     let group_by = NuLazyGroupBy::new(group_by, lazy.from_eager, lazy.schema()?);
     group_by.to_pipeline_data(plugin, engine, call.head)
@@ -162,7 +162,7 @@ mod test {
     use crate::test::test_polars_plugin_command;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&ToLazyGroupBy)
     }
 }

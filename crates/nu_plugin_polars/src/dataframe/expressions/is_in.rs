@@ -5,8 +5,8 @@ use crate::{
 };
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Span, SyntaxShape, Type,
-    Value,
+    Category, Example, LabeledError, PipelineData, ShellError, ShellResult, Signature, Span,
+    SyntaxShape, Type, Value,
 };
 use polars::prelude::{is_in, lit, DataType, IntoSeries};
 
@@ -129,7 +129,7 @@ impl PluginCommand for ExprIsIn {
                     PolarsPluginType::NuLazyFrame,
                     PolarsPluginType::NuExpression,
                 ],
-            )),
+            ))?,
         }
         .map_err(LabeledError::from)
     }
@@ -140,17 +140,17 @@ fn command_expr(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     expr: NuExpression,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let list: Vec<Value> = call.req(0)?;
 
     let values = NuDataFrame::try_from_columns(vec![Column::new("list".to_string(), list)], None)?;
     let list = values.as_series(call.head)?;
 
     if matches!(list.dtype(), DataType::Object(..)) {
-        return Err(ShellError::IncompatibleParametersSingle {
+        Err(ShellError::IncompatibleParametersSingle {
             msg: "Cannot use a mixed list as argument".into(),
             span: call.head,
-        });
+        })?;
     }
 
     let expr: NuExpression = expr.to_polars().is_in(lit(list)).into();
@@ -162,7 +162,7 @@ fn command_df(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     df: NuDataFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let other_value: Value = call.req(0)?;
     let other_span = other_value.span();
     let other_df = NuDataFrame::try_from_value_coerce(plugin, &other_value, call.head)?;
@@ -192,7 +192,7 @@ mod test {
     use crate::test::test_polars_plugin_command;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&ExprIsIn)
     }
 }

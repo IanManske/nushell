@@ -193,10 +193,10 @@ mod test {
     use crate::test::test_polars_plugin_command;
 
     use super::*;
-    use nu_protocol::ShellError;
+    use nu_protocol::ShellResult;
 
     #[test]
-    fn test_into_df() -> Result<(), ShellError> {
+    fn test_into_df() -> ShellResult<()> {
         test_polars_plugin_command(&ToDataFrame)
     }
 }

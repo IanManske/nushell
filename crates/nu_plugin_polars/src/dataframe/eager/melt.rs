@@ -1,7 +1,7 @@
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Span, Spanned,
-    SyntaxShape, Type, Value,
+    Category, Example, LabeledError, PipelineData, ShellError, ShellResult, Signature, Span,
+    Spanned, SyntaxShape, Type, Value,
 };
 
 use crate::{
@@ -131,7 +131,7 @@ fn command(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let id_col: Vec<Value> = call.get_flag("columns")?.expect("required value");
     let val_col: Vec<Value> = call.get_flag("values")?.expect("required value");
 
@@ -187,15 +187,15 @@ fn check_column_datatypes<T: AsRef<str>>(
     df: &polars::prelude::DataFrame,
     cols: &[T],
     col_span: Span,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     if cols.is_empty() {
-        return Err(ShellError::GenericError {
+        Err(ShellError::GenericError {
             error: "Merge error".into(),
             msg: "empty column list".into(),
             span: Some(col_span),
             help: None,
             inner: vec![],
-        });
+        })?;
     }
 
     // Checking if they are same type
@@ -222,7 +222,7 @@ fn check_column_datatypes<T: AsRef<str>>(
                 })?;
 
             if l_series.dtype() != r_series.dtype() {
-                return Err(ShellError::GenericError {
+                Err(ShellError::GenericError {
                     error: "Merge error".into(),
                     msg: "found different column types in list".into(),
                     span: Some(col_span),
@@ -232,7 +232,7 @@ fn check_column_datatypes<T: AsRef<str>>(
                         r_series.dtype()
                     )),
                     inner: vec![],
-                });
+                })?;
             }
         }
     }
@@ -247,7 +247,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&MeltDF)
     }
 }

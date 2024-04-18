@@ -4,7 +4,8 @@ use super::super::super::values::NuDataFrame;
 
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, SyntaxShape, Type,
+    Category, Example, LabeledError, PipelineData, ShellError, ShellResult, Signature, SyntaxShape,
+    Type,
 };
 use polars::prelude::{IntoSeries, StringMethods};
 
@@ -64,7 +65,7 @@ fn command(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let format: String = call.req(0)?;
     let not_exact = call.has_flag("not-exact")?;
 

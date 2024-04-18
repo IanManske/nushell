@@ -4,8 +4,8 @@ use crate::PolarsPlugin;
 
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Span, SyntaxShape, Type,
-    Value,
+    Category, Example, LabeledError, PipelineData, ShellError, ShellResult, Signature, Span,
+    SyntaxShape, Type, Value,
 };
 
 #[derive(Clone)]
@@ -50,7 +50,7 @@ impl PluginCommand for LazyExplode {
                 result: Some(
                     NuDataFrame::try_from_columns(vec![
                         Column::new(
-                            "id".to_string(), 
+                            "id".to_string(),
                             vec![
                                 Value::test_int(1),
                                 Value::test_int(1),
@@ -58,7 +58,7 @@ impl PluginCommand for LazyExplode {
                                 Value::test_int(2),
                             ]),
                         Column::new(
-                            "name".to_string(), 
+                            "name".to_string(),
                             vec![
                                 Value::test_string("Mercy"),
                                 Value::test_string("Mercy"),
@@ -66,7 +66,7 @@ impl PluginCommand for LazyExplode {
                                 Value::test_string("Bob"),
                             ]),
                         Column::new(
-                            "hobbies".to_string(), 
+                            "hobbies".to_string(),
                             vec![
                                 Value::test_string("Cycling"),
                                 Value::test_string("Knitting"),
@@ -84,7 +84,7 @@ impl PluginCommand for LazyExplode {
                 result: Some(
                     NuDataFrame::try_from_columns(vec![
                         Column::new(
-                            "hobbies".to_string(), 
+                            "hobbies".to_string(),
                             vec![
                                 Value::test_string("Cycling"),
                                 Value::test_string("Knitting"),
@@ -115,7 +115,7 @@ pub(crate) fn explode(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let value = input.into_value(call.head);
 
     match PolarsPluginObject::try_from_value(plugin, &value)? {
@@ -130,7 +130,7 @@ pub(crate) fn explode(
             from_type: value.get_type().to_string(),
             span: call.head,
             help: None,
-        }),
+        })?,
     }
 }
 
@@ -139,12 +139,12 @@ pub(crate) fn explode_lazy(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     lazy: NuLazyFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let columns = call
         .positional
         .iter()
         .map(|e| e.as_str().map(|s| s.to_string()))
-        .collect::<Result<Vec<String>, ShellError>>()?;
+        .collect::<ShellResult<Vec<String>>>()?;
 
     let exploded = lazy
         .to_polars()
@@ -159,7 +159,7 @@ pub(crate) fn explode_expr(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     expr: NuExpression,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let expr: NuExpression = expr.to_polars().explode().into();
     expr.to_pipeline_data(plugin, engine, call.head)
 }
@@ -170,7 +170,7 @@ mod test {
     use crate::test::test_polars_plugin_command;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&LazyExplode)
     }
 }

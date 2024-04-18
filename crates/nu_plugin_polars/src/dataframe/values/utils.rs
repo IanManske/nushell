@@ -1,4 +1,4 @@
-use nu_protocol::{span as span_join, ShellError, Span, Spanned, Value};
+use nu_protocol::{span as span_join, ShellError, ShellResult, Span, Spanned, Value};
 
 // Default value used when selecting rows from dataframe
 pub const DEFAULT_ROWS: usize = 5;
@@ -10,7 +10,7 @@ pub const DEFAULT_ROWS: usize = 5;
 pub(crate) fn convert_columns(
     columns: Vec<Value>,
     span: Span,
-) -> Result<(Vec<Spanned<String>>, Span), ShellError> {
+) -> ShellResult<(Vec<Spanned<String>>, Span)> {
     // First column span
     let mut col_span = columns
         .first()
@@ -53,7 +53,7 @@ pub(crate) fn convert_columns(
 pub(crate) fn convert_columns_string(
     columns: Vec<Value>,
     span: Span,
-) -> Result<(Vec<String>, Span), ShellError> {
+) -> ShellResult<(Vec<String>, Span)> {
     // First column span
     let mut col_span = columns
         .first()

@@ -1,7 +1,7 @@
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Span, SyntaxShape, Type,
-    Value,
+    Category, Example, LabeledError, PipelineData, ShellError, ShellResult, Signature, Span,
+    SyntaxShape, Type, Value,
 };
 use polars::prelude::LazyFrame;
 
@@ -91,7 +91,7 @@ impl PluginCommand for FilterWith {
             _ => Err(cant_convert_err(
                 &value,
                 &[PolarsPluginType::NuDataFrame, PolarsPluginType::NuLazyFrame],
-            )),
+            ))?,
         }
         .map_err(LabeledError::from)
     }
@@ -102,7 +102,7 @@ fn command_eager(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     df: NuDataFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let mask_value: Value = call.req(0)?;
     let mask_span = mask_value.span();
 
@@ -143,7 +143,7 @@ fn command_lazy(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     lazy: NuLazyFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let expr: Value = call.req(0)?;
     let expr = NuExpression::try_from_value(plugin, &expr)?;
     let lazy = lazy.apply_with_expr(expr, LazyFrame::filter);
@@ -156,7 +156,7 @@ mod test {
     use crate::test::test_polars_plugin_command;
 
     #[test]
-    fn test_examples() -> Result<(), ShellError> {
+    fn test_examples() -> ShellResult<()> {
         test_polars_plugin_command(&FilterWith)
     }
 }

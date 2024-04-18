@@ -13,7 +13,9 @@ pub use nu_expression::{NuExpression, NuExpressionCustomValue};
 pub use nu_lazyframe::{NuLazyFrame, NuLazyFrameCustomValue};
 pub use nu_lazygroupby::{NuLazyGroupBy, NuLazyGroupByCustomValue};
 use nu_plugin::EngineInterface;
-use nu_protocol::{ast::Operator, CustomValue, PipelineData, ShellError, Span, Spanned, Value};
+use nu_protocol::{
+    ast::Operator, CustomValue, Error, PipelineData, ShellError, ShellResult, Span, Spanned, Value,
+};
 pub use nu_schema::{str_to_dtype, NuSchema};
 pub use nu_when::{NuWhen, NuWhenCustomValue, NuWhenType};
 use uuid::Uuid;
@@ -51,10 +53,7 @@ pub enum PolarsPluginObject {
 }
 
 impl PolarsPluginObject {
-    pub fn try_from_value(
-        plugin: &PolarsPlugin,
-        value: &Value,
-    ) -> Result<PolarsPluginObject, ShellError> {
+    pub fn try_from_value(plugin: &PolarsPlugin, value: &Value) -> ShellResult<PolarsPluginObject> {
         if NuDataFrame::can_downcast(value) {
             NuDataFrame::try_from_value(plugin, value).map(PolarsPluginObject::NuDataFrame)
         } else if NuLazyFrame::can_downcast(value) {
@@ -83,7 +82,7 @@ impl PolarsPluginObject {
         plugin: &PolarsPlugin,
         input: PipelineData,
         span: Span,
-    ) -> Result<Self, ShellError> {
+    ) -> ShellResult<Self> {
         let value = input.into_value(span);
         Self::try_from_value(plugin, &value)
     }
@@ -129,7 +128,7 @@ impl CustomValueType {
         }
     }
 
-    pub fn try_from_custom_value(val: Box<dyn CustomValue>) -> Result<CustomValueType, ShellError> {
+    pub fn try_from_custom_value(val: Box<dyn CustomValue>) -> ShellResult<CustomValueType> {
         if let Some(df_cv) = val.as_any().downcast_ref::<NuDataFrameCustomValue>() {
             Ok(CustomValueType::NuDataFrame(df_cv.clone()))
         } else if let Some(lf_cv) = val.as_any().downcast_ref::<NuLazyFrameCustomValue>() {
@@ -146,12 +145,12 @@ impl CustomValueType {
                 from_type: "value".into(),
                 span: Span::unknown(),
                 help: None,
-            })
+            })?
         }
     }
 }
 
-pub fn cant_convert_err(value: &Value, types: &[PolarsPluginType]) -> ShellError {
+pub fn cant_convert_err(value: &Value, types: &[PolarsPluginType]) -> Error {
     let type_string = types
         .iter()
         .map(ToString::to_string)
@@ -164,6 +163,7 @@ pub fn cant_convert_err(value: &Value, types: &[PolarsPluginType]) -> ShellError
         span: value.span(),
         help: None,
     }
+    .into()
 }
 
 pub trait PolarsPluginCustomValue: CustomValue {
@@ -177,7 +177,7 @@ pub trait PolarsPluginCustomValue: CustomValue {
         &self,
         plugin: &PolarsPlugin,
         engine: &EngineInterface,
-    ) -> Result<Value, ShellError>;
+    ) -> ShellResult<Value>;
 
     fn custom_value_operation(
         &self,
@@ -186,11 +186,11 @@ pub trait PolarsPluginCustomValue: CustomValue {
         _lhs_span: Span,
         operator: Spanned<Operator>,
         _right: Value,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         Err(ShellError::UnsupportedOperator {
             operator: operator.item,
             span: operator.span,
-        })
+        })?
     }
 
     fn custom_value_follow_path_int(
@@ -199,11 +199,11 @@ pub trait PolarsPluginCustomValue: CustomValue {
         _engine: &EngineInterface,
         self_span: Span,
         _index: Spanned<usize>,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         Err(ShellError::IncompatiblePathAccess {
             type_name: self.type_name(),
             span: self_span,
-        })
+        })?
     }
 
     fn custom_value_follow_path_string(
@@ -212,11 +212,11 @@ pub trait PolarsPluginCustomValue: CustomValue {
         _engine: &EngineInterface,
         self_span: Span,
         _column_name: Spanned<String>,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         Err(ShellError::IncompatiblePathAccess {
             type_name: self.type_name(),
             span: self_span,
-        })
+        })?
     }
 
     fn custom_value_partial_cmp(
@@ -224,7 +224,7 @@ pub trait PolarsPluginCustomValue: CustomValue {
         _plugin: &PolarsPlugin,
         _engine: &EngineInterface,
         _other_value: Value,
-    ) -> Result<Option<Ordering>, ShellError> {
+    ) -> ShellResult<Option<Ordering>> {
         Ok(None)
     }
 }
@@ -232,7 +232,7 @@ pub trait PolarsPluginCustomValue: CustomValue {
 /// Handles the ability for a PolarsObjectType implementations to convert between
 /// their respective CustValue type.
 /// PolarsPluginObjectType's (NuDataFrame, NuLazyFrame) should
-/// implement this trait.  
+/// implement this trait.
 pub trait CustomValueSupport: Cacheable {
     type CV: PolarsPluginCustomValue<PolarsPluginObjectType = Self> + CustomValue + 'static;
 
@@ -244,27 +244,30 @@ pub trait CustomValueSupport: Cacheable {
 
     fn custom_value(self) -> Self::CV;
 
-    fn base_value(self, span: Span) -> Result<Value, ShellError>;
+    fn base_value(self, span: Span) -> ShellResult<Value>;
 
     fn into_value(self, span: Span) -> Value {
         Value::custom(Box::new(self.custom_value()), span)
     }
 
-    fn try_from_custom_value(plugin: &PolarsPlugin, cv: &Self::CV) -> Result<Self, ShellError> {
+    fn try_from_custom_value(plugin: &PolarsPlugin, cv: &Self::CV) -> ShellResult<Self> {
         if let Some(internal) = cv.internal() {
             Ok(internal.clone())
         } else {
-            Self::get_cached(plugin, cv.id())?.ok_or_else(|| ShellError::GenericError {
-                error: format!("Dataframe {:?} not found in cache", cv.id()),
-                msg: "".into(),
-                span: None,
-                help: None,
-                inner: vec![],
+            Self::get_cached(plugin, cv.id())?.ok_or_else(|| {
+                ShellError::GenericError {
+                    error: format!("Dataframe {:?} not found in cache", cv.id()),
+                    msg: "".into(),
+                    span: None,
+                    help: None,
+                    inner: vec![],
+                }
+                .into()
             })
         }
     }
 
-    fn try_from_value(plugin: &PolarsPlugin, value: &Value) -> Result<Self, ShellError> {
+    fn try_from_value(plugin: &PolarsPlugin, value: &Value) -> ShellResult<Self> {
         if let Value::Custom { val, .. } = value {
             if let Some(cv) = val.as_any().downcast_ref::<Self::CV>() {
                 Self::try_from_custom_value(plugin, cv)
@@ -274,7 +277,7 @@ pub trait CustomValueSupport: Cacheable {
                     from_type: value.get_type().to_string(),
                     span: value.span(),
                     help: None,
-                })
+                })?
             }
         } else {
             Err(ShellError::CantConvert {
@@ -282,7 +285,7 @@ pub trait CustomValueSupport: Cacheable {
                 from_type: value.get_type().to_string(),
                 span: value.span(),
                 help: None,
-            })
+            })?
         }
     }
 
@@ -290,7 +293,7 @@ pub trait CustomValueSupport: Cacheable {
         plugin: &PolarsPlugin,
         input: PipelineData,
         span: Span,
-    ) -> Result<Self, ShellError> {
+    ) -> ShellResult<Self> {
         let value = input.into_value(span);
         Self::try_from_value(plugin, &value)
     }
@@ -312,7 +315,7 @@ pub trait CustomValueSupport: Cacheable {
         plugin: &PolarsPlugin,
         engine: &EngineInterface,
         span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value, > {
         match self.to_cache_value()? {
             // if it was from a lazy value, make it lazy again
             PolarsPluginObject::NuDataFrame(df) if df.from_lazy => {
@@ -336,7 +339,7 @@ pub trait CustomValueSupport: Cacheable {
         plugin: &PolarsPlugin,
         engine: &EngineInterface,
         span: Span,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         Ok(PipelineData::Value(
             self.cache_and_to_value(plugin, engine, span)?,
             None,

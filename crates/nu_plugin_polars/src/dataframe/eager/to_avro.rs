@@ -3,8 +3,8 @@ use std::{fs::File, path::PathBuf};
 use nu_path::expand_path_with;
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    Category, Example, LabeledError, PipelineData, ShellError, Signature, Spanned, SyntaxShape,
-    Type, Value,
+    Category, Example, LabeledError, PipelineData, ShellError, ShellResult, Signature, Spanned,
+    SyntaxShape, Type, Value,
 };
 use polars_io::avro::{AvroCompression, AvroWriter};
 use polars_io::SerWriter;
@@ -59,7 +59,7 @@ impl PluginCommand for ToAvro {
     }
 }
 
-fn get_compression(call: &EvaluatedCall) -> Result<Option<AvroCompression>, ShellError> {
+fn get_compression(call: &EvaluatedCall) -> ShellResult<Option<AvroCompression>> {
     if let Some((compression, span)) = call
         .get_flag_value("compression")
         .map(|e| e.as_str().map(|s| (s.to_owned(), e.span())))
@@ -72,7 +72,7 @@ fn get_compression(call: &EvaluatedCall) -> Result<Option<AvroCompression>, Shel
                 msg: "compression must be one of deflate or snappy".to_string(),
                 val_span: span,
                 call_span: span,
-            }),
+            })?,
         }
     } else {
         Ok(None)
@@ -84,7 +84,7 @@ fn command(
     engine: &EngineInterface,
     call: &EvaluatedCall,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let file_name: Spanned<PathBuf> = call.req(0)?;
     let file_path = expand_path_with(&file_name.item, engine.get_current_dir()?, true);
     let compression = get_compression(call)?;
