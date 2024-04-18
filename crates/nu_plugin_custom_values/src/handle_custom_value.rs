@@ -1,4 +1,4 @@
-use nu_protocol::{CustomValue, LabeledError, ShellError, Span, Value};
+use nu_protocol::{CustomValue, LabeledError, ShellResult, Span, Value};
 use serde::{Deserialize, Serialize};
 
 /// References a stored handle within the plugin
@@ -21,7 +21,7 @@ impl CustomValue for HandleCustomValue {
         "HandleCustomValue".into()
     }
 
-    fn to_base_value(&self, span: Span) -> Result<Value, ShellError> {
+    fn to_base_value(&self, span: Span) -> ShellResult<Value> {
         Err(LabeledError::new("Unsupported operation")
             .with_label("can't call to_base_value() directly on this", span)
             .with_help("HandleCustomValue uses custom_value_to_base_value() on the plugin instead")

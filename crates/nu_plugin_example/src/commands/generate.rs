@@ -90,7 +90,7 @@ impl PluginCommand for Generate {
 }
 
 #[test]
-fn test_examples() -> Result<(), nu_protocol::ShellError> {
+fn test_examples() -> nu_protocol::ShellResult<()> {
     use nu_cmd_lang::If;
     use nu_plugin_test_support::PluginTest;
     PluginTest::new("example", ExamplePlugin.into())?

@@ -173,7 +173,7 @@ fn from_eml(input: &Value, body_preview: usize, head: Span) -> Result<Value, Lab
 }
 
 #[test]
-fn test_examples() -> Result<(), nu_protocol::ShellError> {
+fn test_examples() -> nu_protocol::ShellResult<()> {
     use nu_plugin_test_support::PluginTest;
 
     PluginTest::new("formats", crate::FromCmds.into())?.test_command_examples(&FromEml)

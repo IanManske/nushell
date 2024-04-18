@@ -1,7 +1,7 @@
 use crate::CustomValuePlugin;
 use nu_plugin::{EngineInterface, EvaluatedCall, SimplePluginCommand};
 use nu_protocol::{
-    record, Category, CustomValue, LabeledError, ShellError, Signature, Span, SyntaxShape, Value,
+    record, Category, CustomValue, LabeledError, ShellResult, Signature, Span, SyntaxShape, Value,
 };
 use serde::{Deserialize, Serialize};
 
@@ -34,7 +34,7 @@ impl CustomValue for DropCheckValue {
         "DropCheckValue".into()
     }
 
-    fn to_base_value(&self, span: Span) -> Result<Value, ShellError> {
+    fn to_base_value(&self, span: Span) -> ShellResult<Value> {
         Ok(Value::record(
             record! {
                 "msg" => Value::string(&self.msg, span)

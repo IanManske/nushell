@@ -52,7 +52,7 @@ impl SimplePluginCommand for ViewSpan {
 }
 
 #[test]
-fn test_examples() -> Result<(), nu_protocol::ShellError> {
+fn test_examples() -> nu_protocol::ShellResult<()> {
     use nu_plugin_test_support::PluginTest;
     PluginTest::new("example", ExamplePlugin.into())?.test_command_examples(&ViewSpan)
 }

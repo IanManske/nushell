@@ -39,7 +39,7 @@ impl SimplePluginCommand for Generate {
 }
 
 #[test]
-fn test_examples() -> Result<(), nu_protocol::ShellError> {
+fn test_examples() -> nu_protocol::ShellResult<()> {
     use nu_plugin_test_support::PluginTest;
 
     PluginTest::new("custom_values", CustomValuePlugin::new().into())?

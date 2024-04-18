@@ -1,4 +1,4 @@
-use nu_protocol::{ast, CustomValue, ShellError, Span, Value};
+use nu_protocol::{ast, CustomValue, ShellError, ShellResult, Span, Value};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
@@ -18,7 +18,7 @@ impl CoolCustomValue {
         Value::custom(Box::new(self), span)
     }
 
-    pub fn try_from_value(value: &Value) -> Result<Self, ShellError> {
+    pub fn try_from_value(value: &Value) -> ShellResult<Self> {
         let span = value.span();
         match value {
             Value::Custom { val, .. } => {
@@ -30,7 +30,7 @@ impl CoolCustomValue {
                         from_type: "non-cool".into(),
                         span,
                         help: None,
-                    })
+                    })?
                 }
             }
             x => Err(ShellError::CantConvert {
@@ -38,7 +38,7 @@ impl CoolCustomValue {
                 from_type: x.get_type().to_string(),
                 span,
                 help: None,
-            }),
+            })?,
         }
     }
 }
@@ -53,7 +53,7 @@ impl CustomValue for CoolCustomValue {
         self.typetag_name().to_string()
     }
 
-    fn to_base_value(&self, span: Span) -> Result<Value, ShellError> {
+    fn to_base_value(&self, span: Span) -> ShellResult<Value> {
         Ok(Value::string(
             format!("I used to be a custom value! My data was ({})", self.cool),
             span,
@@ -65,14 +65,14 @@ impl CustomValue for CoolCustomValue {
         _self_span: Span,
         index: usize,
         path_span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         if index == 0 {
             Ok(Value::string(&self.cool, path_span))
         } else {
             Err(ShellError::AccessBeyondEnd {
                 max_idx: 0,
                 span: path_span,
-            })
+            })?
         }
     }
 
@@ -81,7 +81,7 @@ impl CustomValue for CoolCustomValue {
         self_span: Span,
         column_name: String,
         path_span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         if column_name == "cool" {
             Ok(Value::string(&self.cool, path_span))
         } else {
@@ -89,7 +89,7 @@ impl CustomValue for CoolCustomValue {
                 col_name: column_name,
                 span: path_span,
                 src_span: self_span,
-            })
+            })?
         }
     }
 
@@ -109,7 +109,7 @@ impl CustomValue for CoolCustomValue {
         operator: ast::Operator,
         op_span: Span,
         right: &Value,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         match operator {
             // Append the string inside `cool`
             ast::Operator::Math(ast::Math::Append) => {
@@ -131,13 +131,13 @@ impl CustomValue for CoolCustomValue {
                         lhs_span,
                         rhs_ty: right.get_type().to_string(),
                         rhs_span: right.span(),
-                    })
+                    })?
                 }
             }
             _ => Err(ShellError::UnsupportedOperator {
                 operator,
                 span: op_span,
-            }),
+            })?,
         }
     }
 

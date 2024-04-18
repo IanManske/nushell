@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use nu_protocol::{CustomValue, ShellError, Span, Value};
+use nu_protocol::{CustomValue, ShellError, ShellResult, Span, Value};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -19,7 +19,7 @@ impl SecondCustomValue {
         Value::custom(Box::new(self), span)
     }
 
-    pub fn try_from_value(value: &Value) -> Result<Self, ShellError> {
+    pub fn try_from_value(value: &Value) -> ShellResult<Self> {
         let span = value.span();
         match value {
             Value::Custom { val, .. } => match val.as_any().downcast_ref::<Self>() {
@@ -29,14 +29,14 @@ impl SecondCustomValue {
                     from_type: "non-cool".into(),
                     span,
                     help: None,
-                }),
+                })?,
             },
             x => Err(ShellError::CantConvert {
                 to_type: "cool".into(),
                 from_type: x.get_type().to_string(),
                 span,
                 help: None,
-            }),
+            })?,
         }
     }
 }
@@ -51,7 +51,7 @@ impl CustomValue for SecondCustomValue {
         self.typetag_name().to_string()
     }
 
-    fn to_base_value(&self, span: nu_protocol::Span) -> Result<Value, ShellError> {
+    fn to_base_value(&self, span: nu_protocol::Span) -> ShellResult<Value> {
         Ok(Value::string(
             format!(
                 "I used to be a DIFFERENT custom value! ({})",
