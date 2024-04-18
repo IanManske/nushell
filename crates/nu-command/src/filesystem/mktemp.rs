@@ -70,7 +70,7 @@ impl Command for Mktemp {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
         let template = call
             .rest(engine_state, stack, 0)?
@@ -119,7 +119,7 @@ impl Command for Mktemp {
                     span: None,
                     help: None,
                     inner: vec![],
-                });
+                })?;
             }
         };
         Ok(PipelineData::Value(Value::string(res, span), None))

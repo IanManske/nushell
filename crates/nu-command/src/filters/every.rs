@@ -58,7 +58,7 @@ impl Command for Every {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let stride = match call.req::<usize>(engine_state, stack, 0)? {
             0 => 1,
             stride => stride,

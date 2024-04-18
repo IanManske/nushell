@@ -1,20 +1,22 @@
 use csv::{Writer, WriterBuilder};
 use nu_cmd_base::formats::to::delimited::merge_descriptors;
-use nu_protocol::{Config, IntoPipelineData, PipelineData, Record, ShellError, Span, Value};
-use std::{collections::VecDeque, error::Error};
+use nu_protocol::{
+    Config, Error, IntoPipelineData, PipelineData, Record, ShellError, ShellResult, Span, Value,
+};
+use std::collections::VecDeque;
 
 fn from_value_to_delimited_string(
     value: &Value,
     separator: char,
     config: &Config,
     head: Span,
-) -> Result<String, ShellError> {
+) -> ShellResult<String> {
     let span = value.span();
     match value {
         Value::Record { val, .. } => record_to_delimited(val, span, separator, config, head),
         Value::List { vals, .. } => table_to_delimited(vals, span, separator, config, head),
         // Propagate errors by explicitly matching them before the final case.
-        Value::Error { error, .. } => Err(*error.clone()),
+        Value::Error { error, .. } => Err(error.clone()),
         v => Err(make_unsupported_input_error(v, head, v.span())),
     }
 }
@@ -25,7 +27,7 @@ fn record_to_delimited(
     separator: char,
     config: &Config,
     head: Span,
-) -> Result<String, ShellError> {
+) -> ShellResult<String> {
     let mut wtr = WriterBuilder::new()
         .delimiter(separator as u8)
         .from_writer(vec![]);
@@ -50,7 +52,7 @@ fn table_to_delimited(
     separator: char,
     config: &Config,
     head: Span,
-) -> Result<String, ShellError> {
+) -> ShellResult<String> {
     if let Some(val) = find_non_record(vals) {
         return Err(make_unsupported_input_error(val, head, span));
     }
@@ -90,17 +92,18 @@ fn table_to_delimited(
     writer_to_string(wtr).map_err(|_| make_conversion_error("table", span))
 }
 
-fn writer_to_string(writer: Writer<Vec<u8>>) -> Result<String, Box<dyn Error>> {
+fn writer_to_string(writer: Writer<Vec<u8>>) -> Result<String, Box<dyn std::error::Error>> {
     Ok(String::from_utf8(writer.into_inner()?)?)
 }
 
-fn make_conversion_error(type_from: &str, span: Span) -> ShellError {
+fn make_conversion_error(type_from: &str, span: Span) -> Error {
     ShellError::CantConvert {
         to_type: type_from.to_string(),
         from_type: "string".to_string(),
         span,
         help: None,
     }
+    .into()
 }
 
 fn to_string_tagged_value(
@@ -108,7 +111,7 @@ fn to_string_tagged_value(
     config: &Config,
     span: Span,
     head: Span,
-) -> Result<String, ShellError> {
+) -> ShellResult<String> {
     match &v {
         Value::String { .. }
         | Value::Bool { .. }
@@ -122,18 +125,19 @@ fn to_string_tagged_value(
         Value::Date { val, .. } => Ok(val.to_string()),
         Value::Nothing { .. } => Ok(String::new()),
         // Propagate existing errors
-        Value::Error { error, .. } => Err(*error.clone()),
+        Value::Error { error, .. } => Err(error.clone()),
         _ => Err(make_unsupported_input_error(v, head, span)),
     }
 }
 
-fn make_unsupported_input_error(value: &Value, head: Span, span: Span) -> ShellError {
+fn make_unsupported_input_error(value: &Value, head: Span, span: Span) -> Error {
     ShellError::UnsupportedInput {
         msg: "Unexpected type".to_string(),
         input: format!("input type: {:?}", value.get_type()),
         msg_span: head,
         input_span: span,
     }
+    .into()
 }
 
 pub fn find_non_record(values: &[Value]) -> Option<&Value> {
@@ -149,7 +153,7 @@ pub fn to_delimited_data(
     input: PipelineData,
     span: Span,
     config: &Config,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let value = input.into_value(span);
     let output = match from_value_to_delimited_string(&value, sep, config, span) {
         Ok(mut x) => {

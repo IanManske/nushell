@@ -34,7 +34,7 @@ impl Command for Which {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         which(engine_state, stack, call)
     }
 
@@ -209,11 +209,7 @@ fn which_single(
     }
 }
 
-fn which(
-    engine_state: &EngineState,
-    stack: &mut Stack,
-    call: &Call,
-) -> Result<PipelineData, ShellError> {
+fn which(engine_state: &EngineState, stack: &mut Stack, call: &Call) -> ShellResult<PipelineData> {
     let which_args = WhichArgs {
         applications: call.rest(engine_state, stack, 0)?,
         all: call.has_flag(engine_state, stack, "all")?,
@@ -221,10 +217,10 @@ fn which(
     let ctrlc = engine_state.ctrlc.clone();
 
     if which_args.applications.is_empty() {
-        return Err(ShellError::MissingParameter {
+        Err(ShellError::MissingParameter {
             param_name: "application".into(),
             span: call.head,
-        });
+        })?;
     }
 
     let mut output = vec![];

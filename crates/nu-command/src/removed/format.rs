@@ -34,11 +34,11 @@ impl Command for SubCommand {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         Err(nu_protocol::ShellError::RemovedCommand {
             removed: self.name().to_string(),
             replacement: "format date".to_owned(),
             span: call.head,
-        })
+        })?
     }
 }

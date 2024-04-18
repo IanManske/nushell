@@ -44,7 +44,7 @@ impl Command for StorExport {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
         let file_name_opt: Option<String> = call.get_flag(engine_state, stack, "file-name")?;
         let file_name = match file_name_opt {
@@ -53,7 +53,7 @@ impl Command for StorExport {
                 return Err(ShellError::MissingParameter {
                     param_name: "please supply a file name with the --file-name parameter".into(),
                     span,
-                })
+                })?
             }
         };
 

@@ -124,7 +124,7 @@ impl Command for Glob {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let ctrlc = engine_state.ctrlc.clone();
         let span = call.head;
         let glob_pattern: Spanned<String> = call.req(engine_state, stack, 0)?;
@@ -156,7 +156,7 @@ impl Command for Glob {
                 span: Some(glob_pattern.span),
                 help: Some("add characters to the glob pattern".into()),
                 inner: vec![],
-            });
+            })?;
         }
 
         let folder_depth = if let Some(depth) = depth {
@@ -174,7 +174,7 @@ impl Command for Glob {
                     span: Some(glob_pattern.span),
                     help: None,
                     inner: vec![],
-                })
+                })?
             }
         };
 
@@ -193,7 +193,7 @@ impl Command for Glob {
                     span: Some(glob_pattern.span),
                     help: None,
                     inner: vec![],
-                })
+                })?
             }
         };
 
@@ -238,7 +238,7 @@ impl Command for Glob {
     }
 }
 
-fn convert_patterns(columns: &[Value]) -> Result<Vec<String>, ShellError> {
+fn convert_patterns(columns: &[Value]) -> ShellResult<Vec<String>> {
     let res = columns
         .iter()
         .map(|value| match &value {
@@ -260,12 +260,12 @@ fn glob_to_value<'a>(
     no_files: bool,
     no_symlinks: bool,
     span: Span,
-) -> Result<Vec<Value>, ShellError> {
+) -> ShellResult<Vec<Value>> {
     let mut result: Vec<Value> = Vec::new();
     for entry in glob_results {
         if nu_utils::ctrl_c::was_pressed(&ctrlc) {
             result.clear();
-            return Err(ShellError::InterruptedByUser { span: None });
+            Err(ShellError::InterruptedByUser { span: None })?;
         }
         let file_type = entry.file_type();
 

@@ -47,7 +47,7 @@ impl Command for ToNuon {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let raw = call.has_flag(engine_state, stack, "raw")?;
         let tabs: Option<usize> = call.get_flag(engine_state, stack, "tabs")?;
         let indent: Option<usize> = call.get_flag(engine_state, stack, "indent")?;
@@ -113,7 +113,7 @@ pub fn value_to_string(
     span: Span,
     depth: usize,
     indent: Option<&str>,
-) -> Result<String, ShellError> {
+) -> ShellResult<String> {
     let (nl, sep) = get_true_separators(indent);
     let idt = get_true_indentation(depth, indent);
     let idt_po = get_true_indentation(depth + 1, indent);
@@ -124,12 +124,12 @@ pub fn value_to_string(
             let mut s = String::with_capacity(2 * val.len());
             for byte in val {
                 if write!(s, "{byte:02X}").is_err() {
-                    return Err(ShellError::UnsupportedInput {
+                    Err(ShellError::UnsupportedInput {
                         msg: "could not convert binary to string".into(),
                         input: "value originates from here".into(),
                         msg_span: span,
                         input_span: v.span(),
-                    });
+                    })?;
                 }
             }
             Ok(format!("0x[{s}]"))
@@ -139,13 +139,13 @@ pub fn value_to_string(
             input: "value originates from here".into(),
             msg_span: span,
             input_span: v.span(),
-        }),
+        })?,
         Value::Closure { .. } => Err(ShellError::UnsupportedInput {
             msg: "closures are currently not nuon-compatible".into(),
             input: "value originates from here".into(),
             msg_span: span,
             input_span: v.span(),
-        }),
+        })?,
         Value::Bool { val, .. } => {
             if *val {
                 Ok("true".to_string())
@@ -158,18 +158,18 @@ pub fn value_to_string(
             input: "value originates from here".into(),
             msg_span: span,
             input_span: v.span(),
-        }),
+        })?,
         Value::Custom { .. } => Err(ShellError::UnsupportedInput {
             msg: "custom values are currently not nuon-compatible".to_string(),
             input: "value originates from here".into(),
             msg_span: span,
             input_span: v.span(),
-        }),
+        })?,
         Value::Date { val, .. } => Ok(val.to_rfc3339()),
         // FIXME: make durations use the shortest lossless representation.
         Value::Duration { val, .. } => Ok(format!("{}ns", *val)),
         // Propagate existing errors
-        Value::Error { error, .. } => Err(*error.clone()),
+        Value::Error { error, .. } => Err(error.clone()),
         // FIXME: make filesizes use the shortest lossless representation.
         Value::Filesize { val, .. } => Ok(format!("{}b", *val)),
         Value::Float { val, .. } => {
@@ -307,7 +307,7 @@ fn value_to_string_without_quotes(
     span: Span,
     depth: usize,
     indent: Option<&str>,
-) -> Result<String, ShellError> {
+) -> ShellResult<String> {
     match v {
         Value::String { val, .. } => Ok({
             if needs_quotes(val) {

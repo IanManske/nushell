@@ -50,7 +50,7 @@ impl Command for FromNuon {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let (string_input, _span, metadata) = input.collect_string_strict(head)?;
 
@@ -73,7 +73,7 @@ impl Command for FromNuon {
                         msg: "excess values when loading".into(),
                         span: element.expr.span,
                     }],
-                });
+                })?;
             } else {
                 return Err(ShellError::GenericError {
                     error: "error when loading nuon text".into(),
@@ -87,7 +87,7 @@ impl Command for FromNuon {
                         help: None,
                         inner: vec![],
                     }],
-                });
+                })?;
             }
         }
 
@@ -113,7 +113,7 @@ impl Command for FromNuon {
                         msg: "detected a pipeline in nuon file".into(),
                         span: expr.expr.span,
                     }],
-                });
+                })?;
             }
 
             if pipeline.elements.is_empty() {
@@ -140,7 +140,7 @@ impl Command for FromNuon {
                     msg: err.to_string(),
                     span: err.span(),
                 }],
-            });
+            })?;
         }
 
         let result = convert_to_value(expr, head, &string_input);
@@ -152,42 +152,38 @@ impl Command for FromNuon {
                 msg: "could not load nuon text".into(),
                 span: Some(head),
                 help: None,
-                inner: vec![err],
-            }),
+                inner: vec![err.into()],
+            })?,
         }
     }
 }
 
-fn convert_to_value(
-    expr: Expression,
-    span: Span,
-    original_text: &str,
-) -> Result<Value, ShellError> {
+fn convert_to_value(expr: Expression, span: Span, original_text: &str) -> ShellResult<Value> {
     match expr.expr {
         Expr::BinaryOp(..) => Err(ShellError::OutsideSpannedLabeledError {
             src: original_text.to_string(),
             error: "Error when loading".into(),
             msg: "binary operators not supported in nuon".into(),
             span: expr.span,
-        }),
+        })?,
         Expr::UnaryNot(..) => Err(ShellError::OutsideSpannedLabeledError {
             src: original_text.to_string(),
             error: "Error when loading".into(),
             msg: "unary operators not supported in nuon".into(),
             span: expr.span,
-        }),
+        })?,
         Expr::Block(..) => Err(ShellError::OutsideSpannedLabeledError {
             src: original_text.to_string(),
             error: "Error when loading".into(),
             msg: "blocks not supported in nuon".into(),
             span: expr.span,
-        }),
+        })?,
         Expr::Closure(..) => Err(ShellError::OutsideSpannedLabeledError {
             src: original_text.to_string(),
             error: "Error when loading".into(),
             msg: "closures not supported in nuon".into(),
             span: expr.span,
-        }),
+        })?,
         Expr::Binary(val) => Ok(Value::binary(val, span)),
         Expr::Bool(val) => Ok(Value::bool(val, span)),
         Expr::Call(..) => Err(ShellError::OutsideSpannedLabeledError {
@@ -195,20 +191,20 @@ fn convert_to_value(
             error: "Error when loading".into(),
             msg: "calls not supported in nuon".into(),
             span: expr.span,
-        }),
+        })?,
         Expr::CellPath(..) => Err(ShellError::OutsideSpannedLabeledError {
             src: original_text.to_string(),
             error: "Error when loading".into(),
             msg: "subexpressions and cellpaths not supported in nuon".into(),
             span: expr.span,
-        }),
+        })?,
         Expr::DateTime(dt) => Ok(Value::date(dt, span)),
         Expr::ExternalCall(..) => Err(ShellError::OutsideSpannedLabeledError {
             src: original_text.to_string(),
             error: "Error when loading".into(),
             msg: "calls not supported in nuon".into(),
             span: expr.span,
-        }),
+        })?,
         Expr::Filepath(val, _) => Ok(Value::string(val, span)),
         Expr::Directory(val, _) => Ok(Value::string(val, span)),
         Expr::Float(val) => Ok(Value::float(val, span)),
@@ -219,7 +215,7 @@ fn convert_to_value(
                     error: "Error when loading".into(),
                     msg: "subexpressions and cellpaths not supported in nuon".into(),
                     span: expr.span,
-                })
+                })?
             } else {
                 convert_to_value(full_cell_path.head, span, original_text)
             }
@@ -230,27 +226,27 @@ fn convert_to_value(
             error: "Error when loading".into(),
             msg: "extra tokens in input file".into(),
             span: expr.span,
-        }),
+        })?,
         Expr::GlobPattern(val, _) => Ok(Value::string(val, span)),
         Expr::ImportPattern(..) => Err(ShellError::OutsideSpannedLabeledError {
             src: original_text.to_string(),
             error: "Error when loading".into(),
             msg: "imports not supported in nuon".into(),
             span: expr.span,
-        }),
+        })?,
         Expr::Overlay(..) => Err(ShellError::OutsideSpannedLabeledError {
             src: original_text.to_string(),
             error: "Error when loading".into(),
             msg: "overlays not supported in nuon".into(),
             span: expr.span,
-        }),
+        })?,
         Expr::Int(val) => Ok(Value::int(val, span)),
         Expr::Keyword(kw, ..) => Err(ShellError::OutsideSpannedLabeledError {
             src: original_text.to_string(),
             error: "Error when loading".into(),
             msg: format!("{} not supported in nuon", String::from_utf8_lossy(&kw)),
             span: expr.span,
-        }),
+        })?,
         Expr::List(vals) => {
             let mut output = vec![];
 
@@ -277,14 +273,14 @@ fn convert_to_value(
             error: "Error when loading".into(),
             msg: "match blocks not supported in nuon".into(),
             span: expr.span,
-        }),
+        })?,
         Expr::Nothing => Ok(Value::nothing(span)),
         Expr::Operator(..) => Err(ShellError::OutsideSpannedLabeledError {
             src: original_text.to_string(),
             error: "Error when loading".into(),
             msg: "operators not supported in nuon".into(),
             span: expr.span,
-        }),
+        })?,
         Expr::Range(from, next, to, operator) => {
             let from = if let Some(f) = from {
                 convert_to_value(*f, span, original_text)?
@@ -324,7 +320,7 @@ fn convert_to_value(
                                     error: "Error when loading".into(),
                                     msg: "only strings can be keys".into(),
                                     span: key.span,
-                                })
+                                })?
                             }
                         };
 
@@ -333,7 +329,7 @@ fn convert_to_value(
                                 col_name: key_str,
                                 second_use: key.span,
                                 first_use: key_spans[i],
-                            });
+                            })?;
                         } else {
                             key_spans.push(key.span);
                             record.push(key_str, convert_to_value(val, span, original_text)?);
@@ -345,7 +341,7 @@ fn convert_to_value(
                             error: "Error when loading".into(),
                             msg: "spread operator not supported in nuon".into(),
                             span: inner.span,
-                        });
+                        })?;
                     }
                 }
             }
@@ -357,26 +353,26 @@ fn convert_to_value(
             error: "Error when loading".into(),
             msg: "row conditions not supported in nuon".into(),
             span: expr.span,
-        }),
+        })?,
         Expr::Signature(..) => Err(ShellError::OutsideSpannedLabeledError {
             src: original_text.to_string(),
             error: "Error when loading".into(),
             msg: "signatures not supported in nuon".into(),
             span: expr.span,
-        }),
+        })?,
         Expr::String(s) => Ok(Value::string(s, span)),
         Expr::StringInterpolation(..) => Err(ShellError::OutsideSpannedLabeledError {
             src: original_text.to_string(),
             error: "Error when loading".into(),
             msg: "string interpolation not supported in nuon".into(),
             span: expr.span,
-        }),
+        })?,
         Expr::Subexpression(..) => Err(ShellError::OutsideSpannedLabeledError {
             src: original_text.to_string(),
             error: "Error when loading".into(),
             msg: "subexpressions not supported in nuon".into(),
             span: expr.span,
-        }),
+        })?,
         Expr::Table(mut headers, cells) => {
             let mut cols = vec![];
 
@@ -391,7 +387,7 @@ fn convert_to_value(
                             error: "Error when loading".into(),
                             msg: "only strings can be keys".into(),
                             span: expr.span,
-                        })
+                        })?
                     }
                 };
 
@@ -400,7 +396,7 @@ fn convert_to_value(
                         col_name: key_str.clone(),
                         second_use: key.span,
                         first_use: headers[idx].span,
-                    });
+                    })?;
                 } else {
                     cols.push(std::mem::take(key_str));
                 }
@@ -413,7 +409,7 @@ fn convert_to_value(
                         error: "Error when loading".into(),
                         msg: "table has mismatched columns".into(),
                         span: expr.span,
-                    });
+                    })?;
                 }
 
                 let record = cols
@@ -438,7 +434,7 @@ fn convert_to_value(
                         error: "Error when loading".into(),
                         msg: "non-integer unit value".into(),
                         span: expr.span,
-                    })
+                    })?
                 }
             };
 
@@ -483,7 +479,7 @@ fn convert_to_value(
                         error: "day duration too large".into(),
                         msg: "day duration too large".into(),
                         span: expr.span,
-                    }),
+                    })?,
                 },
 
                 Unit::Week => match size.checked_mul(1000 * 1000 * 1000 * 60 * 60 * 24 * 7) {
@@ -493,7 +489,7 @@ fn convert_to_value(
                         error: "week duration too large".into(),
                         msg: "week duration too large".into(),
                         span: expr.span,
-                    }),
+                    })?,
                 },
             }
         }
@@ -502,13 +498,13 @@ fn convert_to_value(
             error: "Error when loading".into(),
             msg: "variables not supported in nuon".into(),
             span: expr.span,
-        }),
+        })?,
         Expr::VarDecl(..) => Err(ShellError::OutsideSpannedLabeledError {
             src: original_text.to_string(),
             error: "Error when loading".into(),
             msg: "variable declarations not supported in nuon".into(),
             span: expr.span,
-        }),
+        })?,
     }
 }
 

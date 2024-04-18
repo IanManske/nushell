@@ -73,7 +73,7 @@ impl Command for SkipUntil {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
         let metadata = input.metadata();
 

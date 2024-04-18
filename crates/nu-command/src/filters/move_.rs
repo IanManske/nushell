@@ -108,7 +108,7 @@ impl Command for Move {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let columns: Vec<Value> = call.rest(engine_state, stack, 0)?;
         let after: Option<Value> = call.get_flag(engine_state, stack, "after")?;
         let before: Option<Value> = call.get_flag(engine_state, stack, "before")?;
@@ -129,7 +129,7 @@ impl Command for Move {
                     span: Some(call.head),
                     help: None,
                     inner: vec![],
-                })
+                })?
             }
             (None, None) => {
                 return Err(ShellError::GenericError {
@@ -138,7 +138,7 @@ impl Command for Move {
                     span: Some(call.head),
                     help: None,
                     inner: vec![],
-                })
+                })?
             }
         };
 
@@ -174,7 +174,7 @@ impl Command for Move {
                 exp_input_type: "record or table".to_string(),
                 dst_span: call.head,
                 src_span: Span::new(call.head.start, call.head.start),
-            }),
+            })?,
         }
     }
 }
@@ -185,7 +185,7 @@ fn move_record_columns(
     columns: &[Value],
     before_or_after: &Spanned<BeforeOrAfter>,
     span: Span,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     let mut column_idx: Vec<usize> = Vec::with_capacity(columns.len());
 
     let pivot = match &before_or_after.item {
@@ -195,13 +195,13 @@ fn move_record_columns(
 
     // check if pivot exists
     if !record.contains(pivot) {
-        return Err(ShellError::GenericError {
+        Err(ShellError::GenericError {
             error: "Cannot move columns".into(),
             msg: "column does not exist".into(),
             span: Some(before_or_after.span),
             help: None,
             inner: vec![],
-        });
+        })?;
     }
 
     // Find indices of columns to be moved
@@ -209,24 +209,24 @@ fn move_record_columns(
         if let Some(idx) = record.index_of(column.coerce_string()?) {
             column_idx.push(idx);
         } else {
-            return Err(ShellError::GenericError {
+            Err(ShellError::GenericError {
                 error: "Cannot move columns".into(),
                 msg: "column does not exist".into(),
                 span: Some(column.span()),
                 help: None,
                 inner: vec![],
-            });
+            })?;
         }
 
         let column_as_string = column.coerce_string()?;
         // check if column is also pivot
         if &column_as_string == pivot {
-            return Err(ShellError::IncompatibleParameters {
+            Err(ShellError::IncompatibleParameters {
                 left_message: "Column cannot be moved".to_string(),
                 left_span: column.span(),
                 right_message: "relative to itself".to_string(),
                 right_span: before_or_after.span,
-            });
+            })?;
         }
     }
 
@@ -242,11 +242,11 @@ fn move_record_columns(
                 if let Some((col, val)) = record.get_index(*idx) {
                     out.push(col.clone(), val.clone());
                 } else {
-                    return Err(ShellError::NushellFailedSpanned {
+                    Err(ShellError::NushellFailedSpanned {
                         msg: "Error indexing input columns".to_string(),
                         label: "originates from here".to_string(),
                         span,
-                    });
+                    })?;
                 }
             }
 

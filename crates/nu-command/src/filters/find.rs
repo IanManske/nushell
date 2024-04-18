@@ -193,7 +193,7 @@ impl Command for Find {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let regex = call.get_flag::<String>(engine_state, stack, "regex")?;
 
         if let Some(regex) = regex {
@@ -211,7 +211,7 @@ fn find_with_regex(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let span = call.head;
     let ctrlc = engine_state.ctrlc.clone();
     let config = engine_state.get_config().clone();
@@ -347,7 +347,7 @@ fn find_with_rest_and_highlight(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let span = call.head;
     let ctrlc = engine_state.ctrlc.clone();
     let engine_state = engine_state.clone();
@@ -481,14 +481,14 @@ fn find_with_rest_and_highlight(
                                 }
                             }
                             // Propagate errors by explicitly matching them before the final case.
-                            Value::Error { error, .. } => return Err(*error),
+                            Value::Error { error, .. } => return Err(error),
                             other => {
-                                return Err(ShellError::UnsupportedInput {
+                                Err(ShellError::UnsupportedInput {
                                     msg: "unsupported type from raw stream".into(),
                                     input: format!("input: {:?}", other.get_type()),
                                     msg_span: span,
                                     input_span: other.span(),
-                                });
+                                })?;
                             }
                         }
                     }

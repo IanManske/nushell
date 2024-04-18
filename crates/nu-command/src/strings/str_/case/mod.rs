@@ -28,7 +28,7 @@ pub fn operate<F>(
     call: &Call,
     input: PipelineData,
     case_operation: &'static F,
-) -> Result<PipelineData, ShellError>
+) -> ShellResult<PipelineData>
 where
     F: Fn(&str) -> String + Send + Sync + 'static,
 {

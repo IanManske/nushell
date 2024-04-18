@@ -36,7 +36,7 @@ impl Command for Start {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let path = call.req::<Spanned<String>>(engine_state, stack, 0)?;
         let path = Spanned {
             item: nu_utils::strip_ansi_string_unlikely(path.item),
@@ -58,9 +58,12 @@ impl Command for Start {
             open_path(url.as_str(), engine_state, stack, path.span)?;
         } else {
             // try to distinguish between file not found and opening url without prefix
-            if let Ok(canon_path) =
-                canonicalize_with(path_no_whitespace, std::env::current_dir()?.as_path())
-            {
+            if let Ok(canon_path) = canonicalize_with(
+                path_no_whitespace,
+                std::env::current_dir()
+                    .map_err(|e| e.into_spanned(call.head))?
+                    .as_path(),
+            ) {
                 open_path(canon_path, engine_state, stack, path.span)?;
             } else {
                 // open crate does not allow opening URL without prefix
@@ -89,7 +92,7 @@ impl Command for Start {
                         span: Some(path.span),
                         help: Some("Use prefix https:// to disambiguate URLs from files".into()),
                         inner: vec![],
-                    });
+                    })?;
                 }
             };
         }
@@ -132,7 +135,7 @@ fn open_path(
     engine_state: &EngineState,
     stack: &Stack,
     span: Span,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     try_commands(open::commands(path), engine_state, stack, span)
 }
 
@@ -141,7 +144,7 @@ fn try_commands(
     engine_state: &EngineState,
     stack: &Stack,
     span: Span,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     let env_vars_str = env_to_strings(engine_state, stack)?;
     let cmd_run_result = commands.into_iter().map(|mut cmd| {
         let status = cmd
@@ -167,11 +170,11 @@ fn try_commands(
 
     for one_result in cmd_run_result {
         if let Err(err_msg) = one_result {
-            return Err(ShellError::ExternalCommand {
+            Err(ShellError::ExternalCommand {
                 label: "No command found to start with this path".to_string(),
                 help: "Try different path or install appropriate command\n".to_string() + &err_msg,
                 span,
-            });
+            })?;
         } else if one_result.is_ok() {
             break;
         }

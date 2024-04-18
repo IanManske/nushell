@@ -65,7 +65,7 @@ are also available in the current scope. Commands/aliases that were imported und
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         help_modules(engine_state, stack, call)
     }
 }
@@ -74,7 +74,7 @@ pub fn help_modules(
     engine_state: &EngineState,
     stack: &mut Stack,
     call: &Call,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let head = call.head;
     let find: Option<Spanned<String>> = call.get_flag(engine_state, stack, "find")?;
     let rest: Vec<Spanned<String>> = call.rest(engine_state, stack, 0)?;
@@ -123,7 +123,7 @@ pub fn help_modules(
             return Err(ShellError::ModuleNotFoundAtRuntime {
                 mod_name: name,
                 span: span(&rest.iter().map(|r| r.span).collect::<Vec<Span>>()),
-            });
+            })?;
         };
 
         let module = engine_state.get_module(module_id);

@@ -35,7 +35,7 @@ impl Command for SubCommand {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         stats(engine_state, call, input)
     }
 
@@ -82,18 +82,18 @@ fn stats(
     engine_state: &EngineState,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let span = call.head;
     // This doesn't match explicit nulls
     if matches!(input, PipelineData::Empty) {
-        return Err(ShellError::PipelineEmpty { dst_span: span });
+        Err(ShellError::PipelineEmpty { dst_span: span })?;
     }
     input.map(
         move |v| {
             let value_span = v.span();
             // First, obtain the span. If this fails, propagate the error that results.
             if let Value::Error { error, .. } = v {
-                return Value::error(*error, span);
+                return Value::error(error, span);
             }
             // Now, check if it's a string.
             match v.coerce_into_string() {

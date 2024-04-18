@@ -29,7 +29,7 @@ impl Command for SubCommand {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
 
         Ok(TZ_VARIANTS

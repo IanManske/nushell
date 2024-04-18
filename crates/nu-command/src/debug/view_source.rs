@@ -28,7 +28,7 @@ impl Command for ViewSource {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let arg: Value = call.req(engine_state, stack, 0)?;
         let arg_span = arg.span();
 
@@ -135,7 +135,7 @@ impl Command for ViewSource {
                                 span: Some(arg_span),
                                 help: None,
                                 inner: vec![],
-                            })
+                            })?
                         }
                     } else {
                         Err(ShellError::GenericError {
@@ -144,7 +144,7 @@ impl Command for ViewSource {
                             span: Some(arg_span),
                             help: None,
                             inner: vec![],
-                        })
+                        })?
                     }
                 } else if let Some(module_id) = engine_state.find_module(val.as_bytes(), &[]) {
                     // arg is a module
@@ -160,7 +160,7 @@ impl Command for ViewSource {
                             span: Some(arg_span),
                             help: None,
                             inner: vec![],
-                        })
+                        })?
                     }
                 } else {
                     Err(ShellError::GenericError {
@@ -169,7 +169,7 @@ impl Command for ViewSource {
                         span: Some(arg_span),
                         help: None,
                         inner: vec![],
-                    })
+                    })?
                 }
             }
             value => {
@@ -190,7 +190,7 @@ impl Command for ViewSource {
                         span: Some(arg_span),
                         help: None,
                         inner: vec![],
-                    })
+                    })?
                 }
             }
         }

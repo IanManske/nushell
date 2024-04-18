@@ -1,6 +1,6 @@
 use filesize::file_real_size_fast;
 use nu_glob::Pattern;
-use nu_protocol::{record, ShellError, Span, Value};
+use nu_protocol::{record, Error, IntoSpanned, ShellResult, Span, Value};
 use std::{
     path::PathBuf,
     sync::{atomic::AtomicBool, Arc},
@@ -37,7 +37,7 @@ impl DirBuilder {
 pub struct DirInfo {
     dirs: Vec<DirInfo>,
     files: Vec<FileInfo>,
-    errors: Vec<ShellError>,
+    errors: Vec<Error>,
     size: u64,
     blocks: u64,
     path: PathBuf,
@@ -53,7 +53,7 @@ pub struct FileInfo {
 }
 
 impl FileInfo {
-    pub fn new(path: impl Into<PathBuf>, deref: bool, tag: Span) -> Result<Self, ShellError> {
+    pub fn new(path: impl Into<PathBuf>, deref: bool, tag: Span) -> ShellResult<Self> {
         let path = path.into();
         let m = if deref {
             std::fs::metadata(&path)
@@ -72,7 +72,7 @@ impl FileInfo {
                     tag,
                 })
             }
-            Err(e) => Err(e.into()),
+            Err(e) => Err(e.into_spanned(tag))?,
         }
     }
 }
@@ -101,7 +101,7 @@ impl DirInfo {
                 s.size = d.len(); // dir entry size
                 s.blocks = file_real_size_fast(&s.path, &d).ok().unwrap_or(0);
             }
-            Err(e) => s = s.add_error(e.into()),
+            Err(e) => s = s.add_error(e.into_spanned(params.tag)),
         };
 
         match std::fs::read_dir(&s.path) {
@@ -117,13 +117,13 @@ impl DirInfo {
                                 s = s.add_dir(i.path(), depth, params, ctrl_c.clone())
                             }
                             Ok(_t) => s = s.add_file(i.path(), params),
-                            Err(e) => s = s.add_error(e.into()),
+                            Err(e) => s = s.add_error(e.into_spanned(params.tag)),
                         },
-                        Err(e) => s = s.add_error(e.into()),
+                        Err(e) => s = s.add_error(e.into_spanned(params.tag)),
                     }
                 }
             }
-            Err(e) => s = s.add_error(e.into()),
+            Err(e) => s = s.add_error(e.into_spanned(params.tag)),
         }
         s
     }
@@ -174,8 +174,8 @@ impl DirInfo {
         self
     }
 
-    fn add_error(mut self, e: ShellError) -> Self {
-        self.errors.push(e);
+    fn add_error(mut self, e: impl Into<Error>) -> Self {
+        self.errors.push(e.into());
         self
     }
 

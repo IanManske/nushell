@@ -42,7 +42,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         split_list(engine_state, stack, call, input)
     }
 
@@ -153,7 +153,7 @@ enum Matcher {
 }
 
 impl Matcher {
-    pub fn new(regex: bool, lhs: Value) -> Result<Self, ShellError> {
+    pub fn new(regex: bool, lhs: Value) -> ShellResult<Self> {
         if regex {
             Ok(Matcher::Regex(Regex::new(&lhs.coerce_str()?).map_err(
                 |e| ShellError::GenericError {
@@ -172,7 +172,7 @@ impl Matcher {
         }
     }
 
-    pub fn compare(&self, rhs: &Value) -> Result<bool, ShellError> {
+    pub fn compare(&self, rhs: &Value) -> ShellResult<bool> {
         Ok(match self {
             Matcher::Regex(regex) => {
                 if let Ok(rhs_str) = rhs.coerce_str() {
@@ -191,7 +191,7 @@ fn split_list(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let separator: Value = call.req(engine_state, stack, 0)?;
     let mut temp_list = Vec::new();
     let mut returned_list = Vec::new();

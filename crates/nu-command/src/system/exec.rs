@@ -33,7 +33,7 @@ On Windows based systems, Nushell will wait for the command to finish and then e
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         exec(engine_state, stack, call)
     }
 
@@ -53,11 +53,7 @@ On Windows based systems, Nushell will wait for the command to finish and then e
     }
 }
 
-fn exec(
-    engine_state: &EngineState,
-    stack: &mut Stack,
-    call: &Call,
-) -> Result<PipelineData, ShellError> {
+fn exec(engine_state: &EngineState, stack: &mut Stack, call: &Call) -> ShellResult<PipelineData> {
     let mut external_command = create_external_command(engine_state, stack, call)?;
     external_command.out = OutDest::Inherit;
     external_command.err = OutDest::Inherit;
@@ -73,7 +69,7 @@ fn exec(
 }
 
 #[cfg(unix)]
-fn exec_impl(mut command: std::process::Command, span: Span) -> Result<PipelineData, ShellError> {
+fn exec_impl(mut command: std::process::Command, span: Span) -> ShellResult<PipelineData> {
     use std::os::unix::process::CommandExt;
 
     let error = command.exec();
@@ -84,11 +80,11 @@ fn exec_impl(mut command: std::process::Command, span: Span) -> Result<PipelineD
         span: Some(span),
         help: None,
         inner: vec![],
-    })
+    })?
 }
 
 #[cfg(windows)]
-fn exec_impl(mut command: std::process::Command, span: Span) -> Result<PipelineData, ShellError> {
+fn exec_impl(mut command: std::process::Command, span: Span) -> ShellResult<PipelineData> {
     match command.spawn() {
         Ok(mut child) => match child.wait() {
             Ok(status) => std::process::exit(status.code().unwrap_or(0)),
@@ -96,12 +92,12 @@ fn exec_impl(mut command: std::process::Command, span: Span) -> Result<PipelineD
                 label: "Error in external command".into(),
                 help: e.to_string(),
                 span,
-            }),
+            })?,
         },
         Err(e) => Err(ShellError::ExternalCommand {
             label: "Error spawning external command".into(),
             help: e.to_string(),
             span,
-        }),
+        })?,
     }
 }

@@ -80,7 +80,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         run_head(engine_state, stack, call, input)
     }
 
@@ -121,7 +121,7 @@ fn run_head(
     stack: &mut Stack,
     call: &Call,
     _input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let args = Arguments {
         url: call.req(engine_state, stack, 0)?,
         headers: call.get_flag(engine_state, stack, "headers")?,
@@ -144,7 +144,7 @@ fn helper(
     call: &Call,
     args: Arguments,
     ctrlc: Option<Arc<AtomicBool>>,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let span = args.url.span();
     let (requested_url, _) = http_parse_url(call, span, args.url)?;
     let redirect_mode = http_parse_redirect_mode(args.redirect)?;

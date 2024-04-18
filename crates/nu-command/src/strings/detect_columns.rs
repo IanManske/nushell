@@ -51,7 +51,7 @@ impl Command for DetectColumns {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         if call.has_flag(engine_state, stack, "guess")? {
             guess_width(engine_state, stack, call, input)
         } else {
@@ -116,7 +116,7 @@ fn guess_width(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     use super::guess_width::GuessWidth;
     let input_span = input.span().unwrap_or(call.head);
 
@@ -193,7 +193,7 @@ fn detect_columns(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let name_span = call.head;
     let num_rows_to_skip: Option<usize> = call.get_flag(engine_state, stack, "skip")?;
     let noheader = call.has_flag(engine_state, stack, "no-headers")?;
@@ -456,7 +456,7 @@ fn process_range(
     range: &Range,
     length: usize,
     input_span: Span,
-) -> Result<Option<(usize, usize)>, ShellError> {
+) -> ShellResult<Option<(usize, usize)>> {
     match nu_cmd_base::util::process_range(range) {
         Ok((l_idx, r_idx)) => {
             let l_idx = if l_idx < 0 {
@@ -489,7 +489,7 @@ fn merge_record_impl(
     start_index: usize,
     end_index: usize,
     input_span: Span,
-) -> Result<Record, ShellError> {
+) -> ShellResult<Record> {
     let (mut cols, mut vals): (Vec<_>, Vec<_>) = record.into_iter().unzip();
     // Merge Columns
     ((start_index + 1)..(cols.len() - end_index + start_index + 1)).for_each(|idx| {

@@ -41,12 +41,12 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let precision_param: Option<i64> = call.get_flag(engine_state, stack, "precision")?;
         let head = call.head;
         // This doesn't match explicit nulls
         if matches!(input, PipelineData::Empty) {
-            return Err(ShellError::PipelineEmpty { dst_span: head });
+            return Err(ShellError::PipelineEmpty { dst_span: head })?;
         }
         input.map(
             move |value| operate(value, head, precision_param),

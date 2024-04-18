@@ -77,7 +77,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let character = call.get_flag::<Spanned<String>>(engine_state, stack, "char")?;
         let to_trim = match character.as_ref() {
             Some(v) => {
@@ -88,7 +88,7 @@ impl Command for SubCommand {
                         span: Some(v.span),
                         help: None,
                         inner: vec![],
-                    });
+                    })?;
                 }
                 v.item.chars().next()
             }

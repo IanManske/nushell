@@ -56,7 +56,7 @@ impl Command for FormatFilesize {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let format_value = call
             .req::<Value>(engine_state, stack, 0)?
             .coerce_into_string()?

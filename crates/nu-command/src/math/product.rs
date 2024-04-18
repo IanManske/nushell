@@ -38,7 +38,7 @@ impl Command for SubCommand {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         run_with_function(call, input, product)
     }
 
@@ -62,7 +62,7 @@ impl Command for SubCommand {
 }
 
 /// Calculate product of given values
-pub fn product(values: &[Value], span: Span, head: Span) -> Result<Value, ShellError> {
+pub fn product(values: &[Value], span: Span, head: Span) -> ShellResult<Value> {
     let product_func = reducer_for(Reduce::Product);
     product_func(Value::nothing(head), values.to_vec(), span, head)
 }

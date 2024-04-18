@@ -51,14 +51,14 @@ impl Command for SubCommand {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         to_url(input, head)
     }
 }
 
-fn to_url(input: PipelineData, head: Span) -> Result<PipelineData, ShellError> {
-    let output: Result<String, ShellError> = input
+fn to_url(input: PipelineData, head: Span) -> ShellResult<PipelineData> {
+    let output: ShellResult<String> = input
         .into_iter()
         .map(move |value| {
             let span = value.span();
@@ -71,12 +71,12 @@ fn to_url(input: PipelineData, head: Span) -> Result<PipelineData, ShellError> {
                                 row_vec.push((k.clone(), s));
                             }
                             _ => {
-                                return Err(ShellError::UnsupportedInput {
+                                Err(ShellError::UnsupportedInput {
                                     msg: "Expected a record with string values".to_string(),
                                     input: "value originates from here".into(),
                                     msg_span: head,
                                     input_span: span,
-                                });
+                                })?;
                             }
                         }
                     }
@@ -88,17 +88,17 @@ fn to_url(input: PipelineData, head: Span) -> Result<PipelineData, ShellError> {
                             from_type: value.get_type().to_string(),
                             span: head,
                             help: None,
-                        }),
+                        })?,
                     }
                 }
                 // Propagate existing errors
-                Value::Error { error, .. } => Err(*error),
+                Value::Error { error, .. } => Err(error),
                 other => Err(ShellError::UnsupportedInput {
                     msg: "Expected a table from pipeline".to_string(),
                     input: "value originates from here".into(),
                     msg_span: head,
                     input_span: other.span(),
-                }),
+                })?,
             }
         })
         .collect();

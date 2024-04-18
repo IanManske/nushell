@@ -78,7 +78,7 @@ impl Command for Histogram {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         // input check.
         let column_name: Option<Spanned<String>> = call.opt(engine_state, stack, 0)?;
         let frequency_name_arg = call.opt::<Spanned<String>>(engine_state, stack, 1)?;
@@ -96,7 +96,7 @@ impl Command for Histogram {
                                 .join(", ")
                         ),
                         span: inner.span,
-                    });
+                    })?;
                 }
                 inner.item
             }
@@ -115,7 +115,7 @@ impl Command for Histogram {
                         err_message: "calc method can only be 'normalize' or 'relative'"
                             .to_string(),
                         span: inner.span,
-                    })
+                    })?
                 }
             },
         };
@@ -143,7 +143,7 @@ fn run_histogram(
     calc_method: PercentageCalcMethod,
     head_span: Span,
     list_span: Span,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let mut inputs = vec![];
     // convert from inputs to hashable values.
     match column_name {
@@ -153,7 +153,7 @@ fn run_histogram(
             for v in values {
                 match v {
                     // Propagate existing errors.
-                    Value::Error { error, .. } => return Err(*error),
+                    Value::Error { error, .. } => return Err(error),
                     _ => {
                         let t = v.get_type();
                         let span = v.span();
@@ -186,17 +186,17 @@ fn run_histogram(
                         }
                     }
                     // Propagate existing errors.
-                    Value::Error { error, .. } => return Err(*error),
+                    Value::Error { error, .. } => return Err(error),
                     _ => continue,
                 }
             }
 
             if inputs.is_empty() {
-                return Err(ShellError::CantFindColumn {
+                Err(ShellError::CantFindColumn {
                     col_name: col_name.clone(),
                     span: head_span,
                     src_span: list_span,
-                });
+                })?;
             }
         }
     }

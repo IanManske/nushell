@@ -34,7 +34,7 @@ impl Command for Http {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         Ok(Value::string(
             get_full_help(
                 &Http.signature(),

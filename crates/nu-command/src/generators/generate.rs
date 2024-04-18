@@ -90,7 +90,7 @@ used as the next argument to the closure, otherwise generation stops.
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let initial: Value = call.req(engine_state, stack, 0)?;
         let capture_block: Spanned<Closure> = call.req(engine_state, stack, 1)?;
         let block_span = capture_block.span;

@@ -25,7 +25,7 @@ impl Command for FromToml {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
         let (mut string_input, span, metadata) = input.collect_string_strict(span)?;
         string_input.push('\n');
@@ -86,7 +86,7 @@ fn convert_toml_to_value(value: &toml::Value, span: Span) -> Value {
     }
 }
 
-pub fn convert_string_to_value(string_input: String, span: Span) -> Result<Value, ShellError> {
+pub fn convert_string_to_value(string_input: String, span: Span) -> ShellResult<Value> {
     let result: Result<toml::Value, toml::de::Error> = toml::from_str(&string_input);
     match result {
         Ok(value) => Ok(convert_toml_to_value(&value, span)),
@@ -96,7 +96,7 @@ pub fn convert_string_to_value(string_input: String, span: Span) -> Result<Value
             from_type: "string".into(),
             span,
             help: Some(err.to_string()),
-        }),
+        })?,
     }
 }
 

@@ -52,7 +52,7 @@ the output of 'path parse' and 'path split' subcommands."#
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let args = Arguments {
             append: call.rest(engine_state, stack, 0)?,
         };
@@ -65,7 +65,7 @@ the output of 'path parse' and 'path split' subcommands."#
         working_set: &StateWorkingSet,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let args = Arguments {
             append: call.rest_const(working_set, 0)?,
         };
@@ -164,7 +164,7 @@ the output of 'path parse' and 'path split' subcommands."#
     }
 }
 
-fn run(call: &Call, args: &Arguments, input: PipelineData) -> Result<PipelineData, ShellError> {
+fn run(call: &Call, args: &Arguments, input: PipelineData) -> ShellResult<PipelineData> {
     let head = call.head;
 
     let metadata = input.metadata();
@@ -175,13 +175,13 @@ fn run(call: &Call, args: &Arguments, input: PipelineData) -> Result<PipelineDat
             handle_value(input.into_value(head), args, head),
             metadata,
         )),
-        PipelineData::Empty { .. } => Err(ShellError::PipelineEmpty { dst_span: head }),
+        PipelineData::Empty { .. } => Err(ShellError::PipelineEmpty { dst_span: head })?,
         _ => Err(ShellError::UnsupportedInput {
             msg: "Input value cannot be joined".to_string(),
             input: "value originates from here".into(),
             msg_span: head,
             input_span: input.span().unwrap_or(call.head),
-        }),
+        })?,
     }
 }
 
@@ -206,12 +206,12 @@ fn join_single(path: &Path, head: Span, args: &Arguments) -> Value {
 }
 
 fn join_list(parts: &[Value], head: Span, span: Span, args: &Arguments) -> Value {
-    let path: Result<PathBuf, ShellError> = parts.iter().map(Value::coerce_string).collect();
+    let path: ShellResult<PathBuf> = parts.iter().map(Value::coerce_string).collect();
 
     match path {
         Ok(ref path) => join_single(path, head, args),
         Err(_) => {
-            let records: Result<Vec<_>, ShellError> = parts.iter().map(Value::as_record).collect();
+            let records: ShellResult<Vec<_>> = parts.iter().map(Value::as_record).collect();
             match records {
                 Ok(vals) => {
                     let vals = vals
@@ -241,13 +241,16 @@ fn join_record(record: &Record, head: Span, span: Span, args: &Arguments) -> Val
     }
 }
 
-fn merge_record(record: &Record, head: Span, span: Span) -> Result<PathBuf, ShellError> {
+fn merge_record(record: &Record, head: Span, span: Span) -> ShellResult<PathBuf> {
     for key in record.columns() {
         if !super::ALLOWED_COLUMNS.contains(&key.as_str()) {
             let allowed_cols = super::ALLOWED_COLUMNS.join(", ");
-            return Err(ShellError::UnsupportedInput { msg: format!(
-                    "Column '{key}' is not valid for a structured path. Allowed columns on this platform are: {allowed_cols}"
-                ), input: "value originates from here".into(), msg_span: head, input_span: span });
+            Err(ShellError::UnsupportedInput {
+                msg: format!("Column '{key}' is not valid for a structured path. Allowed columns on this platform are: {allowed_cols}"),
+                input: "value originates from here".into(),
+                msg_span: head,
+                input_span: span,
+            })?;
         }
     }
 

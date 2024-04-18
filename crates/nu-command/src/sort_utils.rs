@@ -1,6 +1,6 @@
 use alphanumeric_sort::compare_str;
 use nu_engine::column::nonexistent_column;
-use nu_protocol::{ShellError, Span, Value};
+use nu_protocol::{ShellError, ShellResult, Span, Value};
 use nu_utils::IgnoreCaseExt;
 use std::cmp::Ordering;
 
@@ -17,7 +17,7 @@ pub fn sort_value(
     ascending: bool,
     insensitive: bool,
     natural: bool,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     let span = val.span();
     match val {
         Value::List { vals, .. } => {
@@ -46,7 +46,7 @@ pub fn sort_value_in_place(
     ascending: bool,
     insensitive: bool,
     natural: bool,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     let span = val.span();
     if let Value::List { vals, .. } = val {
         sort(vals, sort_columns, span, insensitive, natural)?;
@@ -63,27 +63,27 @@ pub fn sort(
     span: Span,
     insensitive: bool,
     natural: bool,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     let val_span = vec.first().map(|v| v.span()).unwrap_or(span);
     match vec.first() {
         Some(Value::Record { val: record, .. }) => {
             if sort_columns.is_empty() {
                 // This uses the same format as the 'requires a column name' error in split_by.rs
-                return Err(ShellError::GenericError {
+                Err(ShellError::GenericError {
                     error: "expected name".into(),
                     msg: "requires a column name to sort table data".into(),
                     span: Some(span),
                     help: None,
                     inner: vec![],
-                });
+                })?;
             }
 
             if let Some(nonexistent) = nonexistent_column(&sort_columns, record.columns()) {
-                return Err(ShellError::CantFindColumn {
+                Err(ShellError::CantFindColumn {
                     col_name: nonexistent,
                     span,
                     src_span: val_span,
-                });
+                })?;
             }
 
             // check to make sure each value in each column in the record

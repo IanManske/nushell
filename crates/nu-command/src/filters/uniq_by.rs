@@ -57,14 +57,14 @@ impl Command for UniqBy {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let columns: Vec<String> = call.rest(engine_state, stack, 0)?;
 
         if columns.is_empty() {
             return Err(ShellError::MissingParameter {
                 param_name: "columns".into(),
                 span: call.head,
-            });
+            })?;
         }
 
         let metadata = input.metadata();
@@ -104,28 +104,28 @@ impl Command for UniqBy {
     }
 }
 
-fn validate(vec: &[Value], columns: &[String], span: Span) -> Result<(), ShellError> {
+fn validate(vec: &[Value], columns: &[String], span: Span) -> ShellResult<()> {
     let first = vec.first();
     if let Some(v) = first {
         let val_span = v.span();
         if let Value::Record { val: record, .. } = &v {
             if columns.is_empty() {
                 // This uses the same format as the 'requires a column name' error in split_by.rs
-                return Err(ShellError::GenericError {
+                Err(ShellError::GenericError {
                     error: "expected name".into(),
                     msg: "requires a column name to filter table data".into(),
                     span: Some(span),
                     help: None,
                     inner: vec![],
-                });
+                })?;
             }
 
             if let Some(nonexistent) = nonexistent_column(columns, record.columns()) {
-                return Err(ShellError::CantFindColumn {
+                Err(ShellError::CantFindColumn {
                     col_name: nonexistent,
                     span,
                     src_span: val_span,
-                });
+                })?;
             }
         }
     }

@@ -41,7 +41,7 @@ impl Command for Take {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let rows_desired: usize = call.req(engine_state, stack, 0)?;
 
         let ctrlc = engine_state.ctrlc.clone();
@@ -64,13 +64,13 @@ impl Command for Take {
                         .take(rows_desired)
                         .into_pipeline_data_with_metadata(metadata, ctrlc)),
                     // Propagate errors by explicitly matching them before the final case.
-                    Value::Error { error, .. } => Err(*error),
+                    Value::Error { error, .. } => Err(error),
                     other => Err(ShellError::OnlySupportsThisInputType {
                         exp_input_type: "list, binary or range".into(),
                         wrong_type: other.get_type().to_string(),
                         dst_span: call.head,
                         src_span: other.span(),
-                    }),
+                    })?,
                 }
             }
             PipelineData::ListStream(ls, metadata) => Ok(ls
@@ -82,14 +82,14 @@ impl Command for Take {
                     wrong_type: "raw data".into(),
                     dst_span: call.head,
                     src_span: span,
-                })
+                })?
             }
             PipelineData::Empty => Err(ShellError::OnlySupportsThisInputType {
                 exp_input_type: "list, binary or range".into(),
                 wrong_type: "null".into(),
                 dst_span: call.head,
                 src_span: call.head,
-            }),
+            })?,
         }
     }
 

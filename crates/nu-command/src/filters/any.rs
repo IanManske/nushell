@@ -59,7 +59,7 @@ impl Command for Any {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         utils::boolean_fold(engine_state, stack, call, input, true)
     }
 }

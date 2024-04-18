@@ -30,7 +30,7 @@ impl Command for Wrap {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
         let name: String = call.req(engine_state, stack, 0)?;
         let metadata = input.metadata();

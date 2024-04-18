@@ -31,7 +31,7 @@ impl Command for Debug {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let config = engine_state.get_config().clone();
         let raw = call.has_flag(engine_state, stack, "raw")?;

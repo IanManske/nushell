@@ -78,7 +78,7 @@ impl Command for SkipWhile {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
         let metadata = input.metadata();
 

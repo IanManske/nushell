@@ -38,7 +38,7 @@ impl Command for ToJson {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let raw = call.has_flag(engine_state, stack, "raw")?;
         let use_tabs = call.get_flag(engine_state, stack, "tabs")?;
         let indent = call.get_flag(engine_state, stack, "indent")?;
@@ -100,7 +100,7 @@ impl Command for ToJson {
     }
 }
 
-pub fn value_to_json_value(v: &Value) -> Result<nu_json::Value, ShellError> {
+pub fn value_to_json_value(v: &Value) -> ShellResult<nu_json::Value> {
     let span = v.span();
     Ok(match v {
         Value::Bool { val, .. } => nu_json::Value::Bool(*val),
@@ -116,14 +116,14 @@ pub fn value_to_json_value(v: &Value) -> Result<nu_json::Value, ShellError> {
             val.members
                 .iter()
                 .map(|x| match &x {
-                    PathMember::String { val, .. } => Ok(nu_json::Value::String(val.clone())),
-                    PathMember::Int { val, .. } => Ok(nu_json::Value::U64(*val as u64)),
+                    PathMember::String { val, .. } => nu_json::Value::String(val.clone()),
+                    PathMember::Int { val, .. } => nu_json::Value::U64(*val as u64),
                 })
-                .collect::<Result<Vec<nu_json::Value>, ShellError>>()?,
+                .collect(),
         ),
 
         Value::List { vals, .. } => nu_json::Value::Array(json_list(vals)?),
-        Value::Error { error, .. } => return Err(*error.clone()),
+        Value::Error { error, .. } => return Err(error.clone()),
         Value::Closure { .. } | Value::Block { .. } | Value::Range { .. } => nu_json::Value::Null,
         Value::Binary { val, .. } => {
             nu_json::Value::Array(val.iter().map(|x| nu_json::Value::U64(*x as u64)).collect())
@@ -146,7 +146,7 @@ pub fn value_to_json_value(v: &Value) -> Result<nu_json::Value, ShellError> {
     })
 }
 
-fn json_list(input: &[Value]) -> Result<Vec<nu_json::Value>, ShellError> {
+fn json_list(input: &[Value]) -> ShellResult<Vec<nu_json::Value>> {
     let mut out = vec![];
 
     for value in input {

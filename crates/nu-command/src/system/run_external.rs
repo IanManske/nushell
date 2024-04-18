@@ -48,7 +48,7 @@ impl Command for External {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let redirect_stdout = call.has_flag(engine_state, stack, "redirect-stdout")?;
         let redirect_stderr = call.has_flag(engine_state, stack, "redirect-stderr")?;
         let redirect_combine = call.has_flag(engine_state, stack, "redirect-combine")?;
@@ -60,7 +60,7 @@ impl Command for External {
                     .into(),
                 help: "use either --redirect-combine or redirect a single output stream".into(),
                 span: call.head,
-            });
+            })?;
         }
 
         if trim_end_newline {
@@ -148,22 +148,26 @@ pub fn create_external_command(
     engine_state: &EngineState,
     stack: &mut Stack,
     call: &Call,
-) -> Result<ExternalCommand, ShellError> {
+) -> ShellResult<ExternalCommand> {
     let name: Spanned<String> = call.req(engine_state, stack, 0)?;
 
     // Translate environment variables from Values to Strings
     let env_vars_str = env_to_strings(engine_state, stack)?;
 
-    fn value_as_spanned(value: Value) -> Result<Spanned<String>, ShellError> {
+    fn value_as_spanned(value: Value) -> ShellResult<Spanned<String>> {
         let span = value.span();
 
         value
             .coerce_string()
             .map(|item| Spanned { item, span })
-            .map_err(|_| ShellError::ExternalCommand {
-                label: format!("Cannot convert {} to a string", value.get_type()),
-                help: "All arguments to an external command need to be string-compatible".into(),
-                span,
+            .map_err(|_| {
+                ShellError::ExternalCommand {
+                    label: format!("Cannot convert {} to a string", value.get_type()),
+                    help: "All arguments to an external command need to be string-compatible"
+                        .into(),
+                    span,
+                }
+                .into()
             })
     }
 
@@ -184,16 +188,16 @@ pub fn create_external_command(
                         arg_keep_raw.push(true);
                     }
                 } else {
-                    return Err(ShellError::CannotPassListToExternal {
+                    Err(ShellError::CannotPassListToExternal {
                         arg: String::from_utf8_lossy(engine_state.get_span_contents(arg.span))
                             .into(),
                         span: arg.span,
-                    });
+                    })?;
                 }
             }
             val => {
                 if spread {
-                    return Err(ShellError::CannotSpreadAsList { span: arg.span });
+                    Err(ShellError::CannotSpreadAsList { span: arg.span })?;
                 } else {
                     spanned_args.push(value_as_spanned(val)?);
                     match arg.expr {
@@ -237,7 +241,7 @@ impl ExternalCommand {
         stack: &mut Stack,
         input: PipelineData,
         reconfirm_command_name: bool,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = self.name.span;
 
         let ctrlc = engine_state.ctrlc.clone();
@@ -343,7 +347,7 @@ impl ExternalCommand {
                                 removed: command_name_lower,
                                 replacement,
                                 span: self.name.span,
-                            });
+                            })?;
                         }
 
                         let suggestion = suggest_command(&self.name.item, engine_state);
@@ -401,7 +405,7 @@ impl ExternalCommand {
                                         label: "command_not_found handler could not be run".into(),
                                         help: "make sure the command_not_found closure itself does not use unknown commands".to_string(),
                                         span: self.name.span,
-                                    });
+                                    })?;
                                 }
                                 stack.add_env_var(
                                     canary.to_string(),
@@ -436,14 +440,14 @@ impl ExternalCommand {
                             label,
                             help: err_str,
                             span: self.name.span,
-                        })
+                        })?
                     }
                     // otherwise, a default error message
                     _ => Err(ShellError::ExternalCommand {
                         label: "can't run executable".into(),
                         help: err.to_string(),
                         span: self.name.span,
-                    }),
+                    })?,
                 }
             }
             Ok(mut child) => {
@@ -604,7 +608,7 @@ impl ExternalCommand {
         input: &PipelineData,
         use_cmd: bool,
         span: Span,
-    ) -> Result<(CommandSys, Option<PipeReader>), ShellError> {
+    ) -> ShellResult<(CommandSys, Option<PipeReader>)> {
         let mut process = if let Some(d) = self.env_vars.get("PWD") {
             let mut process = if use_cmd {
                 self.spawn_cmd_command(d)
@@ -627,7 +631,7 @@ impl ExternalCommand {
                     "It is required to define the current directory when running an external command."
                 ).into()),
                 inner:Vec::new(),
-            });
+            })?;
         };
 
         process.envs(&self.env_vars);
@@ -635,14 +639,14 @@ impl ExternalCommand {
         // If the external is not the last command, its output will get piped
         // either as a string or binary
         let reader = if matches!(self.out, OutDest::Pipe) && matches!(self.err, OutDest::Pipe) {
-            let (reader, writer) = os_pipe::pipe()?;
-            let writer_clone = writer.try_clone()?;
+            let (reader, writer) = os_pipe::pipe().map_err(|e| e.into_spanned(span))?;
+            let writer_clone = writer.try_clone().map_err(|e| e.into_spanned(span))?;
             process.stdout(writer);
             process.stderr(writer_clone);
             Some(reader)
         } else {
-            process.stdout(Stdio::try_from(&self.out)?);
-            process.stderr(Stdio::try_from(&self.err)?);
+            process.stdout(Stdio::try_from(&self.out).map_err(|e| e.into_spanned(span))?);
+            process.stderr(Stdio::try_from(&self.err).map_err(|e| e.into_spanned(span))?);
             None
         };
 
@@ -655,7 +659,7 @@ impl ExternalCommand {
         Ok((process, reader))
     }
 
-    fn create_command(&self, cwd: &str) -> Result<CommandSys, ShellError> {
+    fn create_command(&self, cwd: &str) -> ShellResult<CommandSys> {
         // in all the other cases shell out
         if cfg!(windows) {
             //TODO. This should be modifiable from the config file.
@@ -672,7 +676,7 @@ impl ExternalCommand {
     }
 
     /// Spawn a command without shelling out to an external shell
-    pub fn spawn_simple_command(&self, cwd: &str) -> Result<std::process::Command, ShellError> {
+    pub fn spawn_simple_command(&self, cwd: &str) -> ShellResult<std::process::Command> {
         let (head, _, _) = trim_enclosing_quotes(&self.name.item);
         let head = nu_path::expand_to_real_path(head)
             .to_string_lossy()
@@ -841,7 +845,7 @@ impl<R: Read> ByteLines<R> {
 }
 
 impl<R: Read> Iterator for ByteLines<R> {
-    type Item = Result<Vec<u8>, ShellError>;
+    type Item = ShellResult<Vec<u8>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut buf = Vec::new();
@@ -852,7 +856,7 @@ impl<R: Read> Iterator for ByteLines<R> {
         match reader.read_until(b'\n', &mut buf) {
             Ok(0) => None,
             Ok(_) => Some(Ok(buf)),
-            Err(e) => Some(Err(e.into())),
+            Err(e) => Some(Err(e.into_spanned(Span::unknown()).into())),
         }
     }
 }

@@ -1,4 +1,4 @@
-use nu_protocol::{ShellError, Span, Value};
+use nu_protocol::{ShellError, ShellResult, Span, Value};
 use std::cmp::Ordering;
 
 pub enum Reduce {
@@ -9,7 +9,7 @@ pub enum Reduce {
 }
 
 pub type ReducerFunction =
-    Box<dyn Fn(Value, Vec<Value>, Span, Span) -> Result<Value, ShellError> + Send + Sync + 'static>;
+    Box<dyn Fn(Value, Vec<Value>, Span, Span) -> ShellResult<Value> + Send + Sync + 'static>;
 
 pub fn reducer_for(command: Reduce) -> ReducerFunction {
     match command {
@@ -20,7 +20,7 @@ pub fn reducer_for(command: Reduce) -> ReducerFunction {
     }
 }
 
-pub fn max(data: Vec<Value>, span: Span, head: Span) -> Result<Value, ShellError> {
+pub fn max(data: Vec<Value>, span: Span, head: Span) -> ShellResult<Value> {
     let mut biggest = data
         .first()
         .ok_or_else(|| ShellError::UnsupportedInput {
@@ -37,19 +37,19 @@ pub fn max(data: Vec<Value>, span: Span, head: Span) -> Result<Value, ShellError
                 biggest = value.clone();
             }
         } else {
-            return Err(ShellError::OperatorMismatch {
+            Err(ShellError::OperatorMismatch {
                 op_span: head,
                 lhs_ty: biggest.get_type().to_string(),
                 lhs_span: biggest.span(),
                 rhs_ty: value.get_type().to_string(),
                 rhs_span: value.span(),
-            });
+            })?;
         }
     }
     Ok(biggest)
 }
 
-pub fn min(data: Vec<Value>, span: Span, head: Span) -> Result<Value, ShellError> {
+pub fn min(data: Vec<Value>, span: Span, head: Span) -> ShellResult<Value> {
     let mut smallest = data
         .first()
         .ok_or_else(|| ShellError::UnsupportedInput {
@@ -66,19 +66,19 @@ pub fn min(data: Vec<Value>, span: Span, head: Span) -> Result<Value, ShellError
                 smallest = value.clone();
             }
         } else {
-            return Err(ShellError::OperatorMismatch {
+            Err(ShellError::OperatorMismatch {
                 op_span: head,
                 lhs_ty: smallest.get_type().to_string(),
                 lhs_span: smallest.span(),
                 rhs_ty: value.get_type().to_string(),
                 rhs_span: value.span(),
-            });
+            })?;
         }
     }
     Ok(smallest)
 }
 
-pub fn sum(data: Vec<Value>, span: Span, head: Span) -> Result<Value, ShellError> {
+pub fn sum(data: Vec<Value>, span: Span, head: Span) -> ShellResult<Value> {
     let initial_value = data.first();
 
     let mut acc = match initial_value {
@@ -108,22 +108,22 @@ pub fn sum(data: Vec<Value>, span: Span, head: Span) -> Result<Value, ShellError
             | Value::Duration { .. } => {
                 acc = acc.add(head, value, head)?;
             }
-            Value::Error { error, .. } => return Err(*error.clone()),
+            Value::Error { error, .. } => return Err(error.clone()),
             other => {
-                return Err(ShellError::UnsupportedInput {
+                Err(ShellError::UnsupportedInput {
                     msg: "Attempted to compute the sum of a value that cannot be summed"
                         .to_string(),
                     input: "value originates from here".into(),
                     msg_span: head,
                     input_span: other.span(),
-                });
+                })?;
             }
         }
     }
     Ok(acc)
 }
 
-pub fn product(data: Vec<Value>, span: Span, head: Span) -> Result<Value, ShellError> {
+pub fn product(data: Vec<Value>, span: Span, head: Span) -> ShellResult<Value> {
     let initial_value = data.first();
 
     let mut acc = match initial_value {
@@ -147,15 +147,15 @@ pub fn product(data: Vec<Value>, span: Span, head: Span) -> Result<Value, ShellE
             Value::Int { .. } | Value::Float { .. } => {
                 acc = acc.mul(head, value, head)?;
             }
-            Value::Error { error, .. } => return Err(*error.clone()),
+            Value::Error { error, .. } => return Err(error.clone()),
             other => {
-                return Err(ShellError::UnsupportedInput {
+                Err(ShellError::UnsupportedInput {
                     msg: "Attempted to compute the product of a value that cannot be multiplied"
                         .to_string(),
                     input: "value originates from here".into(),
                     msg_span: head,
                     input_span: other.span(),
-                });
+                })?;
             }
         }
     }

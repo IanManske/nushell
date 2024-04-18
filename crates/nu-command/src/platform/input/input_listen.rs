@@ -4,9 +4,9 @@ use crossterm::event::{
 };
 use crossterm::terminal;
 use nu_engine::command_prelude::*;
-
+use nu_protocol::Error;
 use num_traits::AsPrimitive;
-use std::io::stdout;
+use std::io;
 
 #[derive(Clone)]
 pub struct InputListen;
@@ -77,13 +77,15 @@ There are 4 `key_type` variants:
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let event_type_filter = get_event_type_filter(engine_state, stack, call, head)?;
         let add_raw = call.has_flag(engine_state, stack, "raw")?;
 
-        terminal::enable_raw_mode()?;
-        let console_state = event_type_filter.enable_events()?;
+        terminal::enable_raw_mode().map_err(|e| e.into_spanned(head))?;
+        let console_state = event_type_filter
+            .enable_events()
+            .map_err(|e| e.into_spanned(head))?;
         loop {
             let event = crossterm::event::read().map_err(|_| ShellError::GenericError {
                 error: "Error with user input".into(),
@@ -94,7 +96,7 @@ There are 4 `key_type` variants:
             })?;
             let event = parse_event(head, &event, &event_type_filter, add_raw);
             if let Some(event) = event {
-                terminal::disable_raw_mode()?;
+                terminal::disable_raw_mode().map_err(|e| e.into_spanned(head))?;
                 console_state.restore();
                 return Ok(event.into_pipeline_data());
             }
@@ -107,7 +109,7 @@ fn get_event_type_filter(
     stack: &mut Stack,
     call: &Call,
     head: Span,
-) -> Result<EventTypeFilter, ShellError> {
+) -> ShellResult<EventTypeFilter> {
     let event_type_filter = call.get_flag::<Value>(engine_state, stack, "types")?;
     let event_type_filter = event_type_filter
         .map(|list| EventTypeFilter::from_value(list, head))
@@ -146,7 +148,7 @@ impl EventTypeFilter {
         }
     }
 
-    fn from_value(value: Value, head: Span) -> Result<EventTypeFilter, ShellError> {
+    fn from_value(value: Value, head: Span) -> ShellResult<EventTypeFilter> {
         if let Value::List { vals, .. } = value {
             let mut filter = Self::none();
             for event_type in vals {
@@ -170,38 +172,40 @@ impl EventTypeFilter {
         }
     }
 
-    fn wrong_type_error(head: Span, val: &str, val_span: Span) -> ShellError {
+    fn wrong_type_error(head: Span, val: &str, val_span: Span) -> Error {
         ShellError::UnsupportedInput {
             msg: format!("{} is not a valid event type", val),
             input: "value originates from here".into(),
             msg_span: head,
             input_span: val_span,
         }
+        .into()
     }
 
-    fn bad_list_error(head: Span, value: &Value) -> ShellError {
+    fn bad_list_error(head: Span, value: &Value) -> Error {
         ShellError::UnsupportedInput {
             msg: "--types expects a list of strings".to_string(),
             input: "value originates from here".into(),
             msg_span: head,
             input_span: value.span(),
         }
+        .into()
     }
 
     /// Enable capturing of all events allowed by this filter.
     /// Call [`DeferredConsoleRestore::restore`] when done capturing events to restore
     /// console state
-    fn enable_events(&self) -> Result<DeferredConsoleRestore, ShellError> {
+    fn enable_events(&self) -> io::Result<DeferredConsoleRestore> {
         if self.listen_mouse {
-            crossterm::execute!(stdout(), EnableMouseCapture)?;
+            crossterm::execute!(io::stdout(), EnableMouseCapture)?;
         }
 
         if self.listen_paste {
-            crossterm::execute!(stdout(), EnableBracketedPaste)?;
+            crossterm::execute!(io::stdout(), EnableBracketedPaste)?;
         }
 
         if self.listen_focus {
-            crossterm::execute!(stdout(), crossterm::event::EnableFocusChange)?;
+            crossterm::execute!(io::stdout(), crossterm::event::EnableFocusChange)?;
         }
 
         Ok(DeferredConsoleRestore {
@@ -219,15 +223,15 @@ impl DeferredConsoleRestore {
     /// Disable all event capturing flags set up by [`EventTypeFilter::enable_events`]
     fn restore(self) {
         if self.setup_event_types.listen_mouse {
-            let _ = crossterm::execute!(stdout(), DisableMouseCapture);
+            let _ = crossterm::execute!(io::stdout(), DisableMouseCapture);
         }
 
         if self.setup_event_types.listen_paste {
-            let _ = crossterm::execute!(stdout(), DisableBracketedPaste);
+            let _ = crossterm::execute!(io::stdout(), DisableBracketedPaste);
         }
 
         if self.setup_event_types.listen_focus {
-            let _ = crossterm::execute!(stdout(), DisableFocusChange);
+            let _ = crossterm::execute!(io::stdout(), DisableFocusChange);
         }
     }
 }

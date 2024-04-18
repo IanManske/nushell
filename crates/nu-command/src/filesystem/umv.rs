@@ -64,7 +64,7 @@ impl Command for UMv {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let interactive = call.has_flag(engine_state, stack, "interactive")?;
         let no_clobber = call.has_flag(engine_state, stack, "no-clobber")?;
         let progress = call.has_flag(engine_state, stack, "progress")?;
@@ -86,7 +86,7 @@ impl Command for UMv {
                 span: Some(call.head),
                 help: Some("Please provide source and destination paths".into()),
                 inner: Vec::new(),
-            });
+            })?;
         }
         if paths.len() == 1 {
             // expand path for better error message
@@ -100,7 +100,7 @@ impl Command for UMv {
                 span: Some(paths[0].span),
                 help: None,
                 inner: Vec::new(),
-            });
+            })?;
         }
 
         // Do not glob target
@@ -112,7 +112,7 @@ impl Command for UMv {
         let mut files: Vec<(Vec<PathBuf>, bool)> = Vec::new();
         for mut p in paths {
             p.item = p.item.strip_ansi_string_unlikely();
-            let exp_files: Vec<Result<PathBuf, ShellError>> =
+            let exp_files: Vec<ShellResult<PathBuf>> =
                 nu_engine::glob_from(&p, &cwd, call.head, None)
                     .map(|f| f.1)?
                     .collect();
@@ -120,7 +120,7 @@ impl Command for UMv {
                 return Err(ShellError::FileNotFound {
                     file: p.item.to_string(),
                     span: p.span,
-                });
+                })?;
             };
             let mut app_vals: Vec<PathBuf> = Vec::new();
             for v in exp_files {
@@ -174,7 +174,7 @@ impl Command for UMv {
                 span: None,
                 help: None,
                 inner: Vec::new(),
-            });
+            })?;
         }
         Ok(PipelineData::empty())
     }

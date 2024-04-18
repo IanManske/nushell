@@ -56,7 +56,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let args = Arguments {
             replace: call.get_flag(engine_state, stack, "replace")?,
@@ -65,7 +65,7 @@ impl Command for SubCommand {
 
         // This doesn't match explicit nulls
         if matches!(input, PipelineData::Empty) {
-            return Err(ShellError::PipelineEmpty { dst_span: head });
+            return Err(ShellError::PipelineEmpty { dst_span: head })?;
         }
         input.map(
             move |value| super::operate(&get_dirname, &args, value, head),
@@ -78,7 +78,7 @@ impl Command for SubCommand {
         working_set: &StateWorkingSet,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let args = Arguments {
             replace: call.get_flag_const(working_set, "replace")?,
@@ -87,7 +87,7 @@ impl Command for SubCommand {
 
         // This doesn't match explicit nulls
         if matches!(input, PipelineData::Empty) {
-            return Err(ShellError::PipelineEmpty { dst_span: head });
+            return Err(ShellError::PipelineEmpty { dst_span: head })?;
         }
         input.map(
             move |value| super::operate(&get_dirname, &args, value, head),

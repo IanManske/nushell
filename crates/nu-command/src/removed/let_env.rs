@@ -31,11 +31,11 @@ impl Command for LetEnv {
         _: &mut Stack,
         call: &Call,
         _: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         Err(nu_protocol::ShellError::RemovedCommand {
             removed: self.name().to_string(),
             replacement: "$env.<environment variable> = ...".to_owned(),
             span: call.head,
-        })
+        })?
     }
 }

@@ -1,4 +1,4 @@
-use nu_protocol::{ShellError, Span};
+use nu_protocol::{ShellError, ShellResult, Span};
 use once_cell::sync::Lazy;
 use std::{collections::HashMap, path::Path};
 
@@ -133,7 +133,7 @@ static MAP_BY_NAME: Lazy<HashMap<&'static str, char>> = Lazy::new(|| {
     .collect()
 });
 
-pub fn icon_for_file(file_path: &Path, span: Span) -> Result<char, ShellError> {
+pub fn icon_for_file(file_path: &Path, span: Span) -> ShellResult<char> {
     let extensions = Box::new(FileExtensions);
     let fp = format!("{}", file_path.display());
 

@@ -44,7 +44,7 @@ impl Command for FormatDate {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         if call.has_flag(engine_state, stack, "list")? {
             return Ok(PipelineData::Value(
@@ -57,7 +57,7 @@ impl Command for FormatDate {
 
         // This doesn't match explicit nulls
         if matches!(input, PipelineData::Empty) {
-            return Err(ShellError::PipelineEmpty { dst_span: head });
+            return Err(ShellError::PipelineEmpty { dst_span: head })?;
         }
         input.map(
             move |value| match &format {

@@ -25,7 +25,7 @@ impl Command for HelpOperators {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let op_info = generate_operator_info();
         let mut recs = vec![];

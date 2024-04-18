@@ -6,7 +6,7 @@ pub fn empty(
     call: &Call,
     input: PipelineData,
     negate: bool,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let head = call.head;
     let columns: Vec<CellPath> = call.rest(engine_state, stack, 0)?;
 

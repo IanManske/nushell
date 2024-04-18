@@ -185,10 +185,10 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
         if matches!(input, PipelineData::Empty) {
-            return Err(ShellError::PipelineEmpty { dst_span: span });
+            return Err(ShellError::PipelineEmpty { dst_span: span })?;
         }
         let is_path = call.has_flag(engine_state, stack, "path")?;
         input.map(

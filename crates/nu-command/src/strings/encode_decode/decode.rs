@@ -52,7 +52,7 @@ documentation link at https://docs.rs/encoding_rs/latest/encoding_rs/#statics"#
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let encoding: Option<Spanned<String>> = call.opt(engine_state, stack, 0)?;
 
@@ -82,13 +82,13 @@ documentation link at https://docs.rs/encoding_rs/latest/encoding_rs/#statics"#
                             .map(|s| Value::string(s, head)),
                     }
                     .map(|val| val.into_pipeline_data()),
-                    Value::Error { error, .. } => Err(*error),
+                    Value::Error { error, .. } => Err(error),
                     _ => Err(ShellError::OnlySupportsThisInputType {
                         exp_input_type: "binary".into(),
                         wrong_type: v.get_type().to_string(),
                         dst_span: head,
                         src_span: v.span(),
-                    }),
+                    })?,
                 }
             }
             // This should be more precise, but due to difficulties in getting spans
@@ -98,7 +98,7 @@ documentation link at https://docs.rs/encoding_rs/latest/encoding_rs/#statics"#
                 input: "value originates from here".into(),
                 msg_span: head,
                 input_span: input.span().unwrap_or(head),
-            }),
+            })?,
         }
     }
 }

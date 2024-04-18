@@ -75,7 +75,7 @@ impl Command for Drop {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let metadata = input.metadata();
         let rows: Option<Spanned<i64>> = call.opt(engine_state, stack, 0)?;
@@ -83,7 +83,7 @@ impl Command for Drop {
 
         let rows_to_drop = if let Some(rows) = rows {
             if rows.item < 0 {
-                return Err(ShellError::NeedsPositiveValue { span: rows.span });
+                return Err(ShellError::NeedsPositiveValue { span: rows.span })?;
             } else {
                 rows.item as usize
             }

@@ -26,7 +26,7 @@ impl Command for ToText {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
         let config = engine_state.get_config();
 
@@ -92,7 +92,7 @@ struct ListStreamIterator {
 }
 
 impl Iterator for ListStreamIterator {
-    type Item = Result<Vec<u8>, ShellError>;
+    type Item = ShellResult<Vec<u8>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(item) = self.stream.next() {

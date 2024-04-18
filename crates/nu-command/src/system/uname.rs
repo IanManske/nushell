@@ -3,7 +3,7 @@ use nu_protocol::Value;
 use nu_protocol::{
     ast::Call,
     engine::{Command, EngineState, Stack},
-    Category, Example, PipelineData, ShellError, Signature, Type,
+    Category, Example, PipelineData, ShellError, ShellResult, Signature, Type,
 };
 
 #[derive(Clone)]
@@ -35,7 +35,7 @@ impl Command for UName {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
         // Simulate `uname -all` is called every time
         let opts = uu_uname::Options {
@@ -73,7 +73,7 @@ impl Command for UName {
                     .map_err(|_| ShellError::NotFound { span })?
                     .to_string())
             })
-            .collect::<Result<Vec<String>, ShellError>>()?;
+            .collect::<ShellResult<Vec<String>>>()?;
         Ok(PipelineData::Value(
             Value::record(
                 record! {

@@ -55,7 +55,7 @@ impl Command for BytesReplace {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let cell_paths: Vec<CellPath> = call.rest(engine_state, stack, 2)?;
         let cell_paths = (!cell_paths.is_empty()).then_some(cell_paths);
         let find = call.req::<Spanned<Vec<u8>>>(engine_state, stack, 0)?;
@@ -63,7 +63,7 @@ impl Command for BytesReplace {
             return Err(ShellError::TypeMismatch {
                 err_message: "the pattern to find cannot be empty".to_string(),
                 span: find.span,
-            });
+            })?;
         }
 
         let arg = Arguments {

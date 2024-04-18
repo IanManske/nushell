@@ -40,7 +40,7 @@ impl Command for ConfigReset {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let only_nu = call.has_flag(engine_state, stack, "nu")?;
         let only_env = call.has_flag(engine_state, stack, "env")?;
         let no_backup = call.has_flag(engine_state, stack, "without-backup")?;
@@ -48,7 +48,7 @@ impl Command for ConfigReset {
         let mut config_path = match nu_path::config_dir() {
             Some(path) => path,
             None => {
-                return Err(ShellError::ConfigDirNotFound { span: None });
+                return Err(ShellError::ConfigDirNotFound { span: None })?;
             }
         };
         config_path.push("nushell");
@@ -66,7 +66,7 @@ impl Command for ConfigReset {
                     return Err(ShellError::FileNotFoundCustom {
                         msg: "config.nu could not be backed up".into(),
                         span,
-                    });
+                    })?;
                 }
             }
             if let Ok(mut file) = std::fs::File::create(nu_config) {
@@ -74,7 +74,7 @@ impl Command for ConfigReset {
                     return Err(ShellError::FileNotFoundCustom {
                         msg: "config.nu could not be written to".into(),
                         span,
-                    });
+                    })?;
                 }
             }
         }
@@ -89,7 +89,7 @@ impl Command for ConfigReset {
                     return Err(ShellError::FileNotFoundCustom {
                         msg: "env.nu could not be backed up".into(),
                         span,
-                    });
+                    })?;
                 }
             }
             if let Ok(mut file) = std::fs::File::create(env_config) {
@@ -97,7 +97,7 @@ impl Command for ConfigReset {
                     return Err(ShellError::FileNotFoundCustom {
                         msg: "env.nu could not be written to".into(),
                         span,
-                    });
+                    })?;
                 }
             }
         }

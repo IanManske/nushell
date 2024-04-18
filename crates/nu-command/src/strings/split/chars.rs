@@ -94,7 +94,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         split_chars(engine_state, stack, call, input)
     }
 }
@@ -104,7 +104,7 @@ fn split_chars(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let span = call.head;
 
     let graphemes = grapheme_flags(engine_state, stack, call)?;
@@ -117,7 +117,7 @@ fn split_chars(
 fn split_chars_helper(v: &Value, name: Span, graphemes: bool) -> Value {
     let span = v.span();
     match v {
-        Value::Error { error, .. } => Value::error(*error.clone(), span),
+        Value::Error { error, .. } => Value::error(error.clone(), span),
         v => {
             let v_span = v.span();
             if let Ok(s) = v.coerce_str() {

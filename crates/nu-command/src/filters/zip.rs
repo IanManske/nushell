@@ -96,7 +96,7 @@ impl Command for Zip {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let ctrlc = engine_state.ctrlc.clone();
         let metadata = input.metadata();

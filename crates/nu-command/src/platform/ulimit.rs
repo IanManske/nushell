@@ -244,7 +244,7 @@ static RESOURCE_ARRAY: Lazy<Vec<ResourceInfo>> = Lazy::new(|| {
 });
 
 /// Convert `rlim_t` to `Value` representation
-fn limit_to_value(limit: rlim_t, multiplier: rlim_t, span: Span) -> Result<Value, ShellError> {
+fn limit_to_value(limit: rlim_t, multiplier: rlim_t, span: Span) -> ShellResult<Value> {
     if limit == RLIM_INFINITY {
         return Ok(Value::string("unlimited", span));
     }
@@ -257,7 +257,7 @@ fn limit_to_value(limit: rlim_t, multiplier: rlim_t, span: Span) -> Result<Value
                 from_type: "rlim_t".into(),
                 span,
                 help: Some(e.to_string()),
-            });
+            })?;
         }
     };
 
@@ -270,7 +270,7 @@ fn max_desc_len(
     engine_state: &EngineState,
     stack: &mut Stack,
     print_all: bool,
-) -> Result<usize, ShellError> {
+) -> ShellResult<usize> {
     let mut desc_len = 0;
     let mut unit_len = 0;
 
@@ -301,7 +301,7 @@ fn fill_record(
     soft: bool,
     hard: bool,
     span: Span,
-) -> Result<Record, ShellError> {
+) -> ShellResult<Record> {
     let mut record = Record::new();
     let mut desc = String::new();
 
@@ -339,7 +339,7 @@ fn set_limits(
     soft: bool,
     hard: bool,
     call_span: Span,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     let (mut soft_limit, mut hard_limit) = getrlimit(res.resource)?;
     let new_limit = parse_limit(limit_value, res, soft, soft_limit, hard_limit, call_span)?;
 
@@ -367,7 +367,7 @@ fn print_limits(
     print_all: bool,
     soft: bool,
     hard: bool,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let mut output = Vec::new();
     let mut print_default_limit = true;
     let max_len = max_desc_len(call, engine_state, stack, print_all)?;
@@ -399,8 +399,24 @@ fn print_limits(
 }
 
 /// Wrap `nix::sys::resource::getrlimit`
-fn setrlimit(res: Resource, soft_limit: rlim_t, hard_limit: rlim_t) -> Result<(), ShellError> {
+fn setrlimit(res: Resource, soft_limit: rlim_t, hard_limit: rlim_t) -> ShellResult<()> {
     nix::sys::resource::setrlimit(res, soft_limit, hard_limit).map_err(|e| {
+        {
+            ShellError::GenericError {
+                error: e.to_string(),
+                msg: String::new(),
+                span: None,
+                help: None,
+                inner: vec![],
+            }
+        }
+        .into()
+    })
+}
+
+/// Wrap `nix::sys::resource::setrlimit`
+fn getrlimit(res: Resource) -> ShellResult<(rlim_t, rlim_t)> {
+    nix::sys::resource::getrlimit(res).map_err(|e| {
         ShellError::GenericError {
             error: e.to_string(),
             msg: String::new(),
@@ -408,17 +424,7 @@ fn setrlimit(res: Resource, soft_limit: rlim_t, hard_limit: rlim_t) -> Result<()
             help: None,
             inner: vec![],
         }
-    })
-}
-
-/// Wrap `nix::sys::resource::setrlimit`
-fn getrlimit(res: Resource) -> Result<(rlim_t, rlim_t), ShellError> {
-    nix::sys::resource::getrlimit(res).map_err(|e| ShellError::GenericError {
-        error: e.to_string(),
-        msg: String::new(),
-        span: None,
-        help: None,
-        inner: vec![],
+        .into()
     })
 }
 
@@ -430,7 +436,7 @@ fn parse_limit(
     soft_limit: rlim_t,
     hard_limit: rlim_t,
     call_span: Span,
-) -> Result<rlim_t, ShellError> {
+) -> ShellResult<rlim_t> {
     match limit_value {
         Value::Int { val, internal_span } => {
             let value = rlim_t::try_from(*val).map_err(|e| ShellError::CantConvert {
@@ -455,14 +461,17 @@ fn parse_limit(
                         res.resource
                     ),
                     span: *internal_span,
-                });
+                })?;
             }
 
-            rlim_t::try_from(*val).map_err(|e| ShellError::CantConvert {
-                to_type: "rlim_t".into(),
-                from_type: "i64".into(),
-                span: *internal_span,
-                help: Some(e.to_string()),
+            rlim_t::try_from(*val).map_err(|e| {
+                ShellError::CantConvert {
+                    to_type: "rlim_t".into(),
+                    from_type: "i64".into(),
+                    span: *internal_span,
+                    help: Some(e.to_string()),
+                }
+                .into()
             })
         }
         Value::String { val, internal_span } => {
@@ -481,7 +490,7 @@ fn parse_limit(
                     msg: "Only unlimited, soft and hard are supported for strings".into(),
                     val_span: *internal_span,
                     call_span,
-                });
+                })?;
             }
         }
         _ => Err(ShellError::TypeMismatch {
@@ -490,7 +499,7 @@ fn parse_limit(
                 limit_value.get_type()
             ),
             span: limit_value.span(),
-        }),
+        })?,
     }
 }
 
@@ -528,7 +537,7 @@ impl Command for ULimit {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let mut soft = call.has_flag(engine_state, stack, "soft")?;
         let mut hard = call.has_flag(engine_state, stack, "hard")?;
         let all = call.has_flag(engine_state, stack, "all")?;

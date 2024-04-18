@@ -37,7 +37,7 @@ impl Command for StrJoin {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let separator: Option<String> = call.opt(engine_state, stack, 0)?;
 
         let config = engine_state.get_config();
@@ -50,7 +50,7 @@ impl Command for StrJoin {
         for value in input {
             let str = match value {
                 Value::Error { error, .. } => {
-                    return Err(*error);
+                    return Err(error);
                 }
                 Value::Date { val, .. } => format!("{val:?}"),
                 value => value.to_expanded_string("\n", config),

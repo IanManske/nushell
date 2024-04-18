@@ -41,13 +41,13 @@ impl Command for SubCommand {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let args = Arguments;
 
         // This doesn't match explicit nulls
         if matches!(input, PipelineData::Empty) {
-            return Err(ShellError::PipelineEmpty { dst_span: head });
+            return Err(ShellError::PipelineEmpty { dst_span: head })?;
         }
         input.map(
             move |value| super::operate(&split, &args, value, head),
@@ -60,13 +60,13 @@ impl Command for SubCommand {
         working_set: &StateWorkingSet,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let args = Arguments;
 
         // This doesn't match explicit nulls
         if matches!(input, PipelineData::Empty) {
-            return Err(ShellError::PipelineEmpty { dst_span: head });
+            return Err(ShellError::PipelineEmpty { dst_span: head })?;
         }
         input.map(
             move |value| super::operate(&split, &args, value, head),

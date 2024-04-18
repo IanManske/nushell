@@ -41,7 +41,7 @@ impl Command for DebugInfo {
         _stack: &mut Stack,
         _call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = Span::unknown();
 
         let record = LazySystemInfoRecord { span };
@@ -68,7 +68,7 @@ impl LazySystemInfoRecord {
         &self,
         column: &str,
         system_option: Option<&System>,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         let pid = Pid::from(std::process::id() as usize);
         match column {
             "thread_id" => Ok(Value::int(get_thread_id() as i64, self.span)),
@@ -198,7 +198,7 @@ impl LazySystemInfoRecord {
             _ => Err(ShellError::IncompatibleParametersSingle {
                 msg: format!("Unknown column: {}", column),
                 span: self.span,
-            }),
+            })?,
         }
     }
 }
@@ -208,7 +208,7 @@ impl<'a> LazyRecord<'a> for LazySystemInfoRecord {
         vec!["thread_id", "pid", "ppid", "process", "system"]
     }
 
-    fn get_column_value(&self, column: &str) -> Result<Value, ShellError> {
+    fn get_column_value(&self, column: &str) -> ShellResult<Value> {
         self.get_column_value_with_system(column, None)
     }
 
@@ -220,7 +220,7 @@ impl<'a> LazyRecord<'a> for LazySystemInfoRecord {
         Value::lazy_record(Box::new(LazySystemInfoRecord { span }), span)
     }
 
-    fn collect(&'a self) -> Result<Value, ShellError> {
+    fn collect(&'a self) -> ShellResult<Value> {
         let rk = RefreshKind::new()
             .with_processes(ProcessRefreshKind::everything())
             .with_memory(MemoryRefreshKind::everything());

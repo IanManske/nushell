@@ -43,7 +43,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         dice(engine_state, stack, call)
     }
 
@@ -63,11 +63,7 @@ impl Command for SubCommand {
     }
 }
 
-fn dice(
-    engine_state: &EngineState,
-    stack: &mut Stack,
-    call: &Call,
-) -> Result<PipelineData, ShellError> {
+fn dice(engine_state: &EngineState, stack: &mut Stack, call: &Call) -> ShellResult<PipelineData> {
     let span = call.head;
 
     let dice: usize = call.get_flag(engine_state, stack, "dice")?.unwrap_or(1);

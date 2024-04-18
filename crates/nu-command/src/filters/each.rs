@@ -106,7 +106,7 @@ with 'transpose' first."#
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let eval_block_with_early_return = get_eval_block_with_early_return(engine_state);
 
         let capture_block: Closure = call.req(engine_state, stack, 0)?;
@@ -150,12 +150,14 @@ with 'transpose' first."#
                         x.into_pipeline_data(),
                     ) {
                         Ok(v) => Some(v.into_value(span)),
-                        Err(ShellError::Continue { span }) => Some(Value::nothing(span)),
-                        Err(ShellError::Break { .. }) => None,
-                        Err(error) => {
-                            let error = chain_error_with_input(error, x_is_error, input_span);
-                            Some(Value::error(error, input_span))
-                        }
+                        Err(err) => match *err {
+                            ShellError::Continue { span } => Some(Value::nothing(span)),
+                            ShellError::Break { .. } => None,
+                            _ => {
+                                let error = chain_error_with_input(err, x_is_error, input_span);
+                                Some(Value::error(error, input_span))
+                            }
+                        },
                     }
                 })
                 .into_pipeline_data(ctrlc)),
@@ -173,9 +175,11 @@ with 'transpose' first."#
 
                     let x = match x {
                         Ok(x) => x,
-                        Err(ShellError::Continue { span }) => return Some(Value::nothing(span)),
-                        Err(ShellError::Break { .. }) => return None,
-                        Err(err) => return Some(Value::error(err, span)),
+                        Err(err) => match *err {
+                            ShellError::Continue { span } => return Some(Value::nothing(span)),
+                            ShellError::Break { .. } => return None,
+                            _ => return Some(Value::error(err, span)),
+                        },
                     };
 
                     if let Some(var) = block.signature.get_positional(0) {
@@ -194,12 +198,14 @@ with 'transpose' first."#
                         x.into_pipeline_data(),
                     ) {
                         Ok(v) => Some(v.into_value(span)),
-                        Err(ShellError::Continue { span }) => Some(Value::nothing(span)),
-                        Err(ShellError::Break { .. }) => None,
-                        Err(error) => {
-                            let error = chain_error_with_input(error, x_is_error, input_span);
-                            Some(Value::error(error, input_span))
-                        }
+                        Err(err) => match *err {
+                            ShellError::Continue { span } => Some(Value::nothing(span)),
+                            ShellError::Break { .. } => None,
+                            _ => {
+                                let error = chain_error_with_input(err, x_is_error, input_span);
+                                Some(Value::error(error, input_span))
+                            }
+                        },
                     }
                 })
                 .into_pipeline_data(ctrlc)),

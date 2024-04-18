@@ -34,7 +34,7 @@ impl Command for Ast {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let pipeline: Spanned<String> = call.req(engine_state, stack, 0)?;
         let to_json = call.has_flag(engine_state, stack, "json")?;
         let minify = call.has_flag(engine_state, stack, "minify")?;

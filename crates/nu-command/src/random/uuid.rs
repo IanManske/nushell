@@ -30,7 +30,7 @@ impl Command for SubCommand {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         uuid(call)
     }
 
@@ -43,7 +43,7 @@ impl Command for SubCommand {
     }
 }
 
-fn uuid(call: &Call) -> Result<PipelineData, ShellError> {
+fn uuid(call: &Call) -> ShellResult<PipelineData> {
     let span = call.head;
     let uuid_4 = Uuid::new_v4().hyphenated().to_string();
 

@@ -39,7 +39,7 @@ impl Command for SchemaDb {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
 
         let sqlite_db = SQLiteDatabase::try_from_pipeline(input, span)?;
@@ -83,13 +83,16 @@ impl Command for SchemaDb {
     }
 }
 
-fn open_sqlite_db_connection(db: &SQLiteDatabase, span: Span) -> Result<Connection, ShellError> {
-    db.open_connection().map_err(|e| ShellError::GenericError {
-        error: "Error opening file".into(),
-        msg: e.to_string(),
-        span: Some(span),
-        help: None,
-        inner: vec![],
+fn open_sqlite_db_connection(db: &SQLiteDatabase, span: Span) -> ShellResult<Connection> {
+    db.open_connection().map_err(|e| {
+        ShellError::GenericError {
+            error: "Error opening file".into(),
+            msg: e.to_string(),
+            span: Some(span),
+            help: None,
+            inner: vec![],
+        }
+        .into()
     })
 }
 
@@ -98,7 +101,7 @@ fn get_table_columns(
     conn: &Connection,
     table: &DbTable,
     span: Span,
-) -> Result<Vec<Value>, ShellError> {
+) -> ShellResult<Vec<Value>> {
     let columns = db
         .get_columns(conn, table)
         .map_err(|e| ShellError::GenericError {
@@ -130,7 +133,7 @@ fn get_table_constraints(
     conn: &Connection,
     table: &DbTable,
     span: Span,
-) -> Result<Vec<Value>, ShellError> {
+) -> ShellResult<Vec<Value>> {
     let constraints = db
         .get_constraints(conn, table)
         .map_err(|e| ShellError::GenericError {
@@ -161,7 +164,7 @@ fn get_table_foreign_keys(
     conn: &Connection,
     table: &DbTable,
     span: Span,
-) -> Result<Vec<Value>, ShellError> {
+) -> ShellResult<Vec<Value>> {
     let foreign_keys = db
         .get_foreign_keys(conn, table)
         .map_err(|e| ShellError::GenericError {
@@ -191,7 +194,7 @@ fn get_table_indexes(
     conn: &Connection,
     table: &DbTable,
     span: Span,
-) -> Result<Vec<Value>, ShellError> {
+) -> ShellResult<Vec<Value>> {
     let indexes = db
         .get_indexes(conn, table)
         .map_err(|e| ShellError::GenericError {

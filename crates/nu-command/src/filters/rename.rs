@@ -46,7 +46,7 @@ impl Command for Rename {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         rename(engine_state, stack, call, input)
     }
 
@@ -103,7 +103,7 @@ fn rename(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let specified_column: Option<Record> = call.get_flag(engine_state, stack, "column")?;
     // convert from Record to HashMap for easily query.
     let specified_column: Option<IndexMap<String, String>> = match specified_column {
@@ -116,18 +116,18 @@ fn rename(
                         columns.insert(col, val);
                     }
                     _ => {
-                        return Err(ShellError::TypeMismatch {
+                        Err(ShellError::TypeMismatch {
                             err_message: "new column name must be a string".to_owned(),
                             span: val_span,
-                        });
+                        })?;
                     }
                 }
             }
             if columns.is_empty() {
-                return Err(ShellError::TypeMismatch {
+                Err(ShellError::TypeMismatch {
                     err_message: "The column info cannot be empty".to_owned(),
                     span: call.head,
-                });
+                })?;
             }
             Some(columns)
         }
@@ -184,7 +184,7 @@ fn rename(
                                         .and_then(|data| data.collect_string_strict(span))
                                         .map(|(col, _, _)| (col, val))
                                     })
-                                    .collect::<Result<Record, _>>()
+                                    .collect::<ShellResult<Record>>()
                             } else {
                                 match &specified_column {
                                     Some(columns) => {
@@ -216,7 +216,7 @@ fn rename(
                                                 input: "value originated from here".into(),
                                                 msg_span: head_span,
                                                 input_span: span,
-                                            })
+                                            }.into())
                                         } else {
                                             Ok(record)
                                         }

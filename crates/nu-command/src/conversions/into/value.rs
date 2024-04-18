@@ -56,7 +56,7 @@ impl Command for IntoValue {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let engine_state = engine_state.clone();
         let metadata = input.metadata();
         let ctrlc = engine_state.ctrlc.clone();
@@ -70,7 +70,7 @@ impl Command for IntoValue {
                 val.into_list()?
                     .into_iter()
                     .map(Value::coerce_into_string)
-                    .collect::<Result<HashSet<String>, ShellError>>()?,
+                    .collect::<ShellResult<HashSet<String>>>()?,
             ),
             None => None,
         };
@@ -136,7 +136,7 @@ impl Iterator for UpdateCellIterator {
 
 // This function will check each cell to see if it matches a regular expression
 // for a particular datatype. If it does, it will convert the cell to that datatype.
-fn process_cell(val: Value, display_as_filesizes: bool, span: Span) -> Result<Value, ShellError> {
+fn process_cell(val: Value, display_as_filesizes: bool, span: Span) -> ShellResult<Value> {
     // step 1: convert value to string
     let val_str = val.coerce_str().unwrap_or_default();
 

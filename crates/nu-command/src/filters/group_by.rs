@@ -44,7 +44,7 @@ impl Command for GroupBy {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         group_by(engine_state, stack, call, input)
     }
 
@@ -123,7 +123,7 @@ pub fn group_by(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let head = call.head;
     let grouper: Option<Value> = call.opt(engine_state, stack, 0)?;
     let to_table = call.has_flag(engine_state, stack, "to-table")?;
@@ -145,7 +145,7 @@ pub fn group_by(
                     return Err(ShellError::TypeMismatch {
                         err_message: "unsupported grouper type".to_string(),
                         span,
-                    })
+                    })?
                 }
             }
         }
@@ -164,7 +164,7 @@ pub fn group_by(
 fn group_cell_path(
     column_name: CellPath,
     values: Vec<Value>,
-) -> Result<IndexMap<String, Vec<Value>>, ShellError> {
+) -> ShellResult<IndexMap<String, Vec<Value>>> {
     let mut groups = IndexMap::<_, Vec<_>>::new();
 
     for value in values.into_iter() {
@@ -183,7 +183,7 @@ fn group_cell_path(
     Ok(groups)
 }
 
-fn group_no_grouper(values: Vec<Value>) -> Result<IndexMap<String, Vec<Value>>, ShellError> {
+fn group_no_grouper(values: Vec<Value>) -> ShellResult<IndexMap<String, Vec<Value>>> {
     let mut groups = IndexMap::<_, Vec<_>>::new();
 
     for value in values.into_iter() {
@@ -200,7 +200,7 @@ fn group_closure(
     closure: Closure,
     engine_state: &EngineState,
     stack: &mut Stack,
-) -> Result<IndexMap<String, Vec<Value>>, ShellError> {
+) -> ShellResult<IndexMap<String, Vec<Value>>> {
     let mut groups = IndexMap::<_, Vec<_>>::new();
     let eval_block = get_eval_block(engine_state);
     let block = engine_state.get_block(closure.block_id);

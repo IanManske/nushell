@@ -79,7 +79,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let find: Spanned<String> = call.req(engine_state, stack, 0)?;
         let replace: Spanned<String> = call.req(engine_state, stack, 1)?;
         let cell_paths: Vec<CellPath> = call.rest(engine_state, stack, 2)?;

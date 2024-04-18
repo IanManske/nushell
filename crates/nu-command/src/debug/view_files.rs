@@ -36,7 +36,7 @@ impl Command for ViewFiles {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let mut records = vec![];
 
         for file in engine_state.files() {

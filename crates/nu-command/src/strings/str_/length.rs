@@ -68,7 +68,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let cell_paths: Vec<CellPath> = call.rest(engine_state, stack, 0)?;
         run(
             cell_paths,
@@ -84,7 +84,7 @@ impl Command for SubCommand {
         working_set: &StateWorkingSet,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let cell_paths: Vec<CellPath> = call.rest_const(working_set, 0)?;
         run(
             cell_paths,
@@ -125,7 +125,7 @@ fn run(
     call: &Call,
     input: PipelineData,
     graphemes: bool,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let args = Arguments {
         cell_paths: (!cell_paths.is_empty()).then_some(cell_paths),
         graphemes,

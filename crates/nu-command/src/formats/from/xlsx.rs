@@ -36,7 +36,7 @@ impl Command for FromXlsx {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
 
         let sel_sheets = if let Some(Value::List { vals: columns, .. }) =
@@ -66,22 +66,20 @@ impl Command for FromXlsx {
     }
 }
 
-fn convert_columns(columns: &[Value]) -> Result<Vec<String>, ShellError> {
-    let res = columns
+fn convert_columns(columns: &[Value]) -> ShellResult<Vec<String>> {
+    columns
         .iter()
         .map(|value| match &value {
             Value::String { val: s, .. } => Ok(s.clone()),
             _ => Err(ShellError::IncompatibleParametersSingle {
                 msg: "Incorrect column format, Only string as column name".to_string(),
                 span: value.span(),
-            }),
+            })?,
         })
-        .collect::<Result<Vec<String>, _>>()?;
-
-    Ok(res)
+        .collect()
 }
 
-fn collect_binary(input: PipelineData, span: Span) -> Result<Vec<u8>, ShellError> {
+fn collect_binary(input: PipelineData, span: Span) -> ShellResult<Vec<u8>> {
     let mut bytes = vec![];
     let mut values = input.into_iter();
 
@@ -96,7 +94,7 @@ fn collect_binary(input: PipelineData, span: Span) -> Result<Vec<u8>, ShellError
                     input: "value originates from here".into(),
                     msg_span: span,
                     input_span: x.span(),
-                })
+                })?
             }
             None => break,
         }
@@ -109,7 +107,7 @@ fn from_xlsx(
     input: PipelineData,
     head: Span,
     sel_sheets: Vec<String>,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let span = input.span();
     let bytes = collect_binary(input, head)?;
     let buf: Cursor<Vec<u8>> = Cursor::new(bytes);
@@ -167,12 +165,12 @@ fn from_xlsx(
 
             dict.insert(sheet_name, Value::list(sheet_output, head));
         } else {
-            return Err(ShellError::UnsupportedInput {
+            Err(ShellError::UnsupportedInput {
                 msg: "Could not load sheet".to_string(),
                 input: "value originates from here".into(),
                 msg_span: head,
                 input_span: span.unwrap_or(head),
-            });
+            })?;
         }
     }
 

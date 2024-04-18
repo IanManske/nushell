@@ -41,7 +41,7 @@ impl Command for Tutor {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         tutor(engine_state, stack, call)
     }
 
@@ -61,11 +61,7 @@ impl Command for Tutor {
     }
 }
 
-fn tutor(
-    engine_state: &EngineState,
-    stack: &mut Stack,
-    call: &Call,
-) -> Result<PipelineData, ShellError> {
+fn tutor(engine_state: &EngineState, stack: &mut Stack, call: &Call) -> ShellResult<PipelineData> {
     let span = call.head;
 
     let search: Option<String> = call.opt(engine_state, stack, 0).unwrap_or(None);

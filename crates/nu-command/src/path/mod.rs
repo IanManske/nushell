@@ -20,7 +20,7 @@ pub use r#type::SubCommand as PathType;
 pub use relative_to::SubCommand as PathRelativeTo;
 pub use split::SubCommand as PathSplit;
 
-use nu_protocol::{ShellError, Span, Value};
+use nu_protocol::{Error, ShellError, Span, Value};
 use std::path::Path as StdPath;
 
 #[cfg(windows)]
@@ -46,24 +46,23 @@ fn handle_invalid_values(rest: Value, name: Span) -> Value {
     Value::error(err_from_value(&rest, name), name)
 }
 
-fn err_from_value(rest: &Value, name: Span) -> ShellError {
+fn err_from_value(rest: &Value, name: Span) -> Error {
     match rest {
-        Value::Error { error, .. } => *error.clone(),
-        _ => {
-            if rest.is_nothing() {
-                ShellError::OnlySupportsThisInputType {
-                    exp_input_type: "string, record or list".into(),
-                    wrong_type: "nothing".into(),
-                    dst_span: name,
-                    src_span: rest.span(),
-                }
-            } else {
-                ShellError::PipelineMismatch {
-                    exp_input_type: "string, row or list".into(),
-                    dst_span: name,
-                    src_span: rest.span(),
-                }
+        Value::Error { error, .. } => error.clone(),
+        _ => if rest.is_nothing() {
+            ShellError::OnlySupportsThisInputType {
+                exp_input_type: "string, record or list".into(),
+                wrong_type: "nothing".into(),
+                dst_span: name,
+                src_span: rest.span(),
+            }
+        } else {
+            ShellError::PipelineMismatch {
+                exp_input_type: "string, row or list".into(),
+                dst_span: name,
+                src_span: rest.span(),
             }
         }
+        .into(),
     }
 }

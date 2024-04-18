@@ -114,7 +114,7 @@ impl Command for SeqDate {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let output_format: Option<Spanned<String>> =
             call.get_flag(engine_state, stack, "output-format")?;
         let input_format: Option<Spanned<String>> =
@@ -183,19 +183,19 @@ pub fn run_seq_dates(
     day_count: Option<Value>,
     reverse: bool,
     call_span: Span,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     let today = Local::now().date_naive();
     // if cannot convert , it will return error
     let mut step_size: i64 = increment.as_i64()?;
 
     if step_size == 0 {
-        return Err(ShellError::GenericError {
+        Err(ShellError::GenericError {
             error: "increment cannot be 0".into(),
             msg: "increment cannot be 0".into(),
             span: Some(increment.span()),
             help: None,
             inner: vec![],
-        });
+        })?;
     }
 
     let in_format = match input_format {
@@ -208,7 +208,7 @@ pub fn run_seq_dates(
                     span: None,
                     help: Some("error with input_format as_string".into()),
                     inner: vec![],
-                });
+                })?;
             }
         },
         _ => "%Y-%m-%d".to_string(),
@@ -224,7 +224,7 @@ pub fn run_seq_dates(
                     span: None,
                     help: Some("error with output_format as_string".into()),
                     inner: vec![],
-                });
+                })?;
             }
         },
         _ => "%Y-%m-%d".to_string(),
@@ -240,7 +240,7 @@ pub fn run_seq_dates(
                     span: Some(call_span),
                     help: None,
                     inner: vec![],
-                })
+                })?
             }
         },
         _ => today,
@@ -256,7 +256,7 @@ pub fn run_seq_dates(
                     span: Some(call_span),
                     help: None,
                     inner: vec![],
-                })
+                })?
             }
         },
         _ => today,
@@ -285,7 +285,7 @@ pub fn run_seq_dates(
                     span: Some(call_span),
                     help: None,
                     inner: vec![],
-                });
+                })?;
             }
         }
     }
@@ -306,18 +306,18 @@ pub fn run_seq_dates(
             span: Some(call_span),
             help: None,
             inner: vec![],
-        });
+        })?;
     };
 
     let mut next = start_date;
     if is_out_of_range(next) {
-        return Err(ShellError::GenericError {
+        Err(ShellError::GenericError {
             error: "date is out of range".into(),
             msg: "date is out of range".into(),
             span: Some(call_span),
             help: None,
             inner: vec![],
-        });
+        })?;
     }
 
     let mut ret = vec![];
@@ -326,26 +326,26 @@ pub fn run_seq_dates(
         match write!(date_string, "{}", next.format(&out_format)) {
             Ok(_) => {}
             Err(e) => {
-                return Err(ShellError::GenericError {
+                Err(ShellError::GenericError {
                     error: "Invalid output format".into(),
                     msg: e.to_string(),
                     span: Some(call_span),
                     help: None,
                     inner: vec![],
-                });
+                })?;
             }
         }
         ret.push(Value::string(date_string, call_span));
         if let Some(n) = next.checked_add_signed(step_size) {
             next = n;
         } else {
-            return Err(ShellError::GenericError {
+            Err(ShellError::GenericError {
                 error: "date overflow".into(),
                 msg: "adding the increment overflowed".into(),
                 span: Some(call_span),
                 help: None,
                 inner: vec![],
-            });
+            })?;
         }
 
         if is_out_of_range(next) {

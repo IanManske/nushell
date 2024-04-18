@@ -221,7 +221,7 @@ impl Command for Char {
         working_set: &StateWorkingSet,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let call_span = call.head;
         let list = call.has_flag_const(working_set, "list")?;
         let integer = call.has_flag_const(working_set, "integer")?;
@@ -256,7 +256,7 @@ impl Command for Char {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let call_span = call.head;
         let list = call.has_flag(engine_state, stack, "list")?;
         let integer = call.has_flag(engine_state, stack, "integer")?;
@@ -289,7 +289,7 @@ impl Command for Char {
 fn generate_character_list(
     ctrlc: Option<Arc<AtomicBool>>,
     call_span: Span,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     Ok(CHAR_MAP
         .iter()
         .map(move |(name, s)| {
@@ -315,12 +315,12 @@ fn handle_integer_flag(
     int_args: Vec<i64>,
     call: &Call,
     call_span: Span,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     if int_args.is_empty() {
-        return Err(ShellError::MissingParameter {
+        Err(ShellError::MissingParameter {
             param_name: "missing at least one unicode character".into(),
             span: call_span,
-        });
+        })?;
     }
     let mut multi_byte = String::new();
     for (i, &arg) in int_args.iter().enumerate() {
@@ -337,12 +337,12 @@ fn handle_unicode_flag(
     string_args: Vec<String>,
     call: &Call,
     call_span: Span,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     if string_args.is_empty() {
-        return Err(ShellError::MissingParameter {
+        Err(ShellError::MissingParameter {
             param_name: "missing at least one unicode character".into(),
             span: call_span,
-        });
+        })?;
     }
     let mut multi_byte = String::new();
     for (i, arg) in string_args.iter().enumerate() {
@@ -359,12 +359,12 @@ fn handle_the_rest(
     string_args: Vec<String>,
     call: &Call,
     call_span: Span,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     if string_args.is_empty() {
-        return Err(ShellError::MissingParameter {
+        Err(ShellError::MissingParameter {
             param_name: "missing name of the character".into(),
             span: call_span,
-        });
+        })?;
     }
     let special_character = str_to_character(&string_args[0]);
     if let Some(output) = special_character {
@@ -376,11 +376,11 @@ fn handle_the_rest(
                 .positional_nth(0)
                 .expect("Unexpected missing argument")
                 .span,
-        })
+        })?
     }
 }
 
-fn integer_to_unicode_char(value: i64, t: Span) -> Result<char, ShellError> {
+fn integer_to_unicode_char(value: i64, t: Span) -> ShellResult<char> {
     let decoded_char = value.try_into().ok().and_then(std::char::from_u32);
 
     if let Some(ch) = decoded_char {
@@ -389,11 +389,11 @@ fn integer_to_unicode_char(value: i64, t: Span) -> Result<char, ShellError> {
         Err(ShellError::TypeMismatch {
             err_message: "not a valid Unicode codepoint".into(),
             span: t,
-        })
+        })?
     }
 }
 
-fn string_to_unicode_char(s: &str, t: Span) -> Result<char, ShellError> {
+fn string_to_unicode_char(s: &str, t: Span) -> ShellResult<char> {
     let decoded_char = u32::from_str_radix(s, 16)
         .ok()
         .and_then(std::char::from_u32);
@@ -404,7 +404,7 @@ fn string_to_unicode_char(s: &str, t: Span) -> Result<char, ShellError> {
         Err(ShellError::TypeMismatch {
             err_message: "error decoding Unicode character".into(),
             span: t,
-        })
+        })?
     }
 }
 

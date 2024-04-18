@@ -64,7 +64,7 @@ impl Command for Join {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<nu_protocol::PipelineData, nu_protocol::ShellError> {
+    ) -> ShellResult<PipelineData> {
         let metadata = input.metadata();
         let table_2: Value = call.req(engine_state, stack, 0)?;
         let l_on: Value = call.req(engine_state, stack, 1)?;
@@ -98,7 +98,7 @@ impl Command for Join {
                 ),
                 msg_span: span,
                 input_span: span,
-            }),
+            })?,
         }
     }
 
@@ -113,11 +113,7 @@ impl Command for Join {
     }
 }
 
-fn join_type(
-    engine_state: &EngineState,
-    stack: &mut Stack,
-    call: &Call,
-) -> Result<JoinType, nu_protocol::ShellError> {
+fn join_type(engine_state: &EngineState, stack: &mut Stack, call: &Call) -> ShellResult<JoinType> {
     match (
         call.has_flag(engine_state, stack, "inner")?,
         call.has_flag(engine_state, stack, "left")?,
@@ -133,7 +129,7 @@ fn join_type(
             input: "".into(),
             msg_span: call.head,
             input_span: call.head,
-        }),
+        })?,
     }
 }
 

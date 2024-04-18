@@ -38,7 +38,7 @@ impl Command for SubCommand {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         run_with_function(call, input, median)
     }
 
@@ -71,7 +71,7 @@ enum Pick {
     Median,
 }
 
-pub fn median(values: &[Value], span: Span, head: Span) -> Result<Value, ShellError> {
+pub fn median(values: &[Value], span: Span, head: Span) -> ShellResult<Value> {
     let take = if values.len() % 2 == 0 {
         Pick::MedianAverage
     } else {
@@ -88,13 +88,13 @@ pub fn median(values: &[Value], span: Span, head: Span) -> Result<Value, ShellEr
         .windows(2)
         .map(|elem| {
             if elem[0].partial_cmp(&elem[1]).is_none() {
-                return Err(ShellError::OperatorMismatch {
+                Err(ShellError::OperatorMismatch {
                     op_span: head,
                     lhs_ty: elem[0].get_type().to_string(),
                     lhs_span: elem[0].span(),
                     rhs_ty: elem[1].get_type().to_string(),
                     rhs_span: elem[1].span(),
-                });
+                })?;
             }
             Ok(elem[0].partial_cmp(&elem[1]).unwrap_or(Ordering::Equal))
         })

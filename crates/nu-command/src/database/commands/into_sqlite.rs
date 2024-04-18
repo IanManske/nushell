@@ -47,7 +47,7 @@ impl Command for IntoSqliteDb {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         operate(engine_state, stack, call, input)
     }
 
@@ -94,7 +94,7 @@ impl Table {
     pub fn new(
         db_path: &Spanned<String>,
         table_name: Option<Spanned<String>>,
-    ) -> Result<Self, nu_protocol::ShellError> {
+    ) -> ShellResult<Self> {
         let table_name = if let Some(table_name) = table_name {
             table_name.item
         } else {
@@ -111,10 +111,7 @@ impl Table {
         &self.table_name
     }
 
-    fn try_init(
-        &mut self,
-        record: &Record,
-    ) -> Result<rusqlite::Transaction, nu_protocol::ShellError> {
+    fn try_init(&mut self, record: &Record) -> ShellResult<rusqlite::Transaction> {
         let first_row_null = record.values().any(Value::is_nothing);
         let columns = get_columns_with_sqlite_types(record)?;
 
@@ -166,15 +163,16 @@ If this is undesirable, you can create the table first with your desired schema.
                 })?;
         }
 
-        self.conn
-            .transaction()
-            .map_err(|err| ShellError::GenericError {
+        self.conn.transaction().map_err(|err| {
+            ShellError::GenericError {
                 error: "Failed to open transaction".into(),
                 msg: err.to_string(),
                 span: None,
                 help: None,
                 inner: Vec::new(),
-            })
+            }
+            .into()
+        })
     }
 }
 
@@ -183,7 +181,7 @@ fn operate(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let span = call.head;
     let file_name: Spanned<String> = call.req(engine_state, stack, 0)?;
     let table_name: Option<Spanned<String>> = call.get_flag(engine_state, stack, "table-name")?;
@@ -201,7 +199,7 @@ fn action(
     table: Table,
     span: Span,
     ctrl_c: Option<Arc<AtomicBool>>,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     match input {
         PipelineData::ListStream(list_stream, _) => {
             insert_in_transaction(list_stream.stream, span, table, ctrl_c)
@@ -221,7 +219,7 @@ fn action(
             wrong_type: "".into(),
             dst_span: span,
             src_span: span,
-        }),
+        })?,
     }
 }
 
@@ -230,7 +228,7 @@ fn insert_in_transaction(
     span: Span,
     mut table: Table,
     ctrl_c: Option<Arc<AtomicBool>>,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     let mut stream = stream.peekable();
     let first_val = match stream.peek() {
         None => return Ok(Value::nothing(span)),
@@ -260,7 +258,7 @@ fn insert_in_transaction(
                     help: None,
                     inner: Vec::new(),
                 })?;
-                return Err(ShellError::InterruptedByUser { span: None });
+                return Err(ShellError::InterruptedByUser { span: None }.into());
             }
         }
 
@@ -312,7 +310,7 @@ fn insert_in_transaction(
 fn insert_value(
     stream_value: Value,
     insert_statement: &mut rusqlite::Statement<'_>,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     match stream_value {
         // map each column value into its SQL representation
         Value::Record { val, .. } => {
@@ -335,7 +333,7 @@ fn insert_value(
             wrong_type: val.get_type().to_string(),
             dst_span: Span::unknown(),
             src_span: val.span(),
-        }),
+        })?,
     }
 }
 
@@ -345,7 +343,7 @@ fn insert_value(
 // REAL. The value is a floating point value, stored as an 8-byte IEEE floating point number.
 // TEXT. The value is a text string, stored using the database encoding (UTF-8, UTF-16BE or UTF-16LE).
 // BLOB. The value is a blob of data, stored exactly as it was input.
-fn nu_value_to_sqlite_type(val: &Value) -> Result<&'static str, ShellError> {
+fn nu_value_to_sqlite_type(val: &Value) -> ShellResult<&'static str> {
     match val.get_type() {
         Type::String => Ok("TEXT"),
         Type::Int => Ok("INTEGER"),
@@ -380,13 +378,11 @@ fn nu_value_to_sqlite_type(val: &Value) -> Result<&'static str, ShellError> {
             wrong_type: val.get_type().to_string(),
             dst_span: Span::unknown(),
             src_span: val.span(),
-        }),
+        })?,
     }
 }
 
-fn get_columns_with_sqlite_types(
-    record: &Record,
-) -> Result<Vec<(String, &'static str)>, ShellError> {
+fn get_columns_with_sqlite_types(record: &Record) -> ShellResult<Vec<(String, &'static str)>> {
     let mut columns: Vec<(String, &'static str)> = vec![];
 
     for (c, v) in record {

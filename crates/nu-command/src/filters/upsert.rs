@@ -59,7 +59,7 @@ If the command is inserting at the end of a list or table, then both of these va
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         upsert(engine_state, stack, call, input)
     }
 
@@ -157,7 +157,7 @@ fn upsert(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let span = call.head;
 
     let cell_path: CellPath = call.req(engine_state, stack, 0)?;
@@ -222,10 +222,10 @@ fn upsert(
                     if let Some(v) = stream.next() {
                         pre_elems.push(v);
                     } else {
-                        return Err(ShellError::InsertAfterNextFreeIndex {
+                        Err(ShellError::InsertAfterNextFreeIndex {
                             available_idx: idx,
                             span: path_span,
-                        });
+                        })?;
                     }
                 }
 
@@ -270,10 +270,10 @@ fn upsert(
                     }
                     pre_elems.push(value)
                 } else {
-                    return Err(ShellError::AccessBeyondEnd {
+                    Err(ShellError::AccessBeyondEnd {
                         max_idx: pre_elems.len() - 1,
                         span: path_span,
-                    });
+                    })?;
                 }
 
                 Ok(pre_elems
@@ -328,11 +328,11 @@ fn upsert(
         PipelineData::Empty => Err(ShellError::IncompatiblePathAccess {
             type_name: "empty pipeline".to_string(),
             span,
-        }),
+        })?,
         PipelineData::ExternalStream { .. } => Err(ShellError::IncompatiblePathAccess {
             type_name: "external stream".to_string(),
             span,
-        }),
+        })?,
     }
 }
 
@@ -346,7 +346,7 @@ fn upsert_value_by_closure(
     cell_path: &[PathMember],
     first_path_member_int: bool,
     eval_block_fn: EvalBlockFn,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     let input_at_path = value.clone().follow_cell_path(cell_path, false);
 
     if let Some(var) = block.signature.get_positional(0) {
@@ -380,7 +380,7 @@ fn upsert_single_value_by_closure(
     cell_path: &[PathMember],
     first_path_member_int: bool,
     eval_block_fn: EvalBlockFn,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     let span = replacement.span();
     let capture_block = Closure::from_value(replacement)?;
     let block = engine_state.get_block(capture_block.block_id);

@@ -50,7 +50,7 @@ impl Command for Kill {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let pid: i64 = call.req(engine_state, stack, 0)?;
         let rest: Vec<i64> = call.rest(engine_state, stack, 1)?;
         let force: bool = call.has_flag(engine_state, stack, "force")?;
@@ -108,7 +108,7 @@ impl Command for Kill {
                                 .span,
                             signal_span,
                         ]),
-                    });
+                    })?;
                 }
                 cmd.arg("-9");
             } else if let Some(signal_value) = signal {
@@ -144,7 +144,7 @@ impl Command for Kill {
                 span: Some(call.head),
                 help: None,
                 inner: vec![],
-            });
+            })?;
         }
 
         let mut output =

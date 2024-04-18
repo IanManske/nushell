@@ -28,7 +28,7 @@ impl Command for Length {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         length_row(call, input)
     }
 
@@ -48,7 +48,7 @@ impl Command for Length {
     }
 }
 
-fn length_row(call: &Call, input: PipelineData) -> Result<PipelineData, ShellError> {
+fn length_row(call: &Call, input: PipelineData) -> ShellResult<PipelineData> {
     let span = input.span().unwrap_or(call.head);
     match input {
         PipelineData::Value(Value::Nothing { .. }, ..) => {
@@ -62,14 +62,14 @@ fn length_row(call: &Call, input: PipelineData) -> Result<PipelineData, ShellErr
                 wrong_type: "record".into(),
                 dst_span: call.head,
                 src_span: span,
-            })
+            })?
         }
         _ => {
             let mut count: i64 = 0;
             // Check for and propagate errors
             for value in input.into_iter() {
                 if let Value::Error { error, .. } = value {
-                    return Err(*error);
+                    return Err(error);
                 }
                 count += 1
             }

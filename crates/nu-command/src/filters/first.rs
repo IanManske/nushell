@@ -39,7 +39,7 @@ impl Command for First {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         first_helper(engine_state, stack, call, input)
     }
 
@@ -77,7 +77,7 @@ fn first_helper(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let head = call.head;
     let rows: Option<Spanned<i64>> = call.opt(engine_state, stack, 0)?;
 
@@ -88,7 +88,7 @@ fn first_helper(
     let return_single_element = rows.is_none();
     let rows = if let Some(rows) = rows {
         if rows.item < 0 {
-            return Err(ShellError::NeedsPositiveValue { span: rows.span });
+            return Err(ShellError::NeedsPositiveValue { span: rows.span })?;
         } else {
             rows.item as usize
         }
@@ -112,7 +112,7 @@ fn first_helper(
                         if let Some(val) = vals.first_mut() {
                             Ok(std::mem::take(val).into_pipeline_data())
                         } else {
-                            Err(ShellError::AccessEmptyContent { span: head })
+                            Err(ShellError::AccessEmptyContent { span: head })?
                         }
                     } else {
                         vals.truncate(rows);
@@ -124,7 +124,7 @@ fn first_helper(
                         if let Some(&val) = val.first() {
                             Ok(Value::int(val.into(), span).into_pipeline_data())
                         } else {
-                            Err(ShellError::AccessEmptyContent { span: head })
+                            Err(ShellError::AccessEmptyContent { span: head })?
                         }
                     } else {
                         val.truncate(rows);
@@ -138,7 +138,7 @@ fn first_helper(
                         if let Some(v) = iter.next() {
                             Ok(v.into_pipeline_data())
                         } else {
-                            Err(ShellError::AccessEmptyContent { span: head })
+                            Err(ShellError::AccessEmptyContent { span: head })?
                         }
                     } else {
                         Ok(iter
@@ -147,13 +147,13 @@ fn first_helper(
                     }
                 }
                 // Propagate errors by explicitly matching them before the final case.
-                Value::Error { error, .. } => Err(*error),
+                Value::Error { error, .. } => Err(error),
                 other => Err(ShellError::OnlySupportsThisInputType {
                     exp_input_type: "list, binary or range".into(),
                     wrong_type: other.get_type().to_string(),
                     dst_span: head,
                     src_span: other.span(),
-                }),
+                })?,
             }
         }
         PipelineData::ListStream(mut ls, metadata) => {
@@ -161,7 +161,7 @@ fn first_helper(
                 if let Some(v) = ls.next() {
                     Ok(v.into_pipeline_data())
                 } else {
-                    Err(ShellError::AccessEmptyContent { span: head })
+                    Err(ShellError::AccessEmptyContent { span: head })?
                 }
             } else {
                 Ok(ls
@@ -174,13 +174,13 @@ fn first_helper(
             wrong_type: "raw data".into(),
             dst_span: head,
             src_span: span,
-        }),
+        })?,
         PipelineData::Empty => Err(ShellError::OnlySupportsThisInputType {
             exp_input_type: "list, binary or range".into(),
             wrong_type: "null".into(),
             dst_span: call.head,
             src_span: call.head,
-        }),
+        })?,
     }
 }
 #[cfg(test)]

@@ -59,7 +59,7 @@ impl Command for HelpAliases {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         help_aliases(engine_state, stack, call)
     }
 }
@@ -68,7 +68,7 @@ pub fn help_aliases(
     engine_state: &EngineState,
     stack: &mut Stack,
     call: &Call,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let head = call.head;
     let find: Option<Spanned<String>> = call.get_flag(engine_state, stack, "find")?;
     let rest: Vec<Spanned<String>> = call.rest(engine_state, stack, 0)?;
@@ -116,13 +116,13 @@ pub fn help_aliases(
         let Some(alias) = engine_state.find_decl(name.as_bytes(), &[]) else {
             return Err(ShellError::AliasNotFound {
                 span: span(&rest.iter().map(|r| r.span).collect::<Vec<Span>>()),
-            });
+            })?;
         };
 
         let Some(alias) = engine_state.get_decl(alias).as_alias() else {
             return Err(ShellError::AliasNotFound {
                 span: span(&rest.iter().map(|r| r.span).collect::<Vec<Span>>()),
-            });
+            })?;
         };
 
         let alias_expansion =

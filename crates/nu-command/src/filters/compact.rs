@@ -37,7 +37,7 @@ impl Command for Compact {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let empty = call.has_flag(engine_state, stack, "empty")?;
         compact(engine_state, stack, call, input, empty)
     }
@@ -86,7 +86,7 @@ pub fn compact(
     call: &Call,
     input: PipelineData,
     compact_empties: bool,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let columns: Vec<String> = call.rest(engine_state, stack, 0)?;
     let metadata = input.metadata();
     input

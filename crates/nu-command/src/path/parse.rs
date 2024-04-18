@@ -51,7 +51,7 @@ On Windows, an extra 'prefix' column is added."#
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let args = Arguments {
             extension: call.get_flag(engine_state, stack, "extension")?,
@@ -59,7 +59,7 @@ On Windows, an extra 'prefix' column is added."#
 
         // This doesn't match explicit nulls
         if matches!(input, PipelineData::Empty) {
-            return Err(ShellError::PipelineEmpty { dst_span: head });
+            return Err(ShellError::PipelineEmpty { dst_span: head })?;
         }
         input.map(
             move |value| super::operate(&parse, &args, value, head),
@@ -72,7 +72,7 @@ On Windows, an extra 'prefix' column is added."#
         working_set: &StateWorkingSet,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let args = Arguments {
             extension: call.get_flag_const(working_set, "extension")?,
@@ -80,7 +80,7 @@ On Windows, an extra 'prefix' column is added."#
 
         // This doesn't match explicit nulls
         if matches!(input, PipelineData::Empty) {
-            return Err(ShellError::PipelineEmpty { dst_span: head });
+            return Err(ShellError::PipelineEmpty { dst_span: head })?;
         }
         input.map(
             move |value| super::operate(&parse, &args, value, head),

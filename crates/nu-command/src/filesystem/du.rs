@@ -77,7 +77,7 @@ impl Command for Du {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let tag = call.head;
         let min_size: Option<Spanned<i64>> = call.get_flag(engine_state, stack, "min-size")?;
         let max_depth: Option<Spanned<i64>> = call.get_flag(engine_state, stack, "max-depth")?;
@@ -85,14 +85,14 @@ impl Command for Du {
             if max_depth.item < 0 {
                 return Err(ShellError::NeedsPositiveValue {
                     span: max_depth.span,
-                });
+                })?;
             }
         }
         if let Some(ref min_size) = min_size {
             if min_size.item < 0 {
                 return Err(ShellError::NeedsPositiveValue {
                     span: min_size.span,
-                });
+                })?;
             }
         }
         let all = call.has_flag(engine_state, stack, "all")?;
@@ -164,7 +164,7 @@ fn du_for_one_pattern(
     current_dir: &Path,
     call_span: Span,
     ctrl_c: Option<Arc<AtomicBool>>,
-) -> Result<impl Iterator<Item = Value> + Send, ShellError> {
+) -> ShellResult<impl Iterator<Item = Value> + Send> {
     let exclude = args.exclude.map_or(Ok(None), move |x| {
         Pattern::new(x.item.as_ref())
             .map(Some)

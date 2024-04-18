@@ -1,5 +1,5 @@
 use chrono::{DateTime, FixedOffset};
-use nu_protocol::{ShellError, Span, Value};
+use nu_protocol::{ShellError, ShellResult, Span, Value};
 use std::hash::{Hash, Hasher};
 
 /// A subset of [`Value`](crate::Value), which is hashable.
@@ -66,7 +66,7 @@ impl HashableValue {
     /// A `span` is required because when there is an error in value, it may not contain `span` field.
     ///
     /// If the given value is not hashable(mainly because of it is structured data), an error will returned.
-    pub fn from_value(value: Value, span: Span) -> Result<Self, ShellError> {
+    pub fn from_value(value: Value, span: Span) -> ShellResult<Self> {
         let val_span = value.span();
         match value {
             Value::Bool { val, .. } => Ok(HashableValue::Bool {
@@ -103,13 +103,13 @@ impl HashableValue {
             }),
 
             // Explicitly propagate errors instead of dropping them.
-            Value::Error { error, .. } => Err(*error),
+            Value::Error { error, .. } => Err(error),
             _ => Err(ShellError::UnsupportedInput {
                 msg: "input value is not hashable".into(),
                 input: format!("input type: {:?}", value.get_type()),
                 msg_span: span,
                 input_span: value.span(),
-            }),
+            })?,
         }
     }
 

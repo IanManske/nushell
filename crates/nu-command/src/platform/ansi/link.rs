@@ -45,7 +45,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         operate(engine_state, stack, call, input)
     }
 
@@ -81,7 +81,7 @@ fn operate(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let text: Option<Spanned<String>> = call.get_flag(engine_state, stack, "text")?;
     let text = text.map(|e| e.item);
     let column_paths: Vec<CellPath> = call.rest(engine_state, stack, 0)?;

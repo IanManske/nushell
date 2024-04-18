@@ -57,7 +57,7 @@ impl Command for UMkdir {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let cwd = current_dir(engine_state, stack)?;
         let mut directories = get_rest_for_glob_pattern(engine_state, stack, call, 0)?
             .into_iter()
@@ -70,7 +70,7 @@ impl Command for UMkdir {
             return Err(ShellError::MissingParameter {
                 param_name: "requires directory paths".to_string(),
                 span: call.head,
-            });
+            })?;
         }
 
         for dir in directories {
@@ -81,7 +81,7 @@ impl Command for UMkdir {
                     span: None,
                     help: None,
                     inner: vec![],
-                });
+                })?;
             }
         }
 

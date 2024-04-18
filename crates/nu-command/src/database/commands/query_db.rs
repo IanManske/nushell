@@ -67,7 +67,7 @@ stor open | query db "SELECT * FROM my_table WHERE second = :search_second" -p {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let sql: Spanned<String> = call.req(engine_state, stack, 0)?;
         let params_value: Value = call
             .get_flag(engine_state, stack, "params")?

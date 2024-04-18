@@ -39,7 +39,7 @@ impl Command for NuCheck {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let path_arg: Option<Spanned<String>> = call.opt(engine_state, stack, 0)?;
         let as_module = call.has_flag(engine_state, stack, "as-module")?;
         let is_debug = call.has_flag(engine_state, stack, "debug")?;
@@ -106,7 +106,7 @@ impl Command for NuCheck {
                                 return Err(ShellError::FileNotFound {
                                     file: path_str.item,
                                     span: path_span,
-                                });
+                                })?;
                             }
                         }
                         Err(error) => return Err(error),
@@ -144,7 +144,7 @@ impl Command for NuCheck {
                         span: Some(call.head),
                         help: Some("Please run 'nu-check --help' for more details".into()),
                         inner: vec![],
-                    })
+                    })?
                 }
             }
         }
@@ -202,7 +202,7 @@ fn parse_module(
     contents: &[u8],
     is_debug: bool,
     call_head: Span,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let filename = filename.unwrap_or_else(|| "empty".to_string());
 
     let file_id = working_set.add_file(filename.clone(), contents);
@@ -229,7 +229,7 @@ fn parse_script(
     contents: &[u8],
     is_debug: bool,
     call_head: Span,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let starting_error_count = working_set.parse_errors.len();
     parse(working_set, filename, contents, false);
     check_parse(starting_error_count, working_set, is_debug, None, call_head)
@@ -241,7 +241,7 @@ fn check_parse(
     is_debug: bool,
     help: Option<String>,
     call_head: Span,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     if starting_error_count != working_set.parse_errors.len() {
         let msg = format!(
             r#"Found : {}"#,
@@ -258,7 +258,7 @@ fn check_parse(
                 span: Some(call_head),
                 help,
                 inner: vec![],
-            })
+            })?
         } else {
             Ok(PipelineData::Value(Value::bool(false, call_head), None))
         }
@@ -273,7 +273,7 @@ fn parse_file_script(
     is_debug: bool,
     path_span: Span,
     call_head: Span,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let filename = check_path(working_set, path_span, call_head)?;
 
     if let Ok(contents) = std::fs::read(path) {
@@ -282,7 +282,7 @@ fn parse_file_script(
         Err(ShellError::IOErrorSpanned {
             msg: "Could not read path".to_string(),
             span: path_span,
-        })
+        })?
     }
 }
 
@@ -292,7 +292,7 @@ fn parse_file_or_dir_module(
     is_debug: bool,
     path_span: Span,
     call_head: Span,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let _ = check_path(working_set, path_span, call_head)?;
 
     let starting_error_count = working_set.parse_errors.len();
@@ -313,7 +313,7 @@ fn parse_file_or_dir_module(
                 span: Some(path_span),
                 help: Some("If the content is intended to be a script, please try to remove `--as-module` flag ".into()),
                 inner: vec![],
-            })
+            })?
         } else {
             Ok(PipelineData::Value(Value::bool(false, call_head), None))
         }
@@ -326,7 +326,7 @@ fn check_path(
     working_set: &mut StateWorkingSet,
     path_span: Span,
     call_head: Span,
-) -> Result<String, ShellError> {
+) -> ShellResult<String> {
     let bytes = working_set.get_span_contents(path_span);
     let (filename, err) = unescape_unquote_string(bytes, path_span);
     if let Some(e) = err {
@@ -336,7 +336,7 @@ fn check_path(
             span: Some(call_head),
             help: Some(format!("Returned error: {e}")),
             inner: vec![],
-        })
+        })?
     } else {
         Ok(filename)
     }

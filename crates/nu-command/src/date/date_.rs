@@ -41,16 +41,12 @@ impl Command for Date {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         date(engine_state, stack, call)
     }
 }
 
-fn date(
-    engine_state: &EngineState,
-    stack: &mut Stack,
-    call: &Call,
-) -> Result<PipelineData, ShellError> {
+fn date(engine_state: &EngineState, stack: &mut Stack, call: &Call) -> ShellResult<PipelineData> {
     let head = call.head;
 
     Ok(Value::string(

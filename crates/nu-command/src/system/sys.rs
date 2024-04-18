@@ -31,7 +31,7 @@ impl Command for Sys {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.span();
         let ret = Value::lazy_record(Box::new(SysResult { span }), span);
 
@@ -69,7 +69,7 @@ impl LazyRecord<'_> for SysResult {
         vec!["host", "cpu", "disks", "mem", "temp", "net"]
     }
 
-    fn get_column_value(&self, column: &str) -> Result<Value, ShellError> {
+    fn get_column_value(&self, column: &str) -> ShellResult<Value> {
         let span = self.span;
 
         match column {
@@ -83,7 +83,7 @@ impl LazyRecord<'_> for SysResult {
                 message: format!("Could not find column '{column}'"),
                 column_name: column.to_string(),
                 span,
-            }),
+            })?,
         }
     }
 

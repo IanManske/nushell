@@ -1,32 +1,28 @@
 use chardetng::EncodingDetector;
 use encoding_rs::Encoding;
-use nu_protocol::{ShellError, Span, Spanned, Value};
+use nu_protocol::{ShellError, ShellResult, Span, Spanned, Value};
 
 pub fn detect_encoding_name(
     head: Span,
     input: Span,
     bytes: &[u8],
-) -> Result<&'static Encoding, ShellError> {
+) -> ShellResult<&'static Encoding> {
     let mut detector = EncodingDetector::new();
     let _non_ascii = detector.feed(bytes, false);
     //Guess(TLD=None(usually used in HTML), Allow_UTF8=True)
     let (encoding, is_certain) = detector.guess_assess(None, true);
     if !is_certain {
-        return Err(ShellError::UnsupportedInput {
+        Err(ShellError::UnsupportedInput {
             msg: "Input contains unknown encoding, try giving a encoding name".into(),
             input: "value originates from here".into(),
             msg_span: head,
             input_span: input,
-        });
+        })?;
     }
     Ok(encoding)
 }
 
-pub fn decode(
-    head: Span,
-    encoding_name: Spanned<String>,
-    bytes: &[u8],
-) -> Result<Value, ShellError> {
+pub fn decode(head: Span, encoding_name: Spanned<String>, bytes: &[u8]) -> ShellResult<Value> {
     // Workaround for a bug in the Encodings Specification.
     let encoding = if encoding_name.item.eq_ignore_ascii_case("utf16") {
         parse_encoding(encoding_name.span, "utf-16")
@@ -43,7 +39,7 @@ pub fn encode(
     s: &str,
     s_span: Span,
     ignore_errors: bool,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     // Workaround for a bug in the Encodings Specification.
     let encoding = if encoding_name.item.eq_ignore_ascii_case("utf16") {
         parse_encoding(encoding_name.span, "utf-16")
@@ -54,13 +50,13 @@ pub fn encode(
     // Since the Encoding Standard doesn't specify encoders for "UTF-16BE" and "UTF-16LE"
     // Check if the encoding is one of them and return an error
     if ["UTF-16BE", "UTF-16LE"].contains(&encoding.name()) {
-        return Err(ShellError::GenericError {
+        Err(ShellError::GenericError {
             error: format!(r#"{} encoding is not supported"#, &encoding_name.item),
             msg: "invalid encoding".into(),
             span: Some(encoding_name.span),
             help: Some("refer to https://docs.rs/encoding_rs/latest/encoding_rs/index.html#statics for a valid list of encodings".into()),
             inner: vec![],
-        });
+        })?;
     }
 
     let (result, _actual_encoding, replacements) = encoding.encode(s);
@@ -74,13 +70,13 @@ pub fn encode(
             span: Some(s_span),
             help: None,
             inner: vec![],
-        })
+        })?
     } else {
         Ok(Value::binary(result.into_owned(), head))
     }
 }
 
-fn parse_encoding(span: Span, label: &str) -> Result<&'static Encoding, ShellError> {
+fn parse_encoding(span: Span, label: &str) -> ShellResult<&'static Encoding> {
     // Workaround for a bug in the Encodings Specification.
     let label = if label.eq_ignore_ascii_case("utf16") {
         "utf-16"
@@ -96,7 +92,7 @@ fn parse_encoding(span: Span, label: &str) -> Result<&'static Encoding, ShellErr
             span: Some(span),
             help: Some("refer to https://docs.rs/encoding_rs/latest/encoding_rs/index.html#statics for a valid list of encodings".into()),
             inner: vec![],
-        }),
+        })?,
         Some(encoding) => Ok(encoding),
     }
 }

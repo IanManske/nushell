@@ -30,7 +30,7 @@ impl Command for Complete {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         match input {
             PipelineData::ExternalStream {
                 stdout,
@@ -56,9 +56,9 @@ impl Command for Complete {
                             .spawn(move || {
                                 let stderr = stderr.into_bytes()?;
                                 if let Ok(st) = String::from_utf8(stderr.item.clone()) {
-                                    Ok::<_, ShellError>(Value::string(st, stderr.span))
+                                    ShellResult::Ok(Value::string(st, stderr.span))
                                 } else {
-                                    Ok::<_, ShellError>(Value::binary(stderr.item, stderr.span))
+                                    ShellResult::Ok(Value::binary(stderr.item, stderr.span))
                                 }
                             })
                             .map(|handle| (handle, stderr_span))
@@ -98,14 +98,14 @@ impl Command for Complete {
                 Ok(Value::record(record, call.head).into_pipeline_data())
             }
             // bubble up errors from the previous command
-            PipelineData::Value(Value::Error { error, .. }, _) => Err(*error),
+            PipelineData::Value(Value::Error { error, .. }, _) => Err(error),
             _ => Err(ShellError::GenericError {
                 error: "Complete only works with external streams".into(),
                 msg: "complete only works on external streams".into(),
                 span: Some(call.head),
                 help: None,
                 inner: vec![],
-            }),
+            })?,
         }
     }
 

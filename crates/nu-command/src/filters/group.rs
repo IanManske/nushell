@@ -51,7 +51,7 @@ impl Command for Group {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let group_size: Spanned<usize> = call.req(engine_state, stack, 0)?;
         let ctrlc = engine_state.ctrlc.clone();
         let metadata = input.metadata();

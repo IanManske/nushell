@@ -43,7 +43,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         into_bool(engine_state, stack, call, input)
     }
 
@@ -104,13 +104,13 @@ fn into_bool(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let cell_paths: Vec<CellPath> = call.rest(engine_state, stack, 0)?;
     let args = CellPathOnlyArgs::from(cell_paths);
     operate(action, args, input, call.head, engine_state.ctrlc.clone())
 }
 
-fn string_to_boolean(s: &str, span: Span) -> Result<bool, ShellError> {
+fn string_to_boolean(s: &str, span: Span) -> ShellResult<bool> {
     match s.trim().to_ascii_lowercase().as_str() {
         "true" => Ok(true),
         "false" => Ok(false),
@@ -126,7 +126,7 @@ fn string_to_boolean(s: &str, span: Span) -> Result<bool, ShellError> {
                         r#"the strings "true" and "false" can be converted into a bool"#
                             .to_string(),
                     ),
-                }),
+                })?,
             }
         }
     }

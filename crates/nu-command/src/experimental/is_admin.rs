@@ -29,7 +29,7 @@ impl Command for IsAdmin {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         Ok(Value::bool(is_root(), call.head).into_pipeline_data())
     }
 

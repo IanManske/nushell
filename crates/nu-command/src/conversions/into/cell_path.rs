@@ -44,7 +44,7 @@ impl Command for IntoCellPath {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         into_cell_path(call, input)
     }
 
@@ -93,7 +93,7 @@ impl Command for IntoCellPath {
     }
 }
 
-fn into_cell_path(call: &Call, input: PipelineData) -> Result<PipelineData, ShellError> {
+fn into_cell_path(call: &Call, input: PipelineData) -> ShellResult<PipelineData> {
     let head = call.head;
 
     match input {
@@ -107,8 +107,8 @@ fn into_cell_path(call: &Call, input: PipelineData) -> Result<PipelineData, Shel
             wrong_type: "raw data".into(),
             dst_span: head,
             src_span: span,
-        }),
-        PipelineData::Empty => Err(ShellError::PipelineEmpty { dst_span: head }),
+        })?,
+        PipelineData::Empty => Err(ShellError::PipelineEmpty { dst_span: head })?,
     }
 }
 
@@ -127,15 +127,15 @@ fn int_to_cell_path(val: i64, span: Span) -> Value {
     Value::cell_path(path, span)
 }
 
-fn int_to_path_member(val: i64, span: Span) -> Result<PathMember, ShellError> {
+fn int_to_path_member(val: i64, span: Span) -> ShellResult<PathMember> {
     let Ok(val) = val.try_into() else {
-        return Err(ShellError::NeedsPositiveValue { span });
+        return Err(ShellError::NeedsPositiveValue { span })?;
     };
 
     Ok(PathMember::int(val, false, span))
 }
 
-fn list_to_cell_path(vals: &[Value], span: Span) -> Result<Value, ShellError> {
+fn list_to_cell_path(vals: &[Value], span: Span) -> ShellResult<Value> {
     let mut members = vec![];
 
     for val in vals {
@@ -147,17 +147,13 @@ fn list_to_cell_path(vals: &[Value], span: Span) -> Result<Value, ShellError> {
     Ok(Value::cell_path(path, span))
 }
 
-fn record_to_path_member(
-    record: &Record,
-    val_span: Span,
-    span: Span,
-) -> Result<PathMember, ShellError> {
+fn record_to_path_member(record: &Record, val_span: Span, span: Span) -> ShellResult<PathMember> {
     let Some(value) = record.get("value") else {
         return Err(ShellError::CantFindColumn {
             col_name: "value".into(),
             span: val_span,
             src_span: span,
-        });
+        })?;
     };
 
     let mut member = value_to_path_member(value, span)?;
@@ -171,7 +167,7 @@ fn record_to_path_member(
     Ok(member)
 }
 
-fn value_to_cell_path(value: &Value, span: Span) -> Result<Value, ShellError> {
+fn value_to_cell_path(value: &Value, span: Span) -> ShellResult<Value> {
     match value {
         Value::Int { val, .. } => Ok(int_to_cell_path(*val, span)),
         Value::List { vals, .. } => list_to_cell_path(vals, span),
@@ -180,11 +176,11 @@ fn value_to_cell_path(value: &Value, span: Span) -> Result<Value, ShellError> {
             wrong_type: other.get_type().to_string(),
             dst_span: span,
             src_span: other.span(),
-        }),
+        })?,
     }
 }
 
-fn value_to_path_member(val: &Value, span: Span) -> Result<PathMember, ShellError> {
+fn value_to_path_member(val: &Value, span: Span) -> ShellResult<PathMember> {
     let member = match val {
         Value::Int {
             val,
@@ -201,7 +197,7 @@ fn value_to_path_member(val: &Value, span: Span) -> Result<PathMember, ShellErro
                 from_type: other.get_type().to_string(),
                 span: val.span(),
                 help: None,
-            })
+            })?
         }
     };
 

@@ -30,7 +30,7 @@ impl Command for ViewSpan {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let start_span: Spanned<usize> = call.req(engine_state, stack, 0)?;
         let end_span: Spanned<usize> = call.req(engine_state, stack, 1)?;
 
@@ -48,7 +48,7 @@ impl Command for ViewSpan {
                 span: Some(call.head),
                 help: None,
                 inner: vec![],
-            })
+            })?
         }
     }
 

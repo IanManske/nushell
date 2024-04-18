@@ -68,7 +68,7 @@ impl Command for Last {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let rows: Option<Spanned<i64>> = call.opt(engine_state, stack, 0)?;
 
@@ -77,7 +77,7 @@ impl Command for Last {
         let return_single_element = rows.is_none();
         let rows = if let Some(rows) = rows {
             if rows.item < 0 {
-                return Err(ShellError::NeedsPositiveValue { span: rows.span });
+                return Err(ShellError::NeedsPositiveValue { span: rows.span })?;
             } else {
                 rows.item as usize
             }
@@ -101,7 +101,7 @@ impl Command for Last {
 
                 for row in iterator {
                     if nu_utils::ctrl_c::was_pressed(&engine_state.ctrlc) {
-                        return Err(ShellError::InterruptedByUser { span: Some(head) });
+                        return Err(ShellError::InterruptedByUser { span: Some(head) })?;
                     }
 
                     if buf.len() == rows {
@@ -115,7 +115,7 @@ impl Command for Last {
                     if let Some(last) = buf.pop_back() {
                         Ok(last.into_pipeline_data())
                     } else {
-                        Err(ShellError::AccessEmptyContent { span: head })
+                        Err(ShellError::AccessEmptyContent { span: head })?
                     }
                 } else {
                     Ok(Value::list(buf.into(), head).into_pipeline_data_with_metadata(metadata))
@@ -129,7 +129,7 @@ impl Command for Last {
                             if let Some(v) = vals.pop() {
                                 Ok(v.into_pipeline_data())
                             } else {
-                                Err(ShellError::AccessEmptyContent { span: head })
+                                Err(ShellError::AccessEmptyContent { span: head })?
                             }
                         } else {
                             let i = vals.len().saturating_sub(rows);
@@ -142,7 +142,7 @@ impl Command for Last {
                             if let Some(val) = val.pop() {
                                 Ok(Value::int(val.into(), span).into_pipeline_data())
                             } else {
-                                Err(ShellError::AccessEmptyContent { span: head })
+                                Err(ShellError::AccessEmptyContent { span: head })?
                             }
                         } else {
                             let i = val.len().saturating_sub(rows);
@@ -151,13 +151,13 @@ impl Command for Last {
                         }
                     }
                     // Propagate errors by explicitly matching them before the final case.
-                    Value::Error { error, .. } => Err(*error),
+                    Value::Error { error, .. } => Err(error),
                     other => Err(ShellError::OnlySupportsThisInputType {
                         exp_input_type: "list, binary or range".into(),
                         wrong_type: other.get_type().to_string(),
                         dst_span: head,
                         src_span: other.span(),
-                    }),
+                    })?,
                 }
             }
             PipelineData::ExternalStream { span, .. } => {
@@ -166,14 +166,14 @@ impl Command for Last {
                     wrong_type: "raw data".into(),
                     dst_span: head,
                     src_span: span,
-                })
+                })?
             }
             PipelineData::Empty => Err(ShellError::OnlySupportsThisInputType {
                 exp_input_type: "list, binary or range".into(),
                 wrong_type: "null".into(),
                 dst_span: call.head,
                 src_span: call.head,
-            }),
+            })?,
         }
     }
 }

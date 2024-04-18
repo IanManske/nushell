@@ -40,7 +40,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let base: Spanned<f64> = call.req(engine_state, stack, 0)?;
 
@@ -50,11 +50,11 @@ impl Command for SubCommand {
                 input: "value originates from here".into(),
                 msg_span: head,
                 input_span: base.span,
-            });
+            })?;
         }
         // This doesn't match explicit nulls
         if matches!(input, PipelineData::Empty) {
-            return Err(ShellError::PipelineEmpty { dst_span: head });
+            return Err(ShellError::PipelineEmpty { dst_span: head })?;
         }
         let base = base.item;
         input.map(

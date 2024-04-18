@@ -42,7 +42,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         operate(engine_state, stack, call, input)
     }
 
@@ -83,7 +83,7 @@ fn operate(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let head = call.head;
     let column_paths: Vec<CellPath> = call.rest(engine_state, stack, 0)?;
     input.map(

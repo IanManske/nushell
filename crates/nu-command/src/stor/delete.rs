@@ -58,7 +58,7 @@ impl Command for StorDelete {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
         // For dropping/deleting an entire table
         let table_name_opt: Option<String> = call.get_flag(engine_state, stack, "table-name")?;
@@ -71,14 +71,14 @@ impl Command for StorDelete {
             return Err(ShellError::MissingParameter {
                 param_name: "requires at least one of table-name or where-clause".into(),
                 span,
-            });
+            })?;
         }
 
         if table_name_opt.is_none() && where_clause_opt.is_some() {
             return Err(ShellError::MissingParameter {
                 param_name: "using the where-clause requires the use of a table-name".into(),
                 span,
-            });
+            })?;
         }
 
         // Open the in-mem database

@@ -60,7 +60,7 @@ impl Command for FromTsv {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         from_tsv(engine_state, stack, call, input)
     }
 
@@ -110,7 +110,7 @@ fn from_tsv(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let name = call.head;
 
     let comment = call

@@ -58,7 +58,7 @@ impl Command for Reverse {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let metadata = input.metadata();
 
         let v: Vec<_> = input.into_iter_strict(call.head)?.collect();

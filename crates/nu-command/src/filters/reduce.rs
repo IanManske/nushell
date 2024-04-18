@@ -87,7 +87,7 @@ impl Command for Reduce {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
 
         let fold: Option<Value> = call.get_flag(engine_state, stack, "fold")?;
@@ -115,7 +115,7 @@ impl Command for Reduce {
                 span: Some(span),
                 help: None,
                 inner: vec![],
-            });
+            })?;
         };
 
         let mut acc = start_val;

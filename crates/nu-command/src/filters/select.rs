@@ -52,7 +52,7 @@ produce a table, a list will produce a list, and a record will produce a record.
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let columns: Vec<Value> = call.rest(engine_state, stack, 0)?;
         let mut new_columns: Vec<CellPath> = vec![];
         for col_val in columns {
@@ -78,7 +78,7 @@ produce a table, a list will produce a list, and a record will produce a record.
                             from_type: "negative number".into(),
                             span: internal_span,
                             help: None,
-                        });
+                        })?;
                     }
                     let cv = CellPath {
                         members: vec![PathMember::Int {
@@ -95,7 +95,7 @@ produce a table, a list will produce a list, and a record will produce a record.
                         from_type: x.get_type().to_string(),
                         span: x.span(),
                         help: None,
-                    });
+                    })?;
                 }
             }
         }
@@ -176,7 +176,7 @@ fn select(
     call_span: Span,
     columns: Vec<CellPath>,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let mut unique_rows: BTreeSet<usize> = BTreeSet::new();
 
     let mut new_columns = vec![];
@@ -186,13 +186,13 @@ fn select(
         match members.first() {
             Some(PathMember::Int { val, span, .. }) => {
                 if members.len() > 1 {
-                    return Err(ShellError::GenericError {
+                    Err(ShellError::GenericError {
                         error: "Select only allows row numbers for rows".into(),
                         msg: "extra after row number".into(),
                         span: Some(*span),
                         help: None,
                         inner: vec![],
-                    });
+                    })?;
                 }
                 unique_rows.insert(*val);
             }

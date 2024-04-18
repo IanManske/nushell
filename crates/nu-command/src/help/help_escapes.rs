@@ -25,7 +25,7 @@ impl Command for HelpEscapes {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let escape_info = generate_escape_info();
         let mut recs = vec![];

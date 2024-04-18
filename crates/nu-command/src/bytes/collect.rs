@@ -33,7 +33,7 @@ impl Command for BytesCollect {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let separator: Option<Vec<u8>> = call.opt(engine_state, stack, 0)?;
         // input should be a list of binary data.
         let mut output_binary = vec![];
@@ -49,14 +49,14 @@ impl Command for BytesCollect {
                     }
                 }
                 // Explicitly propagate errors instead of dropping them.
-                Value::Error { error, .. } => return Err(*error),
+                Value::Error { error, .. } => return Err(error),
                 other => {
                     return Err(ShellError::OnlySupportsThisInputType {
                         exp_input_type: "binary".into(),
                         wrong_type: other.get_type().to_string(),
                         dst_span: call.head,
                         src_span: other.span(),
-                    });
+                    })?;
                 }
             }
         }

@@ -2,7 +2,9 @@ use super::definitions::{
     db_column::DbColumn, db_constraint::DbConstraint, db_foreignkey::DbForeignKey,
     db_index::DbIndex, db_table::DbTable,
 };
-use nu_protocol::{CustomValue, PipelineData, Record, ShellError, Span, Spanned, Value};
+use nu_protocol::{
+    CustomValue, PipelineData, Record, ShellError, ShellResult, Span, Spanned, Value,
+};
 use rusqlite::{
     types::ValueRef, Connection, DatabaseName, Error as SqliteError, OpenFlags, Row, Statement,
     ToSql,
@@ -42,7 +44,7 @@ impl SQLiteDatabase {
         path: &Path,
         span: Span,
         ctrlc: Option<Arc<AtomicBool>>,
-    ) -> Result<Self, ShellError> {
+    ) -> ShellResult<Self> {
         let mut file = File::open(path).map_err(|e| ShellError::ReadingFile {
             msg: e.to_string(),
             span,
@@ -50,9 +52,12 @@ impl SQLiteDatabase {
 
         let mut buf: [u8; 16] = [0; 16];
         file.read_exact(&mut buf)
-            .map_err(|e| ShellError::ReadingFile {
-                msg: e.to_string(),
-                span,
+            .map_err(|e| {
+                ShellError::ReadingFile {
+                    msg: e.to_string(),
+                    span,
+                }
+                .into()
             })
             .and_then(|_| {
                 if buf == SQLITE_MAGIC_BYTES {
@@ -61,12 +66,12 @@ impl SQLiteDatabase {
                     Err(ShellError::ReadingFile {
                         msg: "Not a SQLite file".into(),
                         span,
-                    })
+                    })?
                 }
             })
     }
 
-    pub fn try_from_value(value: Value) -> Result<Self, ShellError> {
+    pub fn try_from_value(value: Value) -> ShellResult<Self> {
         let span = value.span();
         match value {
             Value::Custom { val, .. } => match val.as_any().downcast_ref::<Self>() {
@@ -79,18 +84,18 @@ impl SQLiteDatabase {
                     from_type: "non-database".into(),
                     span,
                     help: None,
-                }),
+                })?,
             },
             x => Err(ShellError::CantConvert {
                 to_type: "database".into(),
                 from_type: x.get_type().to_string(),
                 span: x.span(),
                 help: None,
-            }),
+            })?,
         }
     }
 
-    pub fn try_from_pipeline(input: PipelineData, span: Span) -> Result<Self, ShellError> {
+    pub fn try_from_pipeline(input: PipelineData, span: Span) -> ShellResult<Self> {
         let value = input.into_value(span);
         Self::try_from_value(value)
     }
@@ -105,7 +110,7 @@ impl SQLiteDatabase {
         sql: &Spanned<String>,
         params: NuSqlParams,
         call_span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         let conn = open_sqlite_db(&self.path, call_span)?;
 
         let stream = run_sql_query(conn, sql, params, self.ctrlc.clone()).map_err(|e| {
@@ -121,16 +126,19 @@ impl SQLiteDatabase {
         Ok(stream)
     }
 
-    pub fn open_connection(&self) -> Result<Connection, ShellError> {
+    pub fn open_connection(&self) -> ShellResult<Connection> {
         if self.path == PathBuf::from(MEMORY_DB) {
             open_connection_in_memory_custom()
         } else {
-            Connection::open(&self.path).map_err(|e| ShellError::GenericError {
-                error: "Failed to open SQLite database from open_connection".into(),
-                msg: e.to_string(),
-                span: None,
-                help: None,
-                inner: vec![],
+            Connection::open(&self.path).map_err(|e| {
+                ShellError::GenericError {
+                    error: "Failed to open SQLite database from open_connection".into(),
+                    msg: e.to_string(),
+                    span: None,
+                    help: None,
+                    inner: vec![],
+                }
+                .into()
             })
         }
     }
@@ -364,14 +372,17 @@ impl CustomValue for SQLiteDatabase {
         self.typetag_name().to_string()
     }
 
-    fn to_base_value(&self, span: Span) -> Result<Value, ShellError> {
+    fn to_base_value(&self, span: Span) -> ShellResult<Value> {
         let db = open_sqlite_db(&self.path, span)?;
-        read_entire_sqlite_db(db, span, self.ctrlc.clone()).map_err(|e| ShellError::GenericError {
-            error: "Failed to read from SQLite database".into(),
-            msg: e.to_string(),
-            span: Some(span),
-            help: None,
-            inner: vec![],
+        read_entire_sqlite_db(db, span, self.ctrlc.clone()).map_err(|e| {
+            ShellError::GenericError {
+                error: "Failed to read from SQLite database".into(),
+                msg: e.to_string(),
+                span: Some(span),
+                help: None,
+                inner: vec![],
+            }
+            .into()
         })
     }
 
@@ -388,9 +399,12 @@ impl CustomValue for SQLiteDatabase {
         _self_span: Span,
         _index: usize,
         path_span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         // In theory we could support this, but tables don't have an especially well-defined order
-        Err(ShellError::IncompatiblePathAccess { type_name: "SQLite databases do not support integer-indexed access. Try specifying a table name instead".into(), span: path_span })
+        Err(ShellError::IncompatiblePathAccess {
+            type_name: "SQLite databases do not support integer-indexed access. Try specifying a table name instead".into(),
+            span: path_span,
+        })?
     }
 
     fn follow_path_string(
@@ -398,17 +412,20 @@ impl CustomValue for SQLiteDatabase {
         _self_span: Span,
         _column_name: String,
         path_span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         let db = open_sqlite_db(&self.path, path_span)?;
 
         read_single_table(db, _column_name, path_span, self.ctrlc.clone()).map_err(|e| {
-            ShellError::GenericError {
-                error: "Failed to read from SQLite database".into(),
-                msg: e.to_string(),
-                span: Some(path_span),
-                help: None,
-                inner: vec![],
+            {
+                ShellError::GenericError {
+                    error: "Failed to read from SQLite database".into(),
+                    msg: e.to_string(),
+                    span: Some(path_span),
+                    help: None,
+                    inner: vec![],
+                }
             }
+            .into()
         })
     }
 
@@ -421,17 +438,20 @@ impl CustomValue for SQLiteDatabase {
     }
 }
 
-pub fn open_sqlite_db(path: &Path, call_span: Span) -> Result<Connection, ShellError> {
+pub fn open_sqlite_db(path: &Path, call_span: Span) -> ShellResult<Connection> {
     if path.to_string_lossy() == MEMORY_DB {
         open_connection_in_memory_custom()
     } else {
         let path = path.to_string_lossy().to_string();
-        Connection::open(path).map_err(|e| ShellError::GenericError {
-            error: "Failed to open SQLite database".into(),
-            msg: e.to_string(),
-            span: Some(call_span),
-            help: None,
-            inner: vec![],
+        Connection::open(path).map_err(|e| {
+            ShellError::GenericError {
+                error: "Failed to open SQLite database".into(),
+                msg: e.to_string(),
+                span: Some(call_span),
+                help: None,
+                inner: vec![],
+            }
+            .into()
         })
     }
 }
@@ -448,7 +468,7 @@ fn run_sql_query(
 }
 
 // This is taken from to text local_into_string but tweaks it a bit so that certain formatting does not happen
-pub fn value_to_sql(value: Value) -> Result<Box<dyn rusqlite::ToSql>, ShellError> {
+pub fn value_to_sql(value: Value) -> ShellResult<Box<dyn rusqlite::ToSql>> {
     Ok(match value {
         Value::Bool { val, .. } => Box::new(val),
         Value::Int { val, .. } => Box::new(val),
@@ -470,14 +490,14 @@ pub fn value_to_sql(value: Value) -> Result<Box<dyn rusqlite::ToSql>, ShellError
                 wrong_type: val.get_type().to_string(),
                 dst_span: Span::unknown(),
                 src_span: val.span(),
-            })
+            })?
         }
     })
 }
 
 pub fn values_to_sql(
     values: impl IntoIterator<Item = Value>,
-) -> Result<Vec<Box<dyn rusqlite::ToSql>>, ShellError> {
+) -> ShellResult<Vec<Box<dyn rusqlite::ToSql>>> {
     values
         .into_iter()
         .map(value_to_sql)
@@ -495,7 +515,7 @@ impl Default for NuSqlParams {
     }
 }
 
-pub fn nu_value_to_params(value: Value) -> Result<NuSqlParams, ShellError> {
+pub fn nu_value_to_params(value: Value) -> ShellResult<NuSqlParams> {
     match value {
         Value::Record { val, .. } => {
             let mut params = Vec::with_capacity(val.len());
@@ -530,7 +550,7 @@ pub fn nu_value_to_params(value: Value) -> Result<NuSqlParams, ShellError> {
         _ => Err(ShellError::TypeMismatch {
             err_message: "Invalid parameters value: expected record or list".to_string(),
             span: value.span(),
-        }),
+        })?,
     }
 }
 
@@ -681,24 +701,30 @@ pub fn convert_sqlite_value_to_nu_value(value: ValueRef, span: Span) -> Value {
     }
 }
 
-pub fn open_connection_in_memory_custom() -> Result<Connection, ShellError> {
+pub fn open_connection_in_memory_custom() -> ShellResult<Connection> {
     let flags = OpenFlags::default();
-    Connection::open_with_flags(MEMORY_DB, flags).map_err(|e| ShellError::GenericError {
-        error: "Failed to open SQLite custom connection in memory".into(),
-        msg: e.to_string(),
-        span: Some(Span::test_data()),
-        help: None,
-        inner: vec![],
+    Connection::open_with_flags(MEMORY_DB, flags).map_err(|e| {
+        ShellError::GenericError {
+            error: "Failed to open SQLite custom connection in memory".into(),
+            msg: e.to_string(),
+            span: Some(Span::test_data()),
+            help: None,
+            inner: vec![],
+        }
+        .into()
     })
 }
 
-pub fn open_connection_in_memory() -> Result<Connection, ShellError> {
-    Connection::open_in_memory().map_err(|e| ShellError::GenericError {
-        error: "Failed to open SQLite standard connection in memory".into(),
-        msg: e.to_string(),
-        span: Some(Span::test_data()),
-        help: None,
-        inner: vec![],
+pub fn open_connection_in_memory() -> ShellResult<Connection> {
+    Connection::open_in_memory().map_err(|e| {
+        ShellError::GenericError {
+            error: "Failed to open SQLite standard connection in memory".into(),
+            msg: e.to_string(),
+            span: Some(Span::test_data()),
+            help: None,
+            inner: vec![],
+        }
+        .into()
     })
 }
 

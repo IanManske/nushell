@@ -105,7 +105,7 @@ interleave
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let buffer_size: usize = call
             .get_flag(engine_state, stack, "buffer-size")?
             .unwrap_or(0);
@@ -139,9 +139,12 @@ interleave
                             }
                         })
                         .map(|_| ())
-                        .map_err(|err| ShellError::IOErrorSpanned {
-                            msg: err.to_string(),
-                            span: call.head,
+                        .map_err(|err| {
+                            ShellError::IOErrorSpanned {
+                                msg: err.to_string(),
+                                span: call.head,
+                            }
+                            .into()
                         })
                 })
             })?;

@@ -55,7 +55,7 @@ path."#
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let args = Arguments {
             path: call.req(engine_state, stack, 0)?,
@@ -63,7 +63,7 @@ path."#
 
         // This doesn't match explicit nulls
         if matches!(input, PipelineData::Empty) {
-            return Err(ShellError::PipelineEmpty { dst_span: head });
+            return Err(ShellError::PipelineEmpty { dst_span: head })?;
         }
         input.map(
             move |value| super::operate(&relative_to, &args, value, head),
@@ -76,7 +76,7 @@ path."#
         working_set: &StateWorkingSet,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let args = Arguments {
             path: call.req_const(working_set, 0)?,
@@ -84,7 +84,7 @@ path."#
 
         // This doesn't match explicit nulls
         if matches!(input, PipelineData::Empty) {
-            return Err(ShellError::PipelineEmpty { dst_span: head });
+            return Err(ShellError::PipelineEmpty { dst_span: head })?;
         }
         input.map(
             move |value| super::operate(&relative_to, &args, value, head),

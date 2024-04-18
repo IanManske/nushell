@@ -62,7 +62,7 @@ impl Command for Headers {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let config = engine_state.get_config();
         let metadata = input.metadata();
         let span = input.span().unwrap_or(call.head);
@@ -71,7 +71,7 @@ impl Command for Headers {
             return Err(ShellError::TypeMismatch {
                 err_message: "not a table".to_string(),
                 span,
-            });
+            })?;
         };
 
         let (old_headers, new_headers) = extract_headers(&table, span, config)?;
@@ -85,15 +85,18 @@ fn extract_headers(
     table: &[Value],
     span: Span,
     config: &Config,
-) -> Result<(Vec<String>, Vec<String>), ShellError> {
+) -> ShellResult<(Vec<String>, Vec<String>)> {
     table
         .first()
-        .ok_or_else(|| ShellError::GenericError {
-            error: "Found empty list".into(),
-            msg: "unable to extract headers".into(),
-            span: Some(span),
-            help: None,
-            inner: vec![],
+        .ok_or_else(|| {
+            ShellError::GenericError {
+                error: "Found empty list".into(),
+                msg: "unable to extract headers".into(),
+                span: Some(span),
+                help: None,
+                inner: vec![],
+            }
+            .into()
         })
         .and_then(Value::as_record)
         .and_then(|record| {
@@ -103,7 +106,7 @@ fn extract_headers(
                         err_message: "needs compatible type: Null, String, Bool, Float, Int"
                             .to_string(),
                         span: v.span(),
-                    });
+                    })?;
                 }
             }
 
@@ -141,7 +144,7 @@ fn replace_headers(
     span: Span,
     old_headers: &[String],
     new_headers: &[String],
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     rows.into_iter()
         .skip(1)
         .map(|value| {
@@ -166,10 +169,10 @@ fn replace_headers(
                     from_type: value.get_type().to_string(),
                     span,
                     help: None,
-                })
+                })?
             }
         })
-        .collect::<Result<_, _>>()
+        .collect::<ShellResult<_>>()
         .map(|rows| Value::list(rows, span))
 }
 

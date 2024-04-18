@@ -26,7 +26,7 @@ impl Command for SplitBy {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         split_by(engine_state, stack, call, input)
     }
 
@@ -82,7 +82,7 @@ pub fn split_by(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let name = call.head;
 
     let splitter: Option<Value> = call.opt(engine_state, stack, 0)?;
@@ -102,7 +102,7 @@ pub fn split_by(
             span: Some(name),
             help: None,
             inner: vec![],
-        }),
+        })?,
     }
 }
 
@@ -110,7 +110,7 @@ pub fn split(
     column_name: Option<&Spanned<String>>,
     values: PipelineData,
     span: Span,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let grouper = if let Some(column_name) = column_name {
         Grouper::ByColumn(Some(column_name.clone()))
     } else {
@@ -132,7 +132,7 @@ pub fn split(
                         col_name: column_name.item.to_string(),
                         span: column_name.span,
                         src_span: row.span(),
-                    }),
+                    })?,
                 }
             };
 
@@ -149,9 +149,9 @@ pub fn split(
 #[allow(clippy::type_complexity)]
 fn data_group(
     values: &Value,
-    grouper: Option<&dyn Fn(usize, &Value) -> Result<String, ShellError>>,
+    grouper: Option<&dyn Fn(usize, &Value) -> ShellResult<String>>,
     span: Span,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     let mut groups: IndexMap<String, Vec<Value>> = IndexMap::new();
 
     for (idx, value) in values.clone().into_pipeline_data().into_iter().enumerate() {
@@ -177,9 +177,9 @@ fn data_group(
 #[allow(clippy::type_complexity)]
 pub fn data_split(
     value: PipelineData,
-    splitter: Option<&dyn Fn(usize, &Value) -> Result<String, ShellError>>,
+    splitter: Option<&dyn Fn(usize, &Value) -> ShellResult<String>>,
     dst_span: Span,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let mut splits = indexmap::IndexMap::new();
 
     match value {
@@ -209,17 +209,17 @@ pub fn data_split(
                         wrong_type: v.get_type().to_string(),
                         dst_span,
                         src_span: v.span(),
-                    })
+                    })?
                 }
             }
         }
-        PipelineData::Empty => return Err(ShellError::PipelineEmpty { dst_span }),
+        PipelineData::Empty => return Err(ShellError::PipelineEmpty { dst_span })?,
         _ => {
             return Err(ShellError::PipelineMismatch {
                 exp_input_type: "record".into(),
                 dst_span,
                 src_span: value.span().unwrap_or(Span::unknown()),
-            })
+            })?
         }
     }
 

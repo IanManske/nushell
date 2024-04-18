@@ -38,7 +38,7 @@ impl Command for StorReset {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
 
         // Open the in-mem database

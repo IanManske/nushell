@@ -69,7 +69,7 @@ impl Command for TakeWhile {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let metadata = input.metadata();
         let span = call.head;
 

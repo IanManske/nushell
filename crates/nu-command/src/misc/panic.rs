@@ -27,7 +27,7 @@ impl Command for Panic {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let maybe_msg: String = call
             .opt(engine_state, stack, 0)?
             .unwrap_or("Panic!".to_string());

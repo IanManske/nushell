@@ -29,7 +29,7 @@ impl Command for Whoami {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let output = match uu_whoami::whoami() {
             Ok(username) => username.to_string_lossy().to_string(),
             Err(e) => {
@@ -39,7 +39,7 @@ impl Command for Whoami {
                     span: Some(call.head),
                     help: None,
                     inner: vec![],
-                })
+                })?
             }
         };
 

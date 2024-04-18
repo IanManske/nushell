@@ -56,7 +56,7 @@ When inserting into a specific index, the closure will instead get the current v
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         insert(engine_state, stack, call, input)
     }
 
@@ -127,7 +127,7 @@ fn insert(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let span = call.head;
 
     let cell_path: CellPath = call.req(engine_state, stack, 0)?;
@@ -193,10 +193,10 @@ fn insert(
                     if let Some(v) = stream.next() {
                         pre_elems.push(v);
                     } else {
-                        return Err(ShellError::InsertAfterNextFreeIndex {
+                        Err(ShellError::InsertAfterNextFreeIndex {
                             available_idx: idx,
                             span: path_span,
-                        });
+                        })?;
                     }
                 }
 
@@ -246,10 +246,10 @@ fn insert(
                     }
                     pre_elems.push(value)
                 } else {
-                    return Err(ShellError::AccessBeyondEnd {
+                    Err(ShellError::AccessBeyondEnd {
                         max_idx: pre_elems.len() - 1,
                         span: path_span,
-                    });
+                    })?;
                 }
 
                 Ok(pre_elems
@@ -306,11 +306,11 @@ fn insert(
         PipelineData::Empty => Err(ShellError::IncompatiblePathAccess {
             type_name: "empty pipeline".to_string(),
             span,
-        }),
+        })?,
         PipelineData::ExternalStream { .. } => Err(ShellError::IncompatiblePathAccess {
             type_name: "external stream".to_string(),
             span,
-        }),
+        })?,
     }
 }
 
@@ -324,7 +324,7 @@ fn insert_value_by_closure(
     cell_path: &[PathMember],
     first_path_member_int: bool,
     eval_block_fn: EvalBlockFn,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     let input = if first_path_member_int {
         value
             .clone()
@@ -354,7 +354,7 @@ fn insert_single_value_by_closure(
     cell_path: &[PathMember],
     first_path_member_int: bool,
     eval_block_fn: EvalBlockFn,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     let span = replacement.span();
     let capture_block = Closure::from_value(replacement)?;
     let block = engine_state.get_block(capture_block.block_id);

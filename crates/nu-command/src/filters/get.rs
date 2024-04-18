@@ -56,7 +56,7 @@ If multiple cell paths are given, this will produce a list of values."#
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
         let mut cell_path: CellPath = call.req(engine_state, stack, 0)?;
         let mut rest: Vec<CellPath> = call.rest(engine_state, stack, 1)?;

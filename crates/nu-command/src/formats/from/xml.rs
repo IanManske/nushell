@@ -46,7 +46,7 @@ string. This way content of every tag is always a table and is easier to parse"#
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let keep_comments = call.has_flag(engine_state, stack, "keep-comments")?;
         let keep_processing_instructions = call.has_flag(engine_state, stack, "keep-pi")?;
@@ -202,12 +202,12 @@ fn from_xml_string_to_value(s: String, info: &ParsingInfo) -> Result<Value, roxm
     Ok(from_document_to_value(&parsed, info))
 }
 
-fn from_xml(input: PipelineData, info: &ParsingInfo) -> Result<PipelineData, ShellError> {
+fn from_xml(input: PipelineData, info: &ParsingInfo) -> ShellResult<PipelineData> {
     let (concat_string, span, metadata) = input.collect_string_strict(info.span)?;
 
     match from_xml_string_to_value(concat_string, info) {
         Ok(x) => Ok(x.into_pipeline_data_with_metadata(metadata)),
-        Err(err) => Err(process_xml_parse_error(err, span)),
+        Err(err) => Err(process_xml_parse_error(err, span))?,
     }
 }
 

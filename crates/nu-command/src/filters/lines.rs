@@ -26,7 +26,7 @@ impl Command for Lines {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let ctrlc = engine_state.ctrlc.clone();
         let skip_empty = call.has_flag(engine_state, stack, "skip-empty")?;
@@ -79,13 +79,13 @@ impl Command for Lines {
             PipelineData::Value(val, ..) => {
                 match val {
                     // Propagate existing errors
-                    Value::Error { error, .. } => Err(*error),
+                    Value::Error { error, .. } => Err(error),
                     _ => Err(ShellError::OnlySupportsThisInputType {
                         exp_input_type: "string or raw data".into(),
                         wrong_type: val.get_type().to_string(),
                         dst_span: head,
                         src_span: val.span(),
-                    }),
+                    })?,
                 }
             }
             PipelineData::ExternalStream { stdout: None, .. } => Ok(PipelineData::empty()),
@@ -121,7 +121,7 @@ struct RawStreamLinesAdapter {
 }
 
 impl Iterator for RawStreamLinesAdapter {
-    type Item = Result<Value, ShellError>;
+    type Item = ShellResult<Value>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -178,14 +178,15 @@ impl Iterator for RawStreamLinesAdapter {
                                     }
                                 }
                                 // Propagate errors by explicitly matching them before the final case.
-                                Value::Error { error, .. } => return Some(Err(*error)),
+                                Value::Error { error, .. } => return Some(Err(error)),
                                 other => {
                                     return Some(Err(ShellError::OnlySupportsThisInputType {
                                         exp_input_type: "string".into(),
                                         wrong_type: other.get_type().to_string(),
                                         dst_span: self.span,
                                         src_span: other.span(),
-                                    }));
+                                    }
+                                    .into()));
                                 }
                             }
                         }

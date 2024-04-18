@@ -71,7 +71,7 @@ impl Command for Transpose {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         transpose(engine_state, stack, call, input)
     }
 
@@ -135,7 +135,7 @@ pub fn transpose(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let name = call.head;
     let args = TransposeArgs {
         header_row: call.has_flag(engine_state, stack, "header-row")?,
@@ -147,30 +147,30 @@ pub fn transpose(
     };
 
     if !args.rest.is_empty() && args.header_row {
-        return Err(ShellError::IncompatibleParametersSingle {
+        Err(ShellError::IncompatibleParametersSingle {
             msg: "Can not provide header names and use `--header-row`".into(),
             span: call.get_named_arg("header-row").expect("has flag").span,
-        });
+        })?;
     }
     if !args.header_row && args.keep_all {
-        return Err(ShellError::IncompatibleParametersSingle {
+        Err(ShellError::IncompatibleParametersSingle {
             msg: "Can only be used with `--header-row`(`-r`)".into(),
             span: call.get_named_arg("keep-all").expect("has flag").span,
-        });
+        })?;
     }
     if !args.header_row && args.keep_last {
-        return Err(ShellError::IncompatibleParametersSingle {
+        Err(ShellError::IncompatibleParametersSingle {
             msg: "Can only be used with `--header-row`(`-r`)".into(),
             span: call.get_named_arg("keep-last").expect("has flag").span,
-        });
+        })?;
     }
     if args.keep_all && args.keep_last {
-        return Err(ShellError::IncompatibleParameters {
+        Err(ShellError::IncompatibleParameters {
             left_message: "can't use `--keep-last` at the same time".into(),
             left_span: call.get_named_arg("keep-last").expect("has flag").span,
             right_message: "because of `--keep-all`".into(),
             right_span: call.get_named_arg("keep-all").expect("has flag").span,
-        });
+        })?;
     }
 
     let ctrlc = engine_state.ctrlc.clone();
@@ -189,33 +189,33 @@ pub fn transpose(
                         if let Ok(s) = x.coerce_string() {
                             headers.push(s);
                         } else {
-                            return Err(ShellError::GenericError {
+                            Err(ShellError::GenericError {
                                 error: "Header row needs string headers".into(),
                                 msg: "used non-string headers".into(),
                                 span: Some(name),
                                 help: None,
                                 inner: vec![],
-                            });
+                            })?;
                         }
                     }
                     _ => {
-                        return Err(ShellError::GenericError {
+                        Err(ShellError::GenericError {
                             error: "Header row is incomplete and can't be used".into(),
                             msg: "using incomplete header row".into(),
                             span: Some(name),
                             help: None,
                             inner: vec![],
-                        });
+                        })?;
                     }
                 }
             } else {
-                return Err(ShellError::GenericError {
+                Err(ShellError::GenericError {
                     error: "Header row is incomplete and can't be used".into(),
                     msg: "using incomplete header row".into(),
                     span: Some(name),
                     help: None,
                     inner: vec![],
-                });
+                })?;
             }
         }
     } else {

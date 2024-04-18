@@ -96,7 +96,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         run_post(engine_state, stack, call, input)
     }
 
@@ -146,7 +146,7 @@ fn run_post(
     stack: &mut Stack,
     call: &Call,
     _input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let args = Arguments {
         url: call.req(engine_state, stack, 0)?,
         headers: call.get_flag(engine_state, stack, "headers")?,
@@ -172,7 +172,7 @@ fn helper(
     stack: &mut Stack,
     call: &Call,
     args: Arguments,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let span = args.url.span();
     let ctrl_c = engine_state.ctrlc.clone();
     let (requested_url, _) = http_parse_url(call, span, args.url)?;

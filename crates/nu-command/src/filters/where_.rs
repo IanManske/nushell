@@ -48,7 +48,7 @@ not supported."#
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let closure: Closure = call.req(engine_state, stack, 0)?;
 
         let span = call.head;

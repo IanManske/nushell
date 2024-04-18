@@ -54,7 +54,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         into_duration(engine_state, stack, call, input)
     }
 
@@ -118,7 +118,7 @@ fn into_duration(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let span = match input.span() {
         Some(t) => t,
         None => call.head,
@@ -140,7 +140,7 @@ fn into_duration(
                     help: Some(
                         "supported units are ns, us/µs, ms, sec, min, hr, day, and wk".to_string(),
                     ),
-                });
+                })?;
             }
         }
         None => "ns".to_string(),
@@ -184,7 +184,7 @@ fn split_whitespace_indices(s: &str, span: Span) -> impl Iterator<Item = (&str, 
     })
 }
 
-fn compound_to_duration(s: &str, span: Span) -> Result<i64, ShellError> {
+fn compound_to_duration(s: &str, span: Span) -> ShellResult<i64> {
     let mut duration_ns: i64 = 0;
 
     for (substring, substring_span) in split_whitespace_indices(s, span) {
@@ -195,7 +195,7 @@ fn compound_to_duration(s: &str, span: Span) -> Result<i64, ShellError> {
     Ok(duration_ns)
 }
 
-fn string_to_duration(s: &str, span: Span) -> Result<i64, ShellError> {
+fn string_to_duration(s: &str, span: Span) -> ShellResult<i64> {
     if let Some(Ok(expression)) = parse_unit_value(
         s.as_bytes(),
         span,
@@ -225,7 +225,7 @@ fn string_to_duration(s: &str, span: Span) -> Result<i64, ShellError> {
         dst_span: span,
         src_span: span,
         help: Some("supported units are ns, us/µs, ms, sec, min, hr, day, and wk".to_string()),
-    })
+    })?
 }
 
 fn action(input: &Value, unit: &str, span: Span) -> Value {

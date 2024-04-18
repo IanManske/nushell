@@ -99,7 +99,7 @@ impl Command for DropNth {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let metadata = input.metadata();
         let number_or_range = extract_int_or_range(engine_state, stack, call)?;
 
@@ -117,7 +117,7 @@ impl Command for DropNth {
                     input: "value originates from here".into(),
                     msg_span: call.head,
                     input_span: number_or_range.span,
-                });
+                })?;
             }
             Either::Right(Range::IntRange(range)) => {
                 // check for negative range inputs, e.g., (2..-5)
@@ -131,7 +131,7 @@ impl Command for DropNth {
                         input: "value originates from here".into(),
                         msg_span: call.head,
                         input_span: number_or_range.span,
-                    });
+                    })?;
                 }
                 // check if the upper bound is smaller than the lower bound, e.g., do not accept 4..2
                 if range.step() < 0 {
@@ -141,7 +141,7 @@ impl Command for DropNth {
                         input: "value originates from here".into(),
                         msg_span: call.head,
                         input_span: number_or_range.span,
-                    });
+                    })?;
                 }
 
                 let start = range.start() as usize;
@@ -183,7 +183,7 @@ fn extract_int_or_range(
     engine_state: &EngineState,
     stack: &mut Stack,
     call: &Call,
-) -> Result<Spanned<Either<i64, Range>>, ShellError> {
+) -> ShellResult<Spanned<Either<i64, Range>>> {
     let value: Value = call.req(engine_state, stack, 0)?;
 
     let int_opt = value.as_int().map(Either::Left).ok();
@@ -191,9 +191,12 @@ fn extract_int_or_range(
 
     int_opt
         .or(range_opt)
-        .ok_or_else(|| ShellError::TypeMismatch {
-            err_message: "int or range".into(),
-            span: value.span(),
+        .ok_or_else(|| {
+            ShellError::TypeMismatch {
+                err_message: "int or range".into(),
+                span: value.span(),
+            }
+            .into()
         })
         .map(|either| Spanned {
             item: either,

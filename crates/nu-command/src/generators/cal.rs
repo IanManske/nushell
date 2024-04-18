@@ -2,7 +2,7 @@ use chrono::{Datelike, Local, NaiveDate};
 use indexmap::IndexMap;
 use nu_color_config::StyleComputer;
 use nu_engine::command_prelude::*;
-
+use nu_protocol::Error;
 use std::collections::VecDeque;
 
 #[derive(Clone)]
@@ -59,7 +59,7 @@ impl Command for Cal {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         cal(engine_state, stack, call, input)
     }
 
@@ -89,7 +89,7 @@ pub fn cal(
     stack: &mut Stack,
     call: &Call,
     _input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let mut calendar_vec_deque = VecDeque::new();
     let tag = call.head;
 
@@ -135,11 +135,12 @@ pub fn cal(
     Ok(Value::list(calendar_vec_deque.into_iter().collect(), tag).into_pipeline_data())
 }
 
-fn get_invalid_year_shell_error(head: Span) -> ShellError {
+fn get_invalid_year_shell_error(head: Span) -> Error {
     ShellError::TypeMismatch {
         err_message: "The year is invalid".to_string(),
         span: head,
     }
+    .into()
 }
 
 struct MonthHelper {
@@ -208,7 +209,7 @@ fn add_months_of_year_to_table(
     current_month: u32,
     current_day_option: Option<u32>,
     style_computer: &StyleComputer,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     for month_number in start_month..=end_month {
         let mut new_current_day_option: Option<u32> = None;
 
@@ -242,7 +243,7 @@ fn add_month_to_table(
     current_month: u32,
     current_day_option: Option<u32>,
     style_computer: &StyleComputer,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     let month_helper_result = MonthHelper::new(selected_year, current_month);
 
     let full_year_value: &Option<Spanned<i64>> = &arguments.full_year;
@@ -255,7 +256,7 @@ fn add_month_to_table(
                 return Err(ShellError::UnknownOperator {
                     op_token: "Issue parsing command, invalid command".to_string(),
                     span: tag,
-                })
+                })?
             }
         },
     };
@@ -268,10 +269,10 @@ fn add_month_to_table(
         if days_of_the_week.contains(&s.as_str()) {
             week_start_day = s.to_string();
         } else {
-            return Err(ShellError::TypeMismatch {
+            Err(ShellError::TypeMismatch {
                 err_message: "The specified week start day is invalid".to_string(),
                 span: day.span,
-            });
+            })?;
         }
     }
 

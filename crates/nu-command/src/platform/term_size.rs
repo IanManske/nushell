@@ -51,7 +51,7 @@ impl Command for TermSize {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
 
         let (cols, rows) = match terminal_size() {

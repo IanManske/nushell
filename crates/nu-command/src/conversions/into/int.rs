@@ -103,7 +103,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let cell_paths = call.rest(engine_state, stack, 0)?;
         let cell_paths = (!cell_paths.is_empty()).then_some(cell_paths);
 
@@ -117,7 +117,7 @@ impl Command for SubCommand {
                             return Err(ShellError::TypeMismatch {
                                 err_message: "Radix must lie in the range [2, 36]".to_string(),
                                 span,
-                            });
+                            })?;
                         }
                         val as u32
                     }
@@ -141,7 +141,7 @@ impl Command for SubCommand {
                                 err_message: "Endian must be one of native, little, big"
                                     .to_string(),
                                 span,
-                            })
+                            })?
                         }
                     },
                     _ => false,
@@ -437,7 +437,7 @@ fn convert_int(input: &Value, head: Span, radix: u32) -> Value {
     }
 }
 
-fn int_from_string(a_string: &str, span: Span) -> Result<i64, ShellError> {
+fn int_from_string(a_string: &str, span: Span) -> ShellResult<i64> {
     // Get the Locale so we know what the thousands separator is
     let locale = get_system_locale();
 
@@ -456,7 +456,7 @@ fn int_from_string(a_string: &str, span: Span) -> Result<i64, ShellError> {
                         from_type: "string".to_string(),
                         span,
                         help: Some(r#"digits following "0b" can only be 0 or 1"#.to_string()),
-                    })
+                    })?
                 }
             };
             Ok(num)
@@ -473,7 +473,7 @@ fn int_from_string(a_string: &str, span: Span) -> Result<i64, ShellError> {
                             r#"hexadecimal digits following "0x" should be in 0-9, a-f, or A-F"#
                                 .to_string(),
                         ),
-                    }),
+                    })?,
                 };
             Ok(num)
         }
@@ -486,7 +486,7 @@ fn int_from_string(a_string: &str, span: Span) -> Result<i64, ShellError> {
                         from_type: "string".to_string(),
                         span,
                         help: Some(r#"octal digits following "0o" should be in 0-7"#.to_string()),
-                    })
+                    })?
                 }
             };
             Ok(num)
@@ -502,7 +502,7 @@ fn int_from_string(a_string: &str, span: Span) -> Result<i64, ShellError> {
                     help: Some(format!(
                         r#"string "{trimmed}" does not represent a valid integer"#
                     )),
-                }),
+                })?,
             },
         },
     }
@@ -635,7 +635,7 @@ mod test {
             Span::test_data(),
         );
         if let Value::Error { error, .. } = actual {
-            if let ShellError::IncorrectValue { msg: e, .. } = *error {
+            if let ShellError::IncorrectValue { msg: e, .. } = &*error {
                 assert!(
                     e.contains(err_expected),
                     "{e:?} doesn't contain {err_expected}"

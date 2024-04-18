@@ -30,7 +30,7 @@ impl Command for IsEmpty {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         empty(engine_state, stack, call, input, false)
     }
 

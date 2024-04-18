@@ -71,7 +71,7 @@ impl Command for FromSsv {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         from_ssv(engine_state, stack, call, input)
     }
 }
@@ -282,7 +282,7 @@ fn from_ssv(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let name = call.head;
 
     let noheaders = call.has_flag(engine_state, stack, "noheaders")?;

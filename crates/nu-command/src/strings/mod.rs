@@ -19,7 +19,7 @@ use nu_engine::CallExt;
 use nu_protocol::{
     ast::Call,
     engine::{EngineState, Stack, StateWorkingSet},
-    ShellError,
+    ShellError, ShellResult,
 };
 
 // For handling the grapheme_cluster related flags on some commands.
@@ -28,7 +28,7 @@ pub fn grapheme_flags(
     engine_state: &EngineState,
     stack: &mut Stack,
     call: &Call,
-) -> Result<bool, ShellError> {
+) -> ShellResult<bool> {
     let g_flag = call.has_flag(engine_state, stack, "grapheme-clusters")?;
     // Check for the other flags and produce errors if they exist.
     // Note that Nushell already prevents nonexistent flags from being used with commands,
@@ -50,10 +50,7 @@ pub fn grapheme_flags(
 }
 
 // Const version of grapheme_flags
-pub fn grapheme_flags_const(
-    working_set: &StateWorkingSet,
-    call: &Call,
-) -> Result<bool, ShellError> {
+pub fn grapheme_flags_const(working_set: &StateWorkingSet, call: &Call) -> ShellResult<bool> {
     let g_flag = call.has_flag_const(working_set, "grapheme-clusters")?;
     if g_flag && call.has_flag_const(working_set, "utf-8-bytes")? {
         Err(ShellError::IncompatibleParametersSingle {

@@ -47,7 +47,7 @@ impl Command for Ps {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         run_ps(engine_state, stack, call)
     }
 
@@ -83,11 +83,7 @@ impl Command for Ps {
 }
 
 #[cfg(not(target_os = "freebsd"))]
-fn run_ps(
-    engine_state: &EngineState,
-    stack: &mut Stack,
-    call: &Call,
-) -> Result<PipelineData, ShellError> {
+fn run_ps(engine_state: &EngineState, stack: &mut Stack, call: &Call) -> ShellResult<PipelineData> {
     let mut output = vec![];
     let span = call.head;
     let long = call.has_flag(engine_state, stack, "long")?;

@@ -38,7 +38,7 @@ impl Command for Flatten {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         flatten(engine_state, stack, call, input)
     }
 
@@ -119,7 +119,7 @@ fn flatten(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let columns: Vec<CellPath> = call.rest(engine_state, stack, 0)?;
     let metadata = input.metadata();
     let flatten_all = call.has_flag(engine_state, stack, "all")?;

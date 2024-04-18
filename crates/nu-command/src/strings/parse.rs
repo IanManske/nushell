@@ -105,7 +105,7 @@ impl Command for Parse {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         operate(engine_state, stack, call, input)
     }
 }
@@ -115,7 +115,7 @@ fn operate(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let head = call.head;
     let pattern: Spanned<String> = call.req(engine_state, stack, 0)?;
     let regex: bool = call.has_flag(engine_state, stack, "regex")?;
@@ -161,7 +161,7 @@ fn operate(
                                         span: None,
                                         help: None,
                                         inner: vec![],
-                                    })
+                                    })?
                                 }
                             };
 
@@ -182,7 +182,7 @@ fn operate(
                             exp_input_type: "string".into(),
                             dst_span: head,
                             src_span: v_span,
-                        })
+                        })?
                     }
                 }
             }
@@ -228,7 +228,7 @@ fn operate(
     }
 }
 
-fn build_regex(input: &str, span: Span) -> Result<String, ShellError> {
+fn build_regex(input: &str, span: Span) -> ShellResult<String> {
     let mut output = "(?s)\\A".to_string();
 
     //let mut loop_input = input;
@@ -260,10 +260,10 @@ fn build_regex(input: &str, span: Span) -> Result<String, ShellError> {
             column.push(c);
 
             if loop_input.peek().is_none() {
-                return Err(ShellError::DelimiterError {
+                Err(ShellError::DelimiterError {
                     msg: "Found opening `{` without an associated closing `}`".to_owned(),
                     span,
-                });
+                })?;
             }
         }
 
@@ -353,7 +353,7 @@ pub struct ParseStreamerExternal {
     excess: Vec<Value>,
     regex: Regex,
     columns: Vec<String>,
-    stream: Box<dyn Iterator<Item = Result<Vec<u8>, ShellError>> + Send + 'static>,
+    stream: Box<dyn Iterator<Item = ShellResult<Vec<u8>>> + Send + 'static>,
 }
 
 impl Iterator for ParseStreamerExternal {

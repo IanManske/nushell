@@ -54,7 +54,7 @@ impl Command for FromJson {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
         let (string_input, span, metadata) = input.collect_string_strict(span)?;
 
@@ -154,7 +154,7 @@ fn convert_row_column_to_span(row: usize, col: usize, contents: &str) -> Span {
     Span::new(contents.len(), contents.len())
 }
 
-fn convert_string_to_value(string_input: &str, span: Span) -> Result<Value, ShellError> {
+fn convert_string_to_value(string_input: &str, span: Span) -> ShellResult<Value> {
     match nu_json::from_str(string_input) {
         Ok(value) => Ok(convert_nujson_to_value(value, span)),
 
@@ -173,19 +173,19 @@ fn convert_string_to_value(string_input: &str, span: Span) -> Result<Value, Shel
                         msg: label,
                         span: label_span,
                     }],
-                })
+                })?
             }
             x => Err(ShellError::CantConvert {
                 to_type: format!("structured json data ({x})"),
                 from_type: "string".into(),
                 span,
                 help: None,
-            }),
+            })?,
         },
     }
 }
 
-fn convert_string_to_value_strict(string_input: &str, span: Span) -> Result<Value, ShellError> {
+fn convert_string_to_value_strict(string_input: &str, span: Span) -> ShellResult<Value> {
     match serde_json::from_str(string_input) {
         Ok(value) => Ok(convert_nujson_to_value(value, span)),
         Err(err) => Err(if err.is_syntax() {
@@ -210,7 +210,7 @@ fn convert_string_to_value_strict(string_input: &str, span: Span) -> Result<Valu
                 span,
                 help: None,
             }
-        }),
+        })?,
     }
 }
 

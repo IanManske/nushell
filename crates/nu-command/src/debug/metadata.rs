@@ -34,7 +34,7 @@ impl Command for Metadata {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let arg = call.positional_nth(0);
         let head = call.head;
 

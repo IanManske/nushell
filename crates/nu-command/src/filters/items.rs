@@ -36,7 +36,7 @@ impl Command for Items {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let capture_block: Closure = call.req(engine_state, stack, 0)?;
 
         let metadata = input.metadata();
@@ -75,7 +75,7 @@ impl Command for Items {
                 PipelineData::empty(),
             ) {
                 Ok(v) => Some(v.into_value(span)),
-                Err(ShellError::Break { .. }) => None,
+                Err(e) if matches!(*e, ShellError::Break { .. }) => None,
                 Err(error) => {
                     let error = chain_error_with_input(error, false, input_span);
                     Some(Value::error(error, span))
@@ -105,26 +105,26 @@ impl Command for Items {
                         .map_while(run_for_each_item)
                         .into_pipeline_data(ctrlc))
                 }
-                Value::Error { error, .. } => Err(*error),
+                Value::Error { error, .. } => Err(error),
                 other => Err(ShellError::OnlySupportsThisInputType {
                     exp_input_type: "record".into(),
                     wrong_type: other.get_type().to_string(),
                     dst_span: call.head,
                     src_span: other.span(),
-                }),
+                })?,
             },
             PipelineData::ListStream(..) => Err(ShellError::OnlySupportsThisInputType {
                 exp_input_type: "record".into(),
                 wrong_type: "stream".into(),
                 dst_span: call.head,
                 src_span: input_span,
-            }),
+            })?,
             PipelineData::ExternalStream { .. } => Err(ShellError::OnlySupportsThisInputType {
                 exp_input_type: "record".into(),
                 wrong_type: "raw data".into(),
                 dst_span: call.head,
                 src_span: input_span,
-            }),
+            })?,
         }
         .map(|x| x.set_metadata(metadata))
     }

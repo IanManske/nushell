@@ -1,5 +1,5 @@
 use csv::{ReaderBuilder, Trim};
-use nu_protocol::{IntoPipelineData, PipelineData, ShellError, Span, Value};
+use nu_protocol::{IntoPipelineData, PipelineData, ShellError, ShellResult, Span, Value};
 
 fn from_delimited_string_to_value(
     DelimitedReaderConfig {
@@ -78,7 +78,7 @@ pub(super) fn from_delimited_data(
     config: DelimitedReaderConfig,
     input: PipelineData,
     name: Span,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let (concat_string, _span, metadata) = input.collect_string_strict(name)?;
 
     Ok(from_delimited_string_to_value(config, concat_string, name)
@@ -89,7 +89,7 @@ pub(super) fn from_delimited_data(
         .into_pipeline_data_with_metadata(metadata))
 }
 
-pub fn trim_from_str(trim: Option<Value>) -> Result<Trim, ShellError> {
+pub fn trim_from_str(trim: Option<Value>) -> ShellResult<Trim> {
     match trim {
         Some(v) => {
             let span = v.span();
@@ -105,7 +105,7 @@ pub fn trim_from_str(trim: Option<Value>) -> Result<Trim, ShellError> {
                     "the only possible values for trim are 'all', 'headers', 'fields' and 'none'"
                         .into(),
                 span,
-            }),
+            })?,
                 }
                 _ => Ok(Trim::None),
             }

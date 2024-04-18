@@ -76,7 +76,7 @@ impl Command for EncodeBase64 {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         operate(ActionType::Encode, engine_state, stack, call, input)
     }
 }

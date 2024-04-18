@@ -11,7 +11,7 @@ use nu_engine::CallExt;
 use nu_protocol::{
     ast::{Call, CellPath},
     engine::{EngineState, Stack},
-    PipelineData, ShellError, Span, Spanned, Value,
+    PipelineData, ShellError, ShellResult, Span, Spanned, Value,
 };
 
 pub const CHARACTER_SET_DESC: &str = "specify the character rules for encoding the input.\n\
@@ -48,7 +48,7 @@ pub fn operate(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let head = call.head;
     let character_set: Option<Spanned<String>> =
         call.get_flag(engine_state, stack, "character-set")?;

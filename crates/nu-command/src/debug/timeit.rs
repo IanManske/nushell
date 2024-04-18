@@ -38,7 +38,7 @@ impl Command for TimeIt {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let command_to_run = call.positional_nth(0);
 
         // Get the start time after all other computation has been done.

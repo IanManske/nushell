@@ -66,7 +66,7 @@ impl Command for FromCsv {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         from_csv(engine_state, stack, call, input)
     }
 
@@ -121,14 +121,14 @@ fn from_csv(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let name = call.head;
     if let PipelineData::Value(Value::List { .. }, _) = input {
-        return Err(ShellError::TypeMismatch {
+        Err(ShellError::TypeMismatch {
             err_message: "received list stream, did you forget to open file with --raw flag?"
                 .into(),
             span: name,
-        });
+        })?;
     }
 
     let separator = match call.get_flag::<String>(engine_state, stack, "separator")? {
@@ -142,7 +142,7 @@ fn from_csv(
                 return Err(ShellError::NonUtf8Custom {
                     msg: "separator should be a single char or a 4-byte unicode".into(),
                     span: call.span(),
-                });
+                })?;
             }
         }
         None => ',',

@@ -40,7 +40,7 @@ impl Command for BytesBuild {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let mut output = vec![];
         for val in call.rest_iter_flattened(0, |expr| {
             let eval_expression = get_eval_expression(engine_state);
@@ -49,12 +49,12 @@ impl Command for BytesBuild {
             match val {
                 Value::Binary { mut val, .. } => output.append(&mut val),
                 // Explicitly propagate errors instead of dropping them.
-                Value::Error { error, .. } => return Err(*error),
+                Value::Error { error, .. } => return Err(error),
                 other => {
                     return Err(ShellError::TypeMismatch {
                         err_message: "only binary data arguments are supported".to_string(),
                         span: other.span(),
-                    })
+                    })?
                 }
             }
         }

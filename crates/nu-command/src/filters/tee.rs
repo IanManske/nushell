@@ -1,5 +1,5 @@
 use nu_engine::{command_prelude::*, get_eval_block_with_early_return};
-use nu_protocol::{engine::Closure, OutDest, RawStream};
+use nu_protocol::{engine::Closure, Error, OutDest, RawStream};
 use std::{sync::mpsc, thread};
 
 #[derive(Clone)]
@@ -63,7 +63,7 @@ use it in your pipeline."#
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let use_stderr = call.has_flag(engine_state, stack, "stderr")?;
 
         let Spanned {
@@ -97,7 +97,7 @@ use it in your pipeline."#
                     stdout.as_ref().and_then(|s| s.known_size)
                 };
 
-                let with_stream = move |rx: mpsc::Receiver<Result<Vec<u8>, ShellError>>| {
+                let with_stream = move |rx: mpsc::Receiver<ShellResult<Vec<u8>>>| {
                     let iter = rx.into_iter();
                     let input_from_channel = PipelineData::ExternalStream {
                         stdout: Some(RawStream::new(
@@ -127,7 +127,7 @@ use it in your pipeline."#
                         .map(|stderr| {
                             let iter = tee(stderr.stream, with_stream)
                                 .map_err(|e| e.into_spanned(call.head))?;
-                            Ok::<_, ShellError>(RawStream::new(
+                            ShellResult::Ok(RawStream::new(
                                 Box::new(iter.map(flatten_result)),
                                 stderr.ctrlc,
                                 stderr.span,
@@ -148,7 +148,7 @@ use it in your pipeline."#
                         .map(|stdout| {
                             let iter = tee(stdout.stream, with_stream)
                                 .map_err(|e| e.into_spanned(call.head))?;
-                            Ok::<_, ShellError>(RawStream::new(
+                            ShellResult::Ok(RawStream::new(
                                 Box::new(iter.map(flatten_result)),
                                 stdout.ctrlc,
                                 stdout.span,
@@ -172,7 +172,7 @@ use it in your pipeline."#
                 input: "the input to `tee` is not an external stream".into(),
                 msg_span: call.head,
                 input_span: input.span().unwrap_or(call.head),
-            }),
+            })?,
             // Handle others with the plain iterator
             _ => {
                 let teed = tee(input.into_iter(), move |rx| {
@@ -203,10 +203,11 @@ use it in your pipeline."#
     }
 }
 
-fn panic_error() -> ShellError {
+fn panic_error() -> Error {
     ShellError::NushellFailed {
         msg: "A panic occurred on a thread spawned by `tee`".into(),
     }
+    .into()
 }
 
 fn flatten_result<T, E>(result: Result<Result<T, E>, E>) -> Result<T, E> {
@@ -219,8 +220,8 @@ fn flatten_result<T, E>(result: Result<Result<T, E>, E>) -> Result<T, E> {
 /// point.
 fn tee<T>(
     input: impl Iterator<Item = T>,
-    with_cloned_stream: impl FnOnce(mpsc::Receiver<T>) -> Result<(), ShellError> + Send + 'static,
-) -> Result<impl Iterator<Item = Result<T, ShellError>>, std::io::Error>
+    with_cloned_stream: impl FnOnce(mpsc::Receiver<T>) -> ShellResult<()> + Send + 'static,
+) -> Result<impl Iterator<Item = ShellResult<T>>, std::io::Error>
 where
     T: Clone + Send + 'static,
 {
@@ -282,7 +283,7 @@ fn tee_copies_values_to_other_thread_and_passes_them_through() {
         Ok(())
     })
     .expect("io error")
-    .collect::<Result<Vec<i32>, ShellError>>()
+    .collect::<ShellResult<Vec<i32>>>()
     .expect("should not produce error");
 
     assert_eq!(expected_values, my_result);
@@ -297,7 +298,7 @@ fn tee_forwards_errors_back_immediately() {
     use std::time::Duration;
     let slow_input = (0..100).inspect(|_| std::thread::sleep(Duration::from_millis(1)));
     let iter = tee(slow_input, |_| {
-        Err(ShellError::IOError { msg: "test".into() })
+        Err(ShellError::IOError { msg: "test".into() })?
     })
     .expect("io error");
     for result in iter {
@@ -324,7 +325,7 @@ fn tee_waits_for_the_other_thread() {
     let iter = tee(0..100, move |_| {
         std::thread::sleep(Duration::from_millis(10));
         waited_clone.store(true, Ordering::Relaxed);
-        Err(ShellError::IOError { msg: "test".into() })
+        Err(ShellError::IOError { msg: "test".into() })?
     })
     .expect("io error");
     let last = iter.last();

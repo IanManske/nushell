@@ -41,7 +41,7 @@ impl Command for SubCommand {
         _: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         parse(input.into_value(call.head), call.head, engine_state)
     }
 
@@ -72,7 +72,7 @@ fn get_url_string(value: &Value, engine_state: &EngineState) -> String {
     value.to_expanded_string("", engine_state.get_config())
 }
 
-fn parse(value: Value, head: Span, engine_state: &EngineState) -> Result<PipelineData, ShellError> {
+fn parse(value: Value, head: Span, engine_state: &EngineState) -> ShellResult<PipelineData> {
     let url_string = get_url_string(&value, engine_state);
 
     let result_url = Url::parse(url_string.as_str());
@@ -112,7 +112,7 @@ fn parse(value: Value, head: Span, engine_state: &EngineState) -> Result<Pipelin
                     input: "value originates from here".into(),
                     msg_span: head,
                     input_span: span,
-                }),
+                })?,
             }
         }
         Err(_e) => Err(ShellError::UnsupportedInput {
@@ -121,7 +121,7 @@ fn parse(value: Value, head: Span, engine_state: &EngineState) -> Result<Pipelin
             input: "value originates from here".into(),
             msg_span: head,
             input_span: span,
-        }),
+        })?,
     }
 }
 

@@ -2,19 +2,16 @@ use nu_engine::{get_eval_block, CallExt};
 use nu_protocol::{
     ast::Call,
     engine::{Closure, EngineState, Stack},
-    IntoPipelineData, PipelineData, ShellError, Span, Value,
+    Error, IntoPipelineData, PipelineData, ShellError, ShellResult, Span, Value,
 };
 
-pub fn chain_error_with_input(
-    error_source: ShellError,
-    input_is_error: bool,
-    span: Span,
-) -> ShellError {
+pub fn chain_error_with_input(error_source: Error, input_is_error: bool, span: Span) -> Error {
     if !input_is_error {
         return ShellError::EvalBlockWithInput {
             span,
-            sources: vec![error_source],
-        };
+            sources: vec![error_source.into()],
+        }
+        .into();
     }
     error_source
 }
@@ -25,7 +22,7 @@ pub fn boolean_fold(
     call: &Call,
     input: PipelineData,
     accumulator: bool,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let span = call.head;
 
     let capture_block: Closure = call.req(engine_state, stack, 0)?;

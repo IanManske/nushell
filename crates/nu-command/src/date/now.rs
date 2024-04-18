@@ -29,7 +29,7 @@ impl Command for SubCommand {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let dt = Local::now();
         Ok(Value::date(dt.with_timezone(dt.offset()), head).into_pipeline_data())

@@ -49,7 +49,7 @@ impl Command for ToTsv {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let noheaders = call.has_flag(engine_state, stack, "noheaders")?;
         let config = engine_state.get_config();
@@ -62,7 +62,7 @@ fn to_tsv(
     noheaders: bool,
     head: Span,
     config: &Config,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     to_delimited_data(noheaders, '\t', "TSV", input, head, config)
 }
 

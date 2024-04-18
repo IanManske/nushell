@@ -39,7 +39,7 @@ impl Command for Source {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         // Note: this hidden positional is the block_id that corresponded to the 0th position
         // it is put here by the parser
         let block_id: i64 = call.req_parser_info(engine_state, stack, "block_id")?;

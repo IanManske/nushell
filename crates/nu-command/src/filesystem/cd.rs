@@ -35,7 +35,7 @@ impl Command for Cd {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let path_val: Option<Spanned<String>> = call.opt(engine_state, stack, 0)?;
         let cwd = current_dir(engine_state, stack)?;
 
@@ -63,7 +63,7 @@ impl Command for Cd {
                                 return Err(ShellError::DirectoryNotFound {
                                     dir: path.to_string_lossy().to_string(),
                                     span: v.span,
-                                });
+                                })?;
                             }
                         };
                         (path.to_string_lossy().to_string(), v.span)
@@ -77,7 +77,7 @@ impl Command for Cd {
                     let path = match nu_path::canonicalize_with(path_no_whitespace, &cwd) {
                         Ok(p) => {
                             if !p.is_dir() {
-                                return Err(ShellError::NotADirectory { span: v.span });
+                                return Err(ShellError::NotADirectory { span: v.span })?;
                             };
                             p
                         }
@@ -87,7 +87,7 @@ impl Command for Cd {
                             return Err(ShellError::DirectoryNotFound {
                                 dir: path_no_whitespace.to_string(),
                                 span: v.span,
-                            });
+                            })?;
                         }
                     };
                     (path.to_string_lossy().to_string(), v.span)
@@ -114,7 +114,7 @@ impl Command for Cd {
             }
             PermissionResult::PermissionDenied(reason) => Err(ShellError::IOError {
                 msg: format!("Cannot change directory to {path}: {reason}"),
-            }),
+            })?,
         }
     }
 

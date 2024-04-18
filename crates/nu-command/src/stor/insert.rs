@@ -50,7 +50,7 @@ impl Command for StorInsert {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
         let table_name: Option<String> = call.get_flag(engine_state, stack, "table-name")?;
         let columns: Option<Record> = call.get_flag(engine_state, stack, "data-record")?;
@@ -61,7 +61,7 @@ impl Command for StorInsert {
             return Err(ShellError::MissingParameter {
                 param_name: "requires at table name".into(),
                 span,
-            });
+            })?;
         }
         let new_table_name = table_name.unwrap_or("table".into());
         if let Ok(conn) = db.open_connection() {
@@ -126,7 +126,7 @@ impl Command for StorInsert {
                     return Err(ShellError::MissingParameter {
                         param_name: "requires at least one column".into(),
                         span: call.head,
-                    });
+                    })?;
                 }
             };
         }

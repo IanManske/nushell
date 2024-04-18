@@ -99,7 +99,7 @@ pub fn get_rest_for_glob_pattern(
     stack: &mut Stack,
     call: &Call,
     starting_pos: usize,
-) -> Result<Vec<Spanned<NuGlob>>, ShellError> {
+) -> ShellResult<Vec<Spanned<NuGlob>>> {
     let mut output = vec![];
     let eval_expression = get_eval_expression(engine_state);
 

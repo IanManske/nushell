@@ -49,7 +49,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         split_column(engine_state, stack, call, input)
     }
 
@@ -110,7 +110,7 @@ fn split_column(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let name_span = call.head;
     let separator: Spanned<String> = call.req(engine_state, stack, 0)?;
     let rest: Vec<Spanned<String>> = call.rest(engine_state, stack, 1)?;
@@ -170,7 +170,7 @@ fn split_column_helper(
     } else {
         match v {
             Value::Error { error, .. } => {
-                vec![Value::error(*error.clone(), head)]
+                vec![Value::error(error.clone(), head)]
             }
             v => {
                 let span = v.span();

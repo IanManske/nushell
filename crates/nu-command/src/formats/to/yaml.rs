@@ -33,14 +33,14 @@ impl Command for ToYaml {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let input = input.try_expand_range()?;
         to_yaml(input, head)
     }
 }
 
-pub fn value_to_yaml_value(v: &Value) -> Result<serde_yaml::Value, ShellError> {
+pub fn value_to_yaml_value(v: &Value) -> ShellResult<serde_yaml::Value> {
     Ok(match &v {
         Value::Bool { val, .. } => serde_yaml::Value::Bool(*val),
         Value::Int { val, .. } => serde_yaml::Value::Number(serde_yaml::Number::from(*val)),
@@ -78,7 +78,7 @@ pub fn value_to_yaml_value(v: &Value) -> Result<serde_yaml::Value, ShellError> {
         Value::Block { .. } => serde_yaml::Value::Null,
         Value::Closure { .. } => serde_yaml::Value::Null,
         Value::Nothing { .. } => serde_yaml::Value::Null,
-        Value::Error { error, .. } => return Err(*error.clone()),
+        Value::Error { error, .. } => return Err(error.clone()),
         Value::Binary { val, .. } => serde_yaml::Value::Sequence(
             val.iter()
                 .map(|x| serde_yaml::Value::Number(serde_yaml::Number::from(*x)))
@@ -88,18 +88,18 @@ pub fn value_to_yaml_value(v: &Value) -> Result<serde_yaml::Value, ShellError> {
             val.members
                 .iter()
                 .map(|x| match &x {
-                    PathMember::String { val, .. } => Ok(serde_yaml::Value::String(val.clone())),
+                    PathMember::String { val, .. } => serde_yaml::Value::String(val.clone()),
                     PathMember::Int { val, .. } => {
-                        Ok(serde_yaml::Value::Number(serde_yaml::Number::from(*val)))
+                        serde_yaml::Value::Number(serde_yaml::Number::from(*val))
                     }
                 })
-                .collect::<Result<Vec<serde_yaml::Value>, ShellError>>()?,
+                .collect(),
         ),
         Value::Custom { .. } => serde_yaml::Value::Null,
     })
 }
 
-fn to_yaml(input: PipelineData, head: Span) -> Result<PipelineData, ShellError> {
+fn to_yaml(input: PipelineData, head: Span) -> ShellResult<PipelineData> {
     let value = input.into_value(head);
 
     let yaml_value = value_to_yaml_value(&value)?;

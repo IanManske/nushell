@@ -60,7 +60,7 @@ impl Command for Save {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let raw = call.has_flag(engine_state, stack, "raw")?;
         let append = call.has_flag(engine_state, stack, "append")?;
         let force = call.has_flag(engine_state, stack, "force")?;
@@ -165,7 +165,7 @@ impl Command for Save {
                             span: Some(path.span),
                             help: Some("you should change output path".into()),
                             inner: vec![],
-                        });
+                        })?;
                     }
 
                     if let Some(ref err_path) = stderr_path {
@@ -179,7 +179,7 @@ impl Command for Save {
                                 span: Some(err_path.span),
                                 help: Some("you should change stderr path".into()),
                                 inner: vec![],
-                            });
+                            })?;
                         }
                     }
                 }
@@ -202,7 +202,7 @@ impl Command for Save {
                             msg: err.to_string(),
                         })?;
                 }
-                file.flush()?;
+                file.flush().map_err(|e| e.into_spanned(span))?;
 
                 Ok(PipelineData::empty())
             }
@@ -224,7 +224,7 @@ impl Command for Save {
                     msg: err.to_string(),
                 })?;
 
-                file.flush()?;
+                file.flush().map_err(|e| e.into_spanned(span))?;
 
                 Ok(PipelineData::empty())
             }
@@ -275,7 +275,7 @@ fn input_to_bytes(
     engine_state: &EngineState,
     stack: &mut Stack,
     span: Span,
-) -> Result<Vec<u8>, ShellError> {
+) -> ShellResult<Vec<u8>> {
     let ext = if raw {
         None
     // if is extern stream , in other words , not value
@@ -305,7 +305,7 @@ fn convert_to_extension(
     stack: &mut Stack,
     input: PipelineData,
     span: Span,
-) -> Result<Vec<u8>, ShellError> {
+) -> ShellResult<Vec<u8>> {
     let converter = engine_state.find_decl(format!("to {extension}").as_bytes(), &[]);
 
     let output = match converter {
@@ -328,7 +328,7 @@ fn convert_to_extension(
 /// Convert [`Value::String`] [`Value::Binary`] or [`Value::List`] into [`Vec`] of bytes
 ///
 /// Propagates [`Value::Error`] and creates error otherwise
-fn value_to_bytes(value: Value) -> Result<Vec<u8>, ShellError> {
+fn value_to_bytes(value: Value) -> ShellResult<Vec<u8>> {
     match value {
         Value::String { val, .. } => Ok(val.into_bytes()),
         Value::Binary { val, .. } => Ok(val),
@@ -336,25 +336,21 @@ fn value_to_bytes(value: Value) -> Result<Vec<u8>, ShellError> {
             let val = vals
                 .into_iter()
                 .map(Value::coerce_into_string)
-                .collect::<Result<Vec<String>, ShellError>>()?
+                .collect::<ShellResult<Vec<String>>>()?
                 .join("\n")
                 + "\n";
 
             Ok(val.into_bytes())
         }
         // Propagate errors by explicitly matching them before the final case.
-        Value::Error { error, .. } => Err(*error),
+        Value::Error { error, .. } => Err(error),
         other => Ok(other.coerce_into_string()?.into_bytes()),
     }
 }
 
 /// Convert string path to [`Path`] and [`Span`] and check if this path
 /// can be used with given flags
-fn prepare_path(
-    path: &Spanned<PathBuf>,
-    append: bool,
-    force: bool,
-) -> Result<(&Path, Span), ShellError> {
+fn prepare_path(path: &Spanned<PathBuf>, append: bool, force: bool) -> ShellResult<(&Path, Span)> {
     let span = path.span;
     let path = &path.item;
 
@@ -368,24 +364,27 @@ fn prepare_path(
             span: Some(span),
             help: Some("you can use -f, --force to force overwriting the destination".into()),
             inner: vec![],
-        })
+        })?
     } else {
         Ok((path, span))
     }
 }
 
-fn open_file(path: &Path, span: Span, append: bool) -> Result<File, ShellError> {
+fn open_file(path: &Path, span: Span, append: bool) -> ShellResult<File> {
     let file = match (append, path.exists()) {
         (true, true) => std::fs::OpenOptions::new().append(true).open(path),
         _ => std::fs::File::create(path),
     };
 
-    file.map_err(|e| ShellError::GenericError {
-        error: "Permission denied".into(),
-        msg: e.to_string(),
-        span: Some(span),
-        help: None,
-        inner: vec![],
+    file.map_err(|e| {
+        ShellError::GenericError {
+            error: "Permission denied".into(),
+            msg: e.to_string(),
+            span: Some(span),
+            help: None,
+            inner: vec![],
+        }
+        .into()
     })
 }
 
@@ -397,7 +396,7 @@ fn get_files(
     out_append: bool,
     err_append: bool,
     force: bool,
-) -> Result<(File, Option<File>), ShellError> {
+) -> ShellResult<(File, Option<File>)> {
     // First check both paths
     let (path, path_span) = prepare_path(path, append || out_append, force)?;
     let stderr_path_and_span = stderr_path
@@ -417,7 +416,7 @@ fn get_files(
                     span: Some(stderr_path_span),
                     help: Some("you should use `o+e> file` instead".into()),
                     inner: vec![],
-                })
+                })?
             } else {
                 open_file(stderr_path, stderr_path_span, append || err_append)
             }
@@ -432,7 +431,7 @@ fn stream_to_file(
     mut file: File,
     span: Span,
     progress: bool,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     // https://github.com/nushell/nushell/pull/9377 contains the reason
     // for not using BufWriter<File>
     let writer = &mut file;
@@ -461,14 +460,14 @@ fn stream_to_file(
                 Value::String { val, .. } => val.into_bytes(),
                 Value::Binary { val, .. } => val,
                 // Propagate errors by explicitly matching them before the final case.
-                Value::Error { error, .. } => return Err(*error),
+                Value::Error { error, .. } => return Err(error),
                 other => {
                     return Err(ShellError::OnlySupportsThisInputType {
                         exp_input_type: "string or binary".into(),
                         wrong_type: other.get_type().to_string(),
                         dst_span: span,
                         src_span: other.span(),
-                    });
+                    })?;
                 }
             },
             Err(err) => {
@@ -488,9 +487,9 @@ fn stream_to_file(
 
         if let Err(err) = writer.write_all(&buf) {
             *process_failed_p = true;
-            return Err(ShellError::IOError {
+            Err(ShellError::IOError {
                 msg: err.to_string(),
-            });
+            })?;
         }
         Ok(())
     })?;
@@ -505,7 +504,7 @@ fn stream_to_file(
         }
     }
 
-    file.flush()?;
+    file.flush().map_err(|e| e.into_spanned(span))?;
 
     Ok(())
 }

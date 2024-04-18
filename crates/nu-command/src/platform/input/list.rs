@@ -72,7 +72,7 @@ impl Command for InputList {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let prompt: Option<String> = call.opt(engine_state, stack, 0)?;
         let multi = call.has_flag(engine_state, stack, "multi")?;
@@ -98,13 +98,13 @@ impl Command for InputList {
                         value: val,
                     })
                 })
-                .collect::<Result<Vec<_>, ShellError>>()?,
+                .collect::<ShellResult<Vec<_>>>()?,
 
             _ => {
                 return Err(ShellError::TypeMismatch {
                     err_message: "expected a list, a table, or a range".to_string(),
                     span: head,
-                })
+                })?
             }
         };
 
@@ -112,14 +112,14 @@ impl Command for InputList {
             return Err(ShellError::TypeMismatch {
                 err_message: "expected a list or table, it can also be a problem with the an inner type of your list.".to_string(),
                 span: head,
-            });
+            })?;
         }
 
         if multi && fuzzy {
             return Err(ShellError::TypeMismatch {
                 err_message: "Fuzzy search is not supported for multi select".to_string(),
                 span: head,
-            });
+            })?;
         }
 
         // could potentially be used to map the use theme colors at some point

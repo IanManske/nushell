@@ -61,7 +61,7 @@ impl Command for Touch {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let mut change_mtime: bool = call.has_flag(engine_state, stack, "modified")?;
         let mut change_atime: bool = call.has_flag(engine_state, stack, "access")?;
         let reference: Option<Spanned<String>> = call.get_flag(engine_state, stack, "reference")?;
@@ -72,7 +72,7 @@ impl Command for Touch {
             return Err(ShellError::MissingParameter {
                 param_name: "requires file paths".to_string(),
                 span: call.head,
-            });
+            })?;
         }
 
         let mut mtime = SystemTime::now();
@@ -90,7 +90,7 @@ impl Command for Touch {
                 return Err(ShellError::FileNotFoundCustom {
                     msg: "Reference path not found".into(),
                     span: reference.span,
-                });
+                })?;
             }
 
             let metadata = reference_path
@@ -137,7 +137,7 @@ impl Command for Touch {
                             .positional_nth(index)
                             .expect("already checked positional")
                             .span,
-                    });
+                    })?;
                 };
             }
 
@@ -150,7 +150,7 @@ impl Command for Touch {
                             .positional_nth(index)
                             .expect("already checked positional")
                             .span,
-                    });
+                    })?;
                 };
             }
 
@@ -163,7 +163,7 @@ impl Command for Touch {
                             .positional_nth(index)
                             .expect("already checked positional")
                             .span,
-                    });
+                    })?;
                 };
             }
         }

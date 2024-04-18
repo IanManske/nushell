@@ -36,7 +36,7 @@ impl Command for WithEnv {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         with_env(engine_state, stack, call, input)
     }
 
@@ -57,7 +57,7 @@ fn with_env(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let variable: Value = call.req(engine_state, stack, 0)?;
 
     let capture_block: Closure = call.req(engine_state, stack, 1)?;
@@ -87,7 +87,7 @@ fn with_env(
                         }
                     }
                     x => {
-                        return Err(ShellError::CantConvert {
+                        Err(ShellError::CantConvert {
                             to_type: "record".into(),
                             from_type: x.get_type().to_string(),
                             span: call
@@ -95,7 +95,7 @@ fn with_env(
                                 .expect("already checked through .req")
                                 .span,
                             help: None,
-                        });
+                        })?;
                     }
                 }
             } else {
@@ -121,7 +121,7 @@ fn with_env(
             }
         }
         x => {
-            return Err(ShellError::CantConvert {
+            Err(ShellError::CantConvert {
                 to_type: "record".into(),
                 from_type: x.get_type().to_string(),
                 span: call
@@ -129,7 +129,7 @@ fn with_env(
                     .expect("already checked through .req")
                     .span,
                 help: None,
-            });
+            })?;
         }
     };
 

@@ -33,7 +33,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         float(engine_state, stack, call)
     }
 
@@ -63,11 +63,7 @@ impl Command for SubCommand {
     }
 }
 
-fn float(
-    engine_state: &EngineState,
-    stack: &mut Stack,
-    call: &Call,
-) -> Result<PipelineData, ShellError> {
+fn float(engine_state: &EngineState, stack: &mut Stack, call: &Call) -> ShellResult<PipelineData> {
     let span = call.head;
     let range: Option<Spanned<Range>> = call.opt(engine_state, stack, 0)?;
 
@@ -79,14 +75,14 @@ fn float(
             let range = FloatRange::from(range.item);
 
             if range.step() < 0.0 {
-                return Err(ShellError::InvalidRange {
+                Err(ShellError::InvalidRange {
                     left_flank: range.start().to_string(),
                     right_flank: match range.end() {
                         Bound::Included(end) | Bound::Excluded(end) => end.to_string(),
                         Bound::Unbounded => "".into(),
                     },
                     span: range_span,
-                });
+                })?;
             }
 
             let value = match range.end() {

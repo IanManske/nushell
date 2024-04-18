@@ -36,7 +36,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         get_free_port(engine_state, stack, call)
     }
 
@@ -60,13 +60,13 @@ fn get_free_port(
     engine_state: &EngineState,
     stack: &mut Stack,
     call: &Call,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let start_port: Option<Spanned<usize>> = call.opt(engine_state, stack, 0)?;
     let end_port: Option<Spanned<usize>> = call.opt(engine_state, stack, 1)?;
 
     let listener = if start_port.is_none() && end_port.is_none() {
         // get free port from system.
-        TcpListener::bind("127.0.0.1:0")?
+        TcpListener::bind("127.0.0.1:0").map_err(|e| e.into_spanned(call.head))?
     } else {
         let (start_port, start_span) = match start_port {
             Some(p) => (p.item, Some(p.span)),
@@ -81,7 +81,7 @@ fn get_free_port(
                     from_type: "usize".into(),
                     span: start_span.unwrap_or(call.head),
                     help: Some(format!("{e} (min: {}, max: {})", u16::MIN, u16::MAX)),
-                });
+                })?;
             }
         };
 
@@ -98,7 +98,7 @@ fn get_free_port(
                     from_type: "usize".into(),
                     span: end_span.unwrap_or(call.head),
                     help: Some(format!("{e} (min: {}, max: {})", u16::MIN, u16::MAX)),
-                });
+                })?;
             }
         };
 
@@ -111,11 +111,11 @@ fn get_free_port(
 
         // check input range valid.
         if start_port > end_port {
-            return Err(ShellError::InvalidRange {
+            Err(ShellError::InvalidRange {
                 left_flank: start_port.to_string(),
                 right_flank: end_port.to_string(),
                 span: range_span,
-            });
+            })?;
         }
 
         // try given port one by one.
@@ -127,11 +127,14 @@ fn get_free_port(
             None => {
                 return Err(ShellError::IOError {
                     msg: "Every port has been tried, but no valid one was found".to_string(),
-                })
+                })?
             }
         }
     };
 
-    let free_port = listener.local_addr()?.port();
+    let free_port = listener
+        .local_addr()
+        .map_err(|e| e.into_spanned(call.head))?
+        .port();
     Ok(Value::int(free_port as i64, call.head).into_pipeline_data())
 }

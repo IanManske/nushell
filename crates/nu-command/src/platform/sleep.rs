@@ -37,7 +37,7 @@ impl Command for Sleep {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         fn duration_from_i64(val: i64) -> Duration {
             Duration::from_nanos(if val < 0 { 0 } else { val as u64 })
         }
@@ -60,7 +60,7 @@ impl Command for Sleep {
             if nu_utils::ctrl_c::was_pressed(&engine_state.ctrlc) {
                 return Err(ShellError::InterruptedByUser {
                     span: Some(call.head),
-                });
+                })?;
             }
         }
 

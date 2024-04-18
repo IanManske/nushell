@@ -33,7 +33,7 @@ impl Command for LoadEnv {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let arg: Option<Record> = call.opt(engine_state, stack, 0)?;
         let span = call.head;
 
@@ -47,7 +47,7 @@ impl Command for LoadEnv {
                         input: "value originated from here".into(),
                         msg_span: span,
                         input_span: input.span().unwrap_or(span),
-                    })
+                    })?
                 }
             },
         };
@@ -57,7 +57,7 @@ impl Command for LoadEnv {
                 return Err(ShellError::AutomaticEnvVarSetManually {
                     envvar_name: prohibited.to_string(),
                     span: call.head,
-                });
+                })?;
             }
         }
 

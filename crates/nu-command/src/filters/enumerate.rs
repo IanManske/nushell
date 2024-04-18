@@ -49,7 +49,7 @@ impl Command for Enumerate {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let metadata = input.metadata();
         let ctrlc = engine_state.ctrlc.clone();
         let span = call.head;

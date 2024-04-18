@@ -47,7 +47,7 @@ impl Command for Reject {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let columns: Vec<Value> = call.rest(engine_state, stack, 0)?;
         let mut new_columns: Vec<CellPath> = vec![];
         for col_val in columns {
@@ -82,7 +82,7 @@ impl Command for Reject {
                         from_type: x.get_type().to_string(),
                         span: x.span(),
                         help: None,
-                    });
+                    })?;
                 }
             }
         }
@@ -170,7 +170,7 @@ fn reject(
     span: Span,
     input: PipelineData,
     cell_paths: Vec<CellPath>,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let mut unique_rows: HashSet<usize> = HashSet::new();
     let metadata = input.metadata();
     let val = input.into_value(span);
@@ -182,13 +182,13 @@ fn reject(
         match members.first() {
             Some(PathMember::Int { val, span, .. }) => {
                 if members.len() > 1 {
-                    return Err(ShellError::GenericError {
+                    Err(ShellError::GenericError {
                         error: "Reject only allows row numbers for rows".into(),
                         msg: "extra after row number".into(),
                         span: Some(*span),
                         help: None,
                         inner: vec![],
-                    });
+                    })?;
                 }
                 if !unique_rows.contains(val) {
                     unique_rows.insert(*val);

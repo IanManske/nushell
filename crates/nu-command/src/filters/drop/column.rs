@@ -1,5 +1,5 @@
 use nu_engine::command_prelude::*;
-
+use nu_protocol::Error;
 use std::collections::HashSet;
 
 #[derive(Clone)]
@@ -38,13 +38,13 @@ impl Command for DropColumn {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         // the number of columns to drop
         let columns: Option<Spanned<i64>> = call.opt(engine_state, stack, 0)?;
 
         let columns = if let Some(columns) = columns {
             if columns.item < 0 {
-                return Err(ShellError::NeedsPositiveValue { span: columns.span });
+                return Err(ShellError::NeedsPositiveValue { span: columns.span })?;
             } else {
                 columns.item as usize
             }
@@ -81,7 +81,7 @@ fn drop_cols(
     input: PipelineData,
     head: Span,
     columns: usize,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     // For simplicity and performance, we use the first row's columns
     // as the columns for the whole table, and assume that later rows/records
     // have these same columns. However, this can give weird results like:
@@ -127,7 +127,7 @@ fn drop_cols(
                     Ok(v.into_pipeline_data_with_metadata(metadata))
                 }
                 // Propagate errors
-                Value::Error { error, .. } => Err(*error),
+                Value::Error { error, .. } => Err(error),
                 val => Err(unsupported_value_error(&val, head)),
             }
         }
@@ -137,11 +137,11 @@ fn drop_cols(
             wrong_type: "raw data".into(),
             dst_span: head,
             src_span: span,
-        }),
+        })?,
     }
 }
 
-fn drop_cols_set(val: &mut Value, head: Span, drop: usize) -> Result<HashSet<String>, ShellError> {
+fn drop_cols_set(val: &mut Value, head: Span, drop: usize) -> ShellResult<HashSet<String>> {
     if let Value::Record { val: record, .. } = val {
         let len = record.len().saturating_sub(drop);
         Ok(record.to_mut().drain(len..).map(|(col, _)| col).collect())
@@ -150,11 +150,7 @@ fn drop_cols_set(val: &mut Value, head: Span, drop: usize) -> Result<HashSet<Str
     }
 }
 
-fn drop_record_cols(
-    val: &mut Value,
-    head: Span,
-    drop_cols: &HashSet<String>,
-) -> Result<(), ShellError> {
+fn drop_record_cols(val: &mut Value, head: Span, drop_cols: &HashSet<String>) -> ShellResult<()> {
     if let Value::Record { val, .. } = val {
         val.to_mut().retain(|col, _| !drop_cols.contains(col));
         Ok(())
@@ -163,13 +159,14 @@ fn drop_record_cols(
     }
 }
 
-fn unsupported_value_error(val: &Value, head: Span) -> ShellError {
+fn unsupported_value_error(val: &Value, head: Span) -> Error {
     ShellError::OnlySupportsThisInputType {
         exp_input_type: "table or record".into(),
         wrong_type: val.get_type().to_string(),
         dst_span: head,
         src_span: val.span(),
     }
+    .into()
 }
 
 #[cfg(test)]

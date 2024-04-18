@@ -36,7 +36,7 @@ impl Command for Default {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         default(engine_state, stack, call, input)
     }
 
@@ -75,7 +75,7 @@ fn default(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let metadata = input.metadata();
     let value: Value = call.req(engine_state, stack, 0)?;
     let column: Option<Spanned<String>> = call.opt(engine_state, stack, 1)?;

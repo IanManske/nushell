@@ -72,7 +72,7 @@ impl Command for DecodeBase64 {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         operate(ActionType::Decode, engine_state, stack, call, input)
     }
 }

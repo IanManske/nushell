@@ -54,7 +54,7 @@ When updating a specific index, the closure will instead be run once. The first 
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         update(engine_state, stack, call, input)
     }
 
@@ -111,7 +111,7 @@ fn update(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let span = call.head;
 
     let cell_path: CellPath = call.req(engine_state, stack, 0)?;
@@ -177,12 +177,12 @@ fn update(
                     if let Some(v) = stream.next() {
                         pre_elems.push(v);
                     } else if idx == 0 {
-                        return Err(ShellError::AccessEmptyContent { span: path_span });
+                        Err(ShellError::AccessEmptyContent { span: path_span })?;
                     } else {
-                        return Err(ShellError::AccessBeyondEnd {
+                        Err(ShellError::AccessBeyondEnd {
                             max_idx: idx - 1,
                             span: path_span,
-                        });
+                        })?;
                     }
                 }
 
@@ -255,11 +255,11 @@ fn update(
         PipelineData::Empty => Err(ShellError::IncompatiblePathAccess {
             type_name: "empty pipeline".to_string(),
             span,
-        }),
+        })?,
         PipelineData::ExternalStream { .. } => Err(ShellError::IncompatiblePathAccess {
             type_name: "external stream".to_string(),
             span,
-        }),
+        })?,
     }
 }
 
@@ -273,7 +273,7 @@ fn update_value_by_closure(
     cell_path: &[PathMember],
     first_path_member_int: bool,
     eval_block_fn: EvalBlockFn,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     let input_at_path = value.clone().follow_cell_path(cell_path, false)?;
 
     if let Some(var) = block.signature.get_positional(0) {
@@ -308,7 +308,7 @@ fn update_single_value_by_closure(
     cell_path: &[PathMember],
     first_path_member_int: bool,
     eval_block_fn: EvalBlockFn,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     let span = replacement.span();
     let capture_block = Closure::from_value(replacement)?;
     let block = engine_state.get_block(capture_block.block_id);

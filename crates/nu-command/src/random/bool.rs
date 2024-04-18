@@ -37,7 +37,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         bool(engine_state, stack, call)
     }
 
@@ -57,11 +57,7 @@ impl Command for SubCommand {
     }
 }
 
-fn bool(
-    engine_state: &EngineState,
-    stack: &mut Stack,
-    call: &Call,
-) -> Result<PipelineData, ShellError> {
+fn bool(engine_state: &EngineState, stack: &mut Stack, call: &Call) -> ShellResult<PipelineData> {
     let span = call.head;
     let bias: Option<Spanned<f64>> = call.get_flag(engine_state, stack, "bias")?;
 
@@ -73,7 +69,7 @@ fn bool(
         let probability_is_valid = (0.0..=1.0).contains(&probability);
 
         if !probability_is_valid {
-            return Err(ShellError::InvalidProbability { span: prob.span });
+            Err(ShellError::InvalidProbability { span: prob.span })?;
         }
     }
 

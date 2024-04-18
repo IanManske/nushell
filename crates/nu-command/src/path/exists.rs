@@ -51,7 +51,7 @@ If you need to distinguish dirs and files, please use `path type`."#
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let args = Arguments {
             pwd: current_dir(engine_state, stack)?,
@@ -59,7 +59,7 @@ If you need to distinguish dirs and files, please use `path type`."#
         };
         // This doesn't match explicit nulls
         if matches!(input, PipelineData::Empty) {
-            return Err(ShellError::PipelineEmpty { dst_span: head });
+            return Err(ShellError::PipelineEmpty { dst_span: head })?;
         }
         input.map(
             move |value| super::operate(&exists, &args, value, head),
@@ -72,7 +72,7 @@ If you need to distinguish dirs and files, please use `path type`."#
         working_set: &StateWorkingSet,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let args = Arguments {
             pwd: current_dir_const(working_set)?,
@@ -80,7 +80,7 @@ If you need to distinguish dirs and files, please use `path type`."#
         };
         // This doesn't match explicit nulls
         if matches!(input, PipelineData::Empty) {
-            return Err(ShellError::PipelineEmpty { dst_span: head });
+            return Err(ShellError::PipelineEmpty { dst_span: head })?;
         }
         input.map(
             move |value| super::operate(&exists, &args, value, head),

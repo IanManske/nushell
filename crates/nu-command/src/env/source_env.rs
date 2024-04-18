@@ -34,7 +34,7 @@ impl Command for SourceEnv {
         caller_stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let source_filename: Spanned<String> = call.req(engine_state, caller_stack, 0)?;
 
         // Note: this hidden positional is the block_id that corresponded to the 0th position
@@ -53,7 +53,7 @@ impl Command for SourceEnv {
             return Err(ShellError::FileNotFound {
                 file: source_filename.item,
                 span: source_filename.span,
-            });
+            })?;
         };
 
         if let Some(parent) = file_path.parent() {

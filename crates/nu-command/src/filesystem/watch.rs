@@ -71,7 +71,7 @@ impl Command for Watch {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let cwd = current_dir(engine_state, stack)?;
         let path_arg: Spanned<String> = call.req(engine_state, stack, 0)?;
 
@@ -85,7 +85,7 @@ impl Command for Watch {
                 return Err(ShellError::DirectoryNotFound {
                     dir: path_no_whitespace.to_string(),
                     span: path_arg.span,
-                })
+                })?
             }
         };
 
@@ -106,7 +106,7 @@ impl Command for Watch {
                     return Err(ShellError::TypeMismatch {
                         err_message: "Debounce duration is invalid".to_string(),
                         span: val.span,
-                    })
+                    })?
                 }
             },
             None => DEFAULT_WATCH_DEBOUNCE_DURATION,
@@ -126,7 +126,7 @@ impl Command for Watch {
                         return Err(ShellError::TypeMismatch {
                             err_message: "Glob pattern is invalid".to_string(),
                             span: glob.span,
-                        })
+                        })?
                     }
                 }
             }
@@ -154,13 +154,13 @@ impl Command for Watch {
             Err(e) => {
                 return Err(ShellError::IOError {
                     msg: format!("Failed to create watcher: {e}"),
-                })
+                })?
             }
         };
         if let Err(e) = debouncer.watcher().watch(&path, recursive_mode) {
             return Err(ShellError::IOError {
                 msg: format!("Failed to create watcher: {e}"),
-            });
+            })?;
         }
         // need to cache to make sure that rename event works.
         debouncer.cache().add_root(&path, recursive_mode);
@@ -170,7 +170,7 @@ impl Command for Watch {
         let eval_block = get_eval_block(engine_state);
 
         let event_handler =
-            |operation: &str, path: PathBuf, new_path: Option<PathBuf>| -> Result<(), ShellError> {
+            |operation: &str, path: PathBuf, new_path: Option<PathBuf>| -> ShellResult<()> {
                 let glob_pattern = glob_pattern.clone();
                 let matches_glob = match glob_pattern.clone() {
                     Some(glob) => glob.matches_path(&path),
@@ -276,12 +276,12 @@ impl Command for Watch {
                 Ok(Err(_)) => {
                     return Err(ShellError::IOError {
                         msg: "Unexpected errors when receiving events".into(),
-                    })
+                    })?
                 }
                 Err(RecvTimeoutError::Disconnected) => {
                     return Err(ShellError::IOError {
                         msg: "Unexpected disconnect from file watcher".into(),
-                    });
+                    })?;
                 }
                 Err(RecvTimeoutError::Timeout) => {}
             }

@@ -63,7 +63,7 @@ impl Command for Range {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let metadata = input.metadata();
         let rows: Spanned<NumRange> = call.req(engine_state, stack, 0)?;
 
@@ -125,7 +125,7 @@ impl Command for Range {
                 input: "value originates from here".into(),
                 msg_span: call.head,
                 input_span: rows.span,
-            }),
+            })?,
         }
     }
 }

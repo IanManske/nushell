@@ -107,7 +107,7 @@ impl Command for UCp {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let interactive = call.has_flag(engine_state, stack, "interactive")?;
         let (update, copy_mode) = if call.has_flag(engine_state, stack, "update")? {
             (UpdateMode::ReplaceIfOlder, CopyMode::Update)
@@ -158,7 +158,7 @@ impl Command for UCp {
                 span: Some(call.head),
                 help: Some("Please provide source and destination paths".into()),
                 inner: vec![],
-            });
+            })?;
         }
 
         if paths.len() == 1 {
@@ -171,7 +171,7 @@ impl Command for UCp {
                 span: Some(paths[0].span),
                 help: None,
                 inner: vec![],
-            });
+            })?;
         }
         let target = paths.pop().expect("Should not be reached?");
         let target_path = PathBuf::from(&nu_utils::strip_ansi_string_unlikely(
@@ -186,7 +186,7 @@ impl Command for UCp {
                 span: Some(target.span),
                 help: None,
                 inner: vec![],
-            });
+            })?;
         };
 
         // paths now contains the sources
@@ -195,7 +195,7 @@ impl Command for UCp {
 
         for mut p in paths {
             p.item = p.item.strip_ansi_string_unlikely();
-            let exp_files: Vec<Result<PathBuf, ShellError>> =
+            let exp_files: Vec<ShellResult<PathBuf>> =
                 nu_engine::glob_from(&p, &cwd, call.head, None)
                     .map(|f| f.1)?
                     .collect();
@@ -203,7 +203,7 @@ impl Command for UCp {
                 return Err(ShellError::FileNotFound {
                     file: p.item.to_string(),
                     span: p.span,
-                });
+                })?;
             };
             let mut app_vals: Vec<PathBuf> = Vec::new();
             for v in exp_files {
@@ -218,7 +218,7 @@ impl Command for UCp {
                                     "Directories must be copied using \"--recursive\"".into(),
                                 ),
                                 inner: vec![],
-                            });
+                            })?;
                         };
                         app_vals.push(path)
                     }
@@ -276,7 +276,7 @@ impl Command for UCp {
                         span: None,
                         help: None,
                         inner: vec![],
-                    })
+                    })?
                 }
             };
             // TODO: What should we do in place of set_exit_code?
@@ -289,7 +289,7 @@ impl Command for UCp {
 const ATTR_UNSET: uu_cp::Preserve = uu_cp::Preserve::No { explicit: true };
 const ATTR_SET: uu_cp::Preserve = uu_cp::Preserve::Yes { required: true };
 
-fn make_attributes(preserve: Option<Value>) -> Result<uu_cp::Attributes, ShellError> {
+fn make_attributes(preserve: Option<Value>) -> ShellResult<uu_cp::Attributes> {
     if let Some(preserve) = preserve {
         let mut attributes = uu_cp::Attributes {
             #[cfg(any(
@@ -334,7 +334,7 @@ fn make_attributes(preserve: Option<Value>) -> Result<uu_cp::Attributes, ShellEr
 fn parse_and_set_attributes_list(
     list: &Value,
     attribute: &mut uu_cp::Attributes,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     match list {
         Value::List { vals, .. } => {
             for val in vals {
@@ -345,14 +345,11 @@ fn parse_and_set_attributes_list(
         _ => Err(ShellError::IncompatibleParametersSingle {
             msg: "--preserve flag expects a list of strings".into(),
             span: list.span(),
-        }),
+        })?,
     }
 }
 
-fn parse_and_set_attribute(
-    value: &Value,
-    attribute: &mut uu_cp::Attributes,
-) -> Result<(), ShellError> {
+fn parse_and_set_attribute(value: &Value, attribute: &mut uu_cp::Attributes) -> ShellResult<()> {
     match value {
         Value::String { val, .. } => {
             let attribute = match val.as_str() {
@@ -374,7 +371,7 @@ fn parse_and_set_attribute(
                     return Err(ShellError::IncompatibleParametersSingle {
                         msg: format!("--preserve flag got an unexpected attribute \"{}\"", val),
                         span: value.span(),
-                    });
+                    })?;
                 }
             };
             *attribute = ATTR_SET;
@@ -383,7 +380,7 @@ fn parse_and_set_attribute(
         _ => Err(ShellError::IncompatibleParametersSingle {
             msg: "--preserve flag expects a list of strings".into(),
             span: value.span(),
-        }),
+        })?,
     }
 }
 

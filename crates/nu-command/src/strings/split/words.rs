@@ -102,7 +102,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         split_words(engine_state, stack, call, input)
     }
 }
@@ -112,7 +112,7 @@ fn split_words(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let span = call.head;
     // let ignore_hyphenated = call.has_flag(engine_state, stack, "ignore-hyphenated")?;
     // let ignore_apostrophes = call.has_flag(engine_state, stack, "ignore-apostrophes")?;
@@ -121,16 +121,16 @@ fn split_words(
 
     if word_length.is_none() {
         if call.has_flag(engine_state, stack, "grapheme-clusters")? {
-            return Err(ShellError::IncompatibleParametersSingle {
+            Err(ShellError::IncompatibleParametersSingle {
                 msg: "--grapheme-clusters (-g) requires --min-word-length (-l)".to_string(),
                 span,
-            });
+            })?;
         }
         if call.has_flag(engine_state, stack, "utf-8-bytes")? {
-            return Err(ShellError::IncompatibleParametersSingle {
+            Err(ShellError::IncompatibleParametersSingle {
                 msg: "--utf-8-bytes (-b) requires --min-word-length (-l)".to_string(),
                 span,
-            });
+            })?;
         }
     }
     let graphemes = grapheme_flags(engine_state, stack, call)?;
@@ -151,7 +151,7 @@ fn split_words_helper(v: &Value, word_length: Option<usize>, span: Span, graphem
     let v_span = v.span();
 
     match v {
-        Value::Error { error, .. } => Value::error(*error.clone(), v_span),
+        Value::Error { error, .. } => Value::error(error.clone(), v_span),
         v => {
             let v_span = v.span();
             if let Ok(s) = v.coerce_str() {

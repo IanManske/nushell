@@ -59,7 +59,7 @@ impl Command for Skip {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let n: Option<Value> = call.opt(engine_state, stack, 0)?;
         let metadata = input.metadata();
 
@@ -77,7 +77,7 @@ impl Command for Skip {
                         return Err(ShellError::TypeMismatch {
                             err_message: "expected int".into(),
                             span,
-                        })
+                        })?
                     }
                 }
             }

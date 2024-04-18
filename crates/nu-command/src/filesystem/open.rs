@@ -47,7 +47,7 @@ impl Command for Open {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let raw = call.has_flag(engine_state, stack, "raw")?;
         let call_span = call.head;
         let ctrlc = engine_state.ctrlc.clone();
@@ -66,7 +66,7 @@ impl Command for Open {
                     return Err(ShellError::MissingParameter {
                         param_name: "needs filename".to_string(),
                         span: call.head,
-                    });
+                    })?;
                 }
             };
 
@@ -86,11 +86,12 @@ impl Command for Open {
             // let path_no_whitespace = &path.item.trim_end_matches(|x| matches!(x, '\x09'..='\x0d'));
 
             for path in nu_engine::glob_from(&path, &cwd, call_span, None)
-                .map_err(|err| match err {
+                .map_err(|err| match *err {
                     ShellError::DirectoryNotFound { span, .. } => ShellError::FileNotFound {
                         file: path.item.to_string(),
                         span,
-                    },
+                    }
+                    .into(),
                     _ => err,
                 })?
                 .1
@@ -116,7 +117,7 @@ impl Command for Open {
                         span: Some(arg_span),
                         help: None,
                         inner: vec![],
-                    });
+                    })?;
                 } else {
                     #[cfg(feature = "sqlite")]
                     if !raw {
@@ -137,7 +138,7 @@ impl Command for Open {
                                 span: Some(arg_span),
                                 help: None,
                                 inner: vec![],
-                            });
+                            })?;
                         }
                     };
 
@@ -187,13 +188,13 @@ impl Command for Open {
                                 decl.run(engine_state, stack, &Call::new(call_span), file_contents)
                             };
                             output.push(command_output.map_err(|inner| {
-                                    ShellError::GenericError{
+                                    ShellError::GenericError {
                                         error: format!("Error while parsing as {ext}"),
                                         msg: format!("Could not parse '{}' with `from {}`", path.display(), ext),
                                         span: Some(arg_span),
                                         help: Some(format!("Check out `help from {}` or `help from` for more options or open raw data with `open --raw '{}'`", ext, path.display())),
-                                        inner: vec![inner],
-                                }
+                                        inner: vec![inner.into()],
+                                    }
                                 })?);
                         }
                         None => output.push(file_contents),

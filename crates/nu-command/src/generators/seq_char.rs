@@ -59,7 +59,7 @@ impl Command for SeqChar {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         seq_char(engine_state, stack, call)
     }
 }
@@ -72,28 +72,28 @@ fn seq_char(
     engine_state: &EngineState,
     stack: &mut Stack,
     call: &Call,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let start: Spanned<String> = call.req(engine_state, stack, 0)?;
     let end: Spanned<String> = call.req(engine_state, stack, 1)?;
 
     if !is_single_character(&start.item) {
-        return Err(ShellError::GenericError {
+        Err(ShellError::GenericError {
             error: "seq char only accepts individual ASCII characters as parameters".into(),
             msg: "should be 1 character long".into(),
             span: Some(start.span),
             help: None,
             inner: vec![],
-        });
+        })?;
     }
 
     if !is_single_character(&end.item) {
-        return Err(ShellError::GenericError {
+        Err(ShellError::GenericError {
             error: "seq char only accepts individual ASCII characters as parameters".into(),
             msg: "should be 1 character long".into(),
             span: Some(end.span),
             help: None,
             inner: vec![],
-        });
+        })?;
     }
 
     let start = start
@@ -114,7 +114,7 @@ fn seq_char(
     run_seq_char(start, end, span)
 }
 
-fn run_seq_char(start_ch: char, end_ch: char, span: Span) -> Result<PipelineData, ShellError> {
+fn run_seq_char(start_ch: char, end_ch: char, span: Span) -> ShellResult<PipelineData> {
     let mut result_vec = vec![];
     for current_ch in start_ch as u8..end_ch as u8 + 1 {
         result_vec.push((current_ch as char).to_string())

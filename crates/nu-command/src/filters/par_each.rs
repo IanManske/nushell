@@ -96,8 +96,8 @@ impl Command for ParEach {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
-        fn create_pool(num_threads: usize) -> Result<rayon::ThreadPool, ShellError> {
+    ) -> ShellResult<PipelineData> {
+        fn create_pool(num_threads: usize) -> ShellResult<rayon::ThreadPool> {
             match rayon::ThreadPoolBuilder::new()
                 .num_threads(num_threads)
                 .build()
@@ -108,7 +108,7 @@ impl Command for ParEach {
                     span: Some(Span::unknown()),
                     help: None,
                     inner: vec![],
-                }),
+                })?,
                 Ok(pool) => Ok(pool),
             }
         }

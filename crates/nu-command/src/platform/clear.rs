@@ -5,7 +5,7 @@ use crossterm::{
 };
 use nu_engine::command_prelude::*;
 
-use std::io::Write;
+use std::io::{self, Write};
 
 #[derive(Clone)]
 pub struct Clear;
@@ -36,15 +36,13 @@ impl Command for Clear {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let clear_type: ClearType = match call.has_flag(engine_state, stack, "all")? {
             true => ClearType::Purge,
             _ => ClearType::All,
         };
-        std::io::stdout()
-            .queue(ClearCommand(clear_type))?
-            .queue(MoveTo(0, 0))?
-            .flush()?;
+
+        clear(clear_type).map_err(|e| e.into_spanned(call.head))?;
 
         Ok(PipelineData::Empty)
     }
@@ -63,4 +61,11 @@ impl Command for Clear {
             },
         ]
     }
+}
+
+fn clear(clear_type: ClearType) -> io::Result<()> {
+    std::io::stdout()
+        .queue(ClearCommand(clear_type))?
+        .queue(MoveTo(0, 0))?
+        .flush()
 }

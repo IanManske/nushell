@@ -56,7 +56,7 @@ impl Command for RegistryQuery {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         registry_query(engine_state, stack, call)
     }
 
@@ -80,7 +80,7 @@ fn registry_query(
     engine_state: &EngineState,
     stack: &mut Stack,
     call: &Call,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let call_span = call.head;
 
     let skip_expand = call.has_flag(engine_state, stack, "no-expand")?;
@@ -139,11 +139,7 @@ fn registry_query(
     }
 }
 
-fn get_reg_hive(
-    engine_state: &EngineState,
-    stack: &mut Stack,
-    call: &Call,
-) -> Result<RegKey, ShellError> {
+fn get_reg_hive(engine_state: &EngineState, stack: &mut Stack, call: &Call) -> ShellResult<RegKey> {
     let flags = [
         "hkcr", "hkcu", "hklm", "hku", "hkpd", "hkpt", "hkpnls", "hkcc", "hkdd", "hkculs",
     ]
@@ -154,7 +150,7 @@ fn get_reg_hive(
         Ok(false) => None,
         Err(e) => Some(Err(e)),
     })
-    .collect::<Result<Vec<_>, ShellError>>()?;
+    .collect::<ShellResult<Vec<_>>>()?;
     if flags.len() > 1 {
         return Err(ShellError::GenericError {
             error: "Only one registry key can be specified".into(),

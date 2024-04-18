@@ -652,7 +652,7 @@ Operating system commands:
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let list: bool = call.has_flag(engine_state, stack, "list")?;
         let escape: bool = call.has_flag(engine_state, stack, "escape")?;
         let osc: bool = call.has_flag(engine_state, stack, "osc")?;
@@ -672,7 +672,7 @@ Operating system commands:
                 return Err(ShellError::MissingParameter {
                     param_name: "code".into(),
                     span: call.head,
-                })
+                })?
             }
         };
 
@@ -686,7 +686,7 @@ Operating system commands:
         working_set: &StateWorkingSet,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let list: bool = call.has_flag_const(working_set, "list")?;
         let escape: bool = call.has_flag_const(working_set, "escape")?;
         let osc: bool = call.has_flag_const(working_set, "osc")?;
@@ -706,7 +706,7 @@ Operating system commands:
                 return Err(ShellError::MissingParameter {
                     param_name: "code".into(),
                     span: call.head,
-                })
+                })?
             }
         };
 
@@ -716,10 +716,10 @@ Operating system commands:
     }
 }
 
-fn heavy_lifting(code: Value, escape: bool, osc: bool, call: &Call) -> Result<String, ShellError> {
+fn heavy_lifting(code: Value, escape: bool, osc: bool, call: &Call) -> ShellResult<String> {
     let param_is_string = matches!(code, Value::String { .. });
     if escape && osc {
-        return Err(ShellError::IncompatibleParameters {
+        Err(ShellError::IncompatibleParameters {
             left_message: "escape".into(),
             left_span: call
                 .get_named_arg("escape")
@@ -730,7 +730,7 @@ fn heavy_lifting(code: Value, escape: bool, osc: bool, call: &Call) -> Result<St
                 .get_named_arg("osc")
                 .expect("Unexpected missing argument")
                 .span,
-        });
+        })?;
     }
     let code_string = if param_is_string {
         code.coerce_str().expect("error getting code as string")
@@ -746,10 +746,10 @@ fn heavy_lifting(code: Value, escape: bool, osc: bool, call: &Call) -> Result<St
                 None => call.head,
             };
 
-            return Err(ShellError::TypeMismatch {
+            Err(ShellError::TypeMismatch {
                 err_message: "no need for escape characters".into(),
                 span,
-            });
+            })?;
         }
     }
     let output = if escape && param_is_valid_string {
@@ -775,7 +775,7 @@ fn heavy_lifting(code: Value, escape: bool, osc: bool, call: &Call) -> Result<St
                         span: Some(code.span()),
                         help: None,
                         inner: vec![],
-                    });
+                    })?;
                 }
             }
         } else {
@@ -788,7 +788,7 @@ fn heavy_lifting(code: Value, escape: bool, osc: bool, call: &Call) -> Result<St
                             .positional_nth(0)
                             .expect("Unexpected missing argument")
                             .span,
-                    })
+                    })?
                 }
             }
         }
@@ -813,7 +813,7 @@ fn heavy_lifting(code: Value, escape: bool, osc: bool, call: &Call) -> Result<St
                     return Err(ShellError::IncompatibleParametersSingle {
                         msg: format!("unknown ANSI format key: expected one of ['fg', 'bg', 'attr'], found '{k}'"),
                         span,
-                    })
+                    })?
                 }
             }
         }
@@ -833,7 +833,7 @@ fn generate_ansi_code_list(
     ctrlc: Option<Arc<AtomicBool>>,
     call_span: Span,
     use_ansi_coloring: bool,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     return Ok(CODE_LIST
         .iter()
         .enumerate()

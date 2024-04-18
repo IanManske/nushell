@@ -39,7 +39,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let sample = call.has_flag(engine_state, stack, "sample")?;
         run_with_function(call, input, compute_variance(sample))
     }
@@ -68,21 +68,21 @@ impl Command for SubCommand {
     }
 }
 
-fn sum_of_squares(values: &[Value], span: Span) -> Result<Value, ShellError> {
+fn sum_of_squares(values: &[Value], span: Span) -> ShellResult<Value> {
     let n = Value::int(values.len() as i64, span);
     let mut sum_x = Value::int(0, span);
     let mut sum_x2 = Value::int(0, span);
     for value in values {
         let v = match &value {
             Value::Int { .. } | Value::Float { .. } => Ok(value),
-            Value::Error { error, .. } => Err(*error.clone()),
+            Value::Error { error, .. } => Err(error.clone()),
             _ => Err(ShellError::UnsupportedInput {
                 msg: "Attempted to compute the sum of squares of a non-int, non-float value"
                     .to_string(),
                 input: "value originates from here".into(),
                 msg_span: span,
                 input_span: value.span(),
-            }),
+            })?,
         }?;
         let v_squared = &v.mul(span, v, span)?;
         sum_x2 = sum_x2.add(span, v_squared, span)?;
@@ -97,9 +97,7 @@ fn sum_of_squares(values: &[Value], span: Span) -> Result<Value, ShellError> {
     Ok(ss)
 }
 
-pub fn compute_variance(
-    sample: bool,
-) -> impl Fn(&[Value], Span, Span) -> Result<Value, ShellError> {
+pub fn compute_variance(sample: bool) -> impl Fn(&[Value], Span, Span) -> ShellResult<Value> {
     move |values: &[Value], span: Span, head: Span| {
         let n = if sample {
             values.len() - 1

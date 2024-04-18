@@ -56,7 +56,7 @@ prints out the list properly."#
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let width_param: Option<i64> = call.get_flag(engine_state, stack, "width")?;
         let color_param: bool = call.has_flag(engine_state, stack, "color")?;
         let separator_param: Option<String> = call.get_flag(engine_state, stack, "separator")?;
@@ -169,7 +169,7 @@ fn create_grid_output(
     separator_param: Option<String>,
     env_str: Option<String>,
     use_grid_icons: bool,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let ls_colors = get_ls_colors(env_str);
 
     let cols = if let Some(col) = width_param {
@@ -247,7 +247,7 @@ fn create_grid_output(
 fn convert_to_list(
     iter: impl IntoIterator<Item = Value>,
     config: &Config,
-) -> Result<Option<Vec<(usize, String, String)>>, ShellError> {
+) -> ShellResult<Option<Vec<(usize, String, String)>>> {
     let mut iter = iter.into_iter().peekable();
 
     if let Some(first) = iter.peek() {
@@ -261,7 +261,7 @@ fn convert_to_list(
 
         for (row_num, item) in iter.enumerate() {
             if let Value::Error { error, .. } = item {
-                return Err(*error);
+                return Err(error);
             }
 
             let mut row = vec![row_num.to_string()];
@@ -278,7 +278,7 @@ fn convert_to_list(
                     match result {
                         Some(value) => {
                             if let Value::Error { error, .. } = item {
-                                return Err(*error);
+                                return Err(error);
                             }
                             row.push(value.to_expanded_string(", ", config));
                         }

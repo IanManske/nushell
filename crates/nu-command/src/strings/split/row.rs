@@ -49,7 +49,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         split_row(engine_state, stack, call, input)
     }
 
@@ -116,7 +116,7 @@ fn split_row(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let name_span = call.head;
     let separator: Spanned<String> = call.req(engine_state, stack, 0)?;
     let regex = if call.has_flag(engine_state, stack, "regex")? {
@@ -143,7 +143,7 @@ fn split_row_helper(v: &Value, regex: &Regex, max_split: Option<usize>, name: Sp
     let span = v.span();
     match v {
         Value::Error { error, .. } => {
-            vec![Value::error(*error.clone(), span)]
+            vec![Value::error(error.clone(), span)]
         }
         v => {
             let v_span = v.span();

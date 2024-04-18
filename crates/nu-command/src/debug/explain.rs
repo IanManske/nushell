@@ -34,7 +34,7 @@ impl Command for Explain {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<nu_protocol::PipelineData, nu_protocol::ShellError> {
+    ) -> ShellResult<PipelineData> {
         // This was all delightfully stolen from benchmark :)
         let capture_block: Closure = call.req(engine_state, stack, 0)?;
         let block = engine_state.get_block(capture_block.block_id);
@@ -109,7 +109,7 @@ fn get_arguments(
     engine_state: &EngineState,
     stack: &mut Stack,
     call: &Call,
-    eval_expression_fn: fn(&EngineState, &mut Stack, &Expression) -> Result<Value, ShellError>,
+    eval_expression_fn: fn(&EngineState, &mut Stack, &Expression) -> ShellResult<Value>,
 ) -> Vec<Value> {
     let mut arg_value = vec![];
     let span = Span::test_data();
@@ -239,7 +239,7 @@ fn get_expression_as_value(
     engine_state: &EngineState,
     stack: &mut Stack,
     inner_expr: &Expression,
-    eval_expression_fn: fn(&EngineState, &mut Stack, &Expression) -> Result<Value, ShellError>,
+    eval_expression_fn: fn(&EngineState, &mut Stack, &Expression) -> ShellResult<Value>,
 ) -> Value {
     match eval_expression_fn(engine_state, stack, inner_expr) {
         Ok(v) => v,

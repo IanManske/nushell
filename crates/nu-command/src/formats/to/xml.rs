@@ -99,7 +99,7 @@ Additionally any field which is: empty record, empty list or null, can be omitte
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let indent: Option<Spanned<i64>> = call.get_flag(engine_state, stack, "indent")?;
         let partial_escape = call.has_flag(engine_state, stack, "partial-escape")?;
@@ -131,7 +131,7 @@ impl Job {
         }
     }
 
-    fn run(mut self, input: PipelineData, head: Span) -> Result<PipelineData, ShellError> {
+    fn run(mut self, input: PipelineData, head: Span) -> ShellResult<PipelineData> {
         let value = input.into_value(head);
 
         self.write_xml_entry(value, true).and_then(|_| {
@@ -139,7 +139,7 @@ impl Job {
             let s = if let Ok(s) = String::from_utf8(b) {
                 s
             } else {
-                return Err(ShellError::NonUtf8 { span: head });
+                return Err(ShellError::NonUtf8 { span: head })?;
             };
             Ok(Value::string(s, head).into_pipeline_data())
         })
@@ -190,7 +190,7 @@ impl Job {
         }
     }
 
-    fn write_xml_entry(&mut self, entry: Value, top_level: bool) -> Result<(), ShellError> {
+    fn write_xml_entry(&mut self, entry: Value, top_level: bool) -> ShellResult<()> {
         let entry_span = entry.span();
         let span = entry.span();
 
@@ -213,7 +213,7 @@ impl Job {
                     "Invalid column \"{}\" in xml entry. Only \"{}\", \"{}\" and \"{}\" are permitted",
                     bad_column, COLUMN_TAG_NAME, COLUMN_ATTRS_NAME, COLUMN_CONTENT_NAME
                 )),
-            });
+            })?;
             }
             // If key is not found it is assumed to be nothing. This way
             // user can write a tag like {tag: a content: [...]} instead
@@ -242,7 +242,7 @@ impl Job {
                             from_type: entry.get_type().to_string(),
                             span: entry_span,
                             help: Some("Strings can not be a root element of document".into()),
-                        });
+                        })?;
                     }
                     self.write_xml_text(val.as_str(), content_span)
                 }
@@ -254,7 +254,7 @@ impl Job {
                     from_type: "record".into(),
                     span: entry_span,
                     help: Some("Tag missing or is not a string".into()),
-                }),
+                })?,
             }
         } else {
             Err(ShellError::CantConvert {
@@ -262,7 +262,7 @@ impl Job {
                 from_type: entry.get_type().to_string(),
                 span: entry_span,
                 help: Some("Xml entry expected to be a record".into()),
-            })
+            })?
         }
     }
 
@@ -282,7 +282,7 @@ impl Job {
         attrs: Value,
         content: Value,
         top_level: bool,
-    ) -> Result<(), ShellError> {
+    ) -> ShellResult<()> {
         if tag == "!" {
             // Comments can not appear on top level of document
             if top_level {
@@ -291,7 +291,7 @@ impl Job {
                     from_type: "record".into(),
                     span: entry_span,
                     help: Some("Comments can not be a root element of document".into()),
-                });
+                })?;
             }
 
             self.write_comment(entry_span, attrs, content)
@@ -303,7 +303,7 @@ impl Job {
                     from_type: Type::Record(vec![]).to_string(),
                     span: entry_span,
                     help: Some("PIs can not be a root element of document".into()),
-                });
+                })?;
             }
 
             let content: String = match content {
@@ -315,7 +315,7 @@ impl Job {
                         from_type: Type::Record(vec![]).to_string(),
                         span: content.span(),
                         help: Some("PI content expected to be a string".into()),
-                    });
+                    })?;
                 }
             };
 
@@ -333,7 +333,7 @@ impl Job {
                         from_type: attrs.get_type().to_string(),
                         span: attrs.span(),
                         help: Some("Tag attributes expected to be a record".into()),
-                    });
+                    })?;
                 }
             };
 
@@ -346,7 +346,7 @@ impl Job {
                         from_type: content.get_type().to_string(),
                         span: content.span(),
                         help: Some("Tag content expected to be a list".into()),
-                    });
+                    })?;
                 }
             };
 
@@ -354,12 +354,7 @@ impl Job {
         }
     }
 
-    fn write_comment(
-        &mut self,
-        entry_span: Span,
-        attrs: Value,
-        content: Value,
-    ) -> Result<(), ShellError> {
+    fn write_comment(&mut self, entry_span: Span, attrs: Value, content: Value) -> ShellResult<()> {
         match (attrs, content) {
             (Value::Nothing { .. }, Value::String { val, .. }) => {
                 // Text in comments must NOT be escaped
@@ -367,11 +362,14 @@ impl Job {
                 let comment_content = BytesText::from_escaped(val.as_str());
                 self.writer
                     .write_event(Event::Comment(comment_content))
-                    .map_err(|_| ShellError::CantConvert {
-                        to_type: "XML".to_string(),
-                        from_type: Type::Record(vec![]).to_string(),
-                        span: entry_span,
-                        help: Some("Failure writing comment to xml".into()),
+                    .map_err(|_| {
+                        ShellError::CantConvert {
+                            to_type: "XML".to_string(),
+                            from_type: Type::Record(vec![]).to_string(),
+                            span: entry_span,
+                            help: Some("Failure writing comment to xml".into()),
+                        }
+                        .into()
                     })
             }
             (_, content) => Err(ShellError::CantConvert {
@@ -379,7 +377,7 @@ impl Job {
                 from_type: content.get_type().to_string(),
                 span: entry_span,
                 help: Some("Comment expected to have string content and no attributes".into()),
-            }),
+            })?,
         }
     }
 
@@ -389,14 +387,14 @@ impl Job {
         tag: &str,
         attrs: Value,
         content: String,
-    ) -> Result<(), ShellError> {
+    ) -> ShellResult<()> {
         if !matches!(attrs, Value::Nothing { .. }) {
             return Err(ShellError::CantConvert {
                 to_type: "XML".into(),
                 from_type: Type::Record(vec![]).to_string(),
                 span: entry_span,
                 help: Some("PIs do not have attributes".into()),
-            });
+            })?;
         }
 
         let content_text = format!("{} {}", tag, content);
@@ -404,14 +402,15 @@ impl Job {
         // https://www.w3.org/TR/xml/#sec-pi
         let pi_content = BytesText::from_escaped(content_text.as_str());
 
-        self.writer
-            .write_event(Event::PI(pi_content))
-            .map_err(|_| ShellError::CantConvert {
+        self.writer.write_event(Event::PI(pi_content)).map_err(|_| {
+            ShellError::CantConvert {
                 to_type: "XML".to_string(),
                 from_type: Type::Record(vec![]).to_string(),
                 span: entry_span,
                 help: Some("Failure writing PI to xml".into()),
-            })
+            }
+            .into()
+        })
     }
 
     fn write_tag(
@@ -421,7 +420,7 @@ impl Job {
         tag_span: Span,
         attrs: Record,
         children: Vec<Value>,
-    ) -> Result<(), ShellError> {
+    ) -> ShellResult<()> {
         if tag.starts_with('!') || tag.starts_with('?') {
             return Err(ShellError::CantConvert {
                 to_type: "XML".to_string(),
@@ -431,7 +430,7 @@ impl Job {
                     "Incorrect tag name {}, tag name can not start with ! or ?",
                     tag
                 )),
-            });
+            })?;
         }
 
         let self_closed = self.self_closed && children.is_empty();
@@ -471,7 +470,7 @@ impl Job {
         Ok(())
     }
 
-    fn parse_attributes(attrs: Record) -> Result<IndexMap<String, String>, ShellError> {
+    fn parse_attributes(attrs: Record) -> ShellResult<IndexMap<String, String>> {
         let mut h = IndexMap::new();
         for (k, v) in attrs {
             if let Value::String { val, .. } = v {
@@ -482,27 +481,28 @@ impl Job {
                     from_type: v.get_type().to_string(),
                     span: v.span(),
                     help: Some("Attribute value expected to be a string".into()),
-                });
+                })?;
             }
         }
         Ok(h)
     }
 
-    fn write_xml_text(&mut self, val: &str, span: Span) -> Result<(), ShellError> {
+    fn write_xml_text(&mut self, val: &str, span: Span) -> ShellResult<()> {
         let text = Event::Text(if self.partial_escape {
             BytesText::from_escaped(escape::partial_escape(val))
         } else {
             BytesText::new(val)
         });
 
-        self.writer
-            .write_event(text)
-            .map_err(|_| ShellError::CantConvert {
+        self.writer.write_event(text).map_err(|_| {
+            ShellError::CantConvert {
                 to_type: "XML".to_string(),
                 from_type: Type::String.to_string(),
                 span,
                 help: Some("Failure writing string to xml".into()),
-            })
+            }
+            .into()
+        })
     }
 }
 

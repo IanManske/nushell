@@ -86,7 +86,7 @@ impl Command for Values {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
         values(engine_state, span, input)
     }
@@ -100,7 +100,7 @@ pub fn get_values<'a>(
     input: impl IntoIterator<Item = &'a Value>,
     head: Span,
     input_span: Span,
-) -> Result<Vec<Value>, ShellError> {
+) -> ShellResult<Vec<Value>> {
     let mut output: IndexMap<String, Vec<Value>> = IndexMap::new();
 
     for item in input {
@@ -114,14 +114,14 @@ pub fn get_values<'a>(
                     }
                 }
             }
-            Value::Error { error, .. } => return Err(*error.clone()),
+            Value::Error { error, .. } => return Err(error.clone()),
             _ => {
                 return Err(ShellError::OnlySupportsThisInputType {
                     exp_input_type: "record or table".into(),
                     wrong_type: item.get_type().to_string(),
                     dst_span: head,
                     src_span: input_span,
-                })
+                })?
             }
         }
     }
@@ -133,7 +133,7 @@ fn values(
     engine_state: &EngineState,
     head: Span,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let ctrlc = engine_state.ctrlc.clone();
     let metadata = input.metadata();
     match input {
@@ -176,13 +176,13 @@ fn values(
                         .into_pipeline_data_with_metadata(metadata, ctrlc))
                 }
                 // Propagate errors
-                Value::Error { error, .. } => Err(*error),
+                Value::Error { error, .. } => Err(error),
                 other => Err(ShellError::OnlySupportsThisInputType {
                     exp_input_type: "record or table".into(),
                     wrong_type: other.get_type().to_string(),
                     dst_span: head,
                     src_span: other.span(),
-                }),
+                })?,
             }
         }
         PipelineData::ListStream(stream, ..) => {
@@ -201,7 +201,7 @@ fn values(
             src_span: input
                 .span()
                 .expect("PipelineData::ExternalStream had no span"),
-        }),
+        })?,
     }
 }
 

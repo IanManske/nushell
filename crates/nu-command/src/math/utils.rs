@@ -1,12 +1,14 @@
 use core::slice;
 use indexmap::IndexMap;
-use nu_protocol::{ast::Call, IntoPipelineData, PipelineData, ShellError, Span, Value};
+use nu_protocol::{
+    ast::Call, IntoPipelineData, PipelineData, ShellError, ShellResult, Span, Value,
+};
 
 pub fn run_with_function(
     call: &Call,
     input: PipelineData,
-    mf: impl Fn(&[Value], Span, Span) -> Result<Value, ShellError>,
-) -> Result<PipelineData, ShellError> {
+    mf: impl Fn(&[Value], Span, Span) -> ShellResult<Value>,
+) -> ShellResult<PipelineData> {
     let name = call.head;
     let res = calculate(input, name, mf);
     match res {
@@ -19,8 +21,8 @@ fn helper_for_tables(
     values: &[Value],
     val_span: Span,
     name: Span,
-    mf: impl Fn(&[Value], Span, Span) -> Result<Value, ShellError>,
-) -> Result<Value, ShellError> {
+    mf: impl Fn(&[Value], Span, Span) -> ShellResult<Value>,
+) -> ShellResult<Value> {
     // If we are not dealing with Primitives, then perhaps we are dealing with a table
     // Create a key for each column name
     let mut column_values = IndexMap::new();
@@ -34,7 +36,7 @@ fn helper_for_tables(
                         .or_insert_with(|| vec![value.clone()]);
                 }
             }
-            Value::Error { error, .. } => return Err(*error.clone()),
+            Value::Error { error, .. } => return Err(error.clone()),
             _ => {
                 //Turns out we are not dealing with a table
                 return mf(values, val.span(), name);
@@ -49,12 +51,12 @@ fn helper_for_tables(
         }
     }
     if column_totals.keys().len() == 0 {
-        return Err(ShellError::UnsupportedInput {
+        Err(ShellError::UnsupportedInput {
             msg: "Unable to give a result with this input".to_string(),
             input: "value originates from here".into(),
             msg_span: name,
             input_span: val_span,
-        });
+        })?;
     }
 
     Ok(Value::record(column_totals.into_iter().collect(), name))
@@ -63,8 +65,8 @@ fn helper_for_tables(
 pub fn calculate(
     values: PipelineData,
     name: Span,
-    mf: impl Fn(&[Value], Span, Span) -> Result<Value, ShellError>,
-) -> Result<Value, ShellError> {
+    mf: impl Fn(&[Value], Span, Span) -> ShellResult<Value>,
+) -> ShellResult<Value> {
     // TODO implement spans for ListStream, thus negating the need for unwrap_or().
     let span = values.span().unwrap_or(name);
     match values {
@@ -84,14 +86,14 @@ pub fn calculate(
             let mut record = val.into_owned();
             record
                 .iter_mut()
-                .try_for_each(|(_, val)| -> Result<(), ShellError> {
+                .try_for_each(|(_, val)| -> ShellResult<()> {
                     *val = mf(slice::from_ref(val), span, name)?;
                     Ok(())
                 })?;
             Ok(Value::record(record, span))
         }
         PipelineData::Value(Value::Range { val, .. }, ..) => {
-            let new_vals: Result<Vec<Value>, ShellError> = val
+            let new_vals: ShellResult<Vec<Value>> = val
                 .into_range_iter(span, None)
                 .map(|val| mf(&[val], span, name))
                 .collect();
@@ -99,7 +101,7 @@ pub fn calculate(
             mf(&new_vals?, span, name)
         }
         PipelineData::Value(val, ..) => mf(&[val], span, name),
-        PipelineData::Empty { .. } => Err(ShellError::PipelineEmpty { dst_span: name }),
+        PipelineData::Empty { .. } => Err(ShellError::PipelineEmpty { dst_span: name })?,
         val => Err(ShellError::UnsupportedInput {
             msg: "Only ints, floats, lists, records, or ranges are supported".into(),
             input: "value originates from here".into(),
@@ -107,6 +109,6 @@ pub fn calculate(
             input_span: val
                 .span()
                 .expect("non-Empty non-ListStream PipelineData had no span"),
-        }),
+        })?,
     }
 }

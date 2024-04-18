@@ -56,7 +56,7 @@ impl Command for Uniq {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let mapper = Box::new(move |ms: ItemMapperState| -> ValueCounter {
             item_mapper(ms.item, ms.flag_ignore_case, ms.index)
         });
@@ -214,7 +214,7 @@ fn sort_attributes(val: Value) -> Value {
     }
 }
 
-fn generate_key(item: &ValueCounter) -> Result<String, ShellError> {
+fn generate_key(item: &ValueCounter) -> ShellResult<String> {
     let value = sort_attributes(item.val_to_compare.clone()); //otherwise, keys could be different for Records
     value_to_string(&value, Span::unknown(), 0, None)
 }
@@ -241,7 +241,7 @@ pub fn uniq(
     input: Vec<Value>,
     item_mapper: Box<dyn Fn(ItemMapperState) -> ValueCounter>,
     metadata: Option<PipelineMetadata>,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let ctrlc = engine_state.ctrlc.clone();
     let head = call.head;
     let flag_show_count = call.has_flag(engine_state, stack, "count")?;

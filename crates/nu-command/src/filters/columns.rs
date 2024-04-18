@@ -66,7 +66,7 @@ impl Command for Columns {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
         getcol(engine_state, span, input)
     }
@@ -76,7 +76,7 @@ fn getcol(
     engine_state: &EngineState,
     head: Span,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let ctrlc = engine_state.ctrlc.clone();
     let metadata = input.metadata();
     match input {
@@ -124,13 +124,13 @@ fn getcol(
                     .into_pipeline_data(ctrlc)
                     .set_metadata(metadata)),
                 // Propagate errors
-                Value::Error { error, .. } => Err(*error),
+                Value::Error { error, .. } => Err(error),
                 other => Err(ShellError::OnlySupportsThisInputType {
                     exp_input_type: "record or table".into(),
                     wrong_type: other.get_type().to_string(),
                     dst_span: head,
                     src_span: other.span(),
-                }),
+                })?,
             }
         }
         PipelineData::ListStream(stream, ..) => {
@@ -149,7 +149,7 @@ fn getcol(
             src_span: input
                 .span()
                 .expect("PipelineData::ExternalStream had no span"),
-        }),
+        })?,
     }
 }
 

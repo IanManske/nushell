@@ -87,7 +87,7 @@ confusing the id/parent_id hierarchy. The --expr flag is helpful for investigati
         caller_stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let closure: Closure = call.req(engine_state, caller_stack, 0)?;
         let mut callee_stack = caller_stack.captures_to_stack(closure.captures);
         let block = engine_state.get_block(closure.block_id);

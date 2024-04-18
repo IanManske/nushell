@@ -52,7 +52,7 @@ impl Command for ConfigNu {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         // `--default` flag handling
         if call.has_flag(engine_state, stack, "default")? {
             let head = call.head;
@@ -69,7 +69,7 @@ impl Command for ConfigNu {
                     span: None,
                     help: None,
                     inner: vec![],
-                });
+                })?;
             }
         };
 

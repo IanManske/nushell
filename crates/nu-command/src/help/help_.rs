@@ -44,7 +44,7 @@ impl Command for Help {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let find: Option<Spanned<String>> = call.get_flag(engine_state, stack, "find")?;
         let rest: Vec<Spanned<String>> = call.rest(engine_state, stack, 0)?;
@@ -78,16 +78,16 @@ You can also learn more at https://www.nushell.sh/book/"#;
         } else if find.is_some() {
             help_commands(engine_state, stack, call)
         } else {
-            let result = help_aliases(engine_state, stack, call);
+            let result = help_aliases(engine_state, stack, call).map_err(Into::into);
 
             let result = if let Err(ShellError::AliasNotFound { .. }) = result {
-                help_commands(engine_state, stack, call)
+                help_commands(engine_state, stack, call).map_err(Into::into)
             } else {
                 result
             };
 
             let result = if let Err(ShellError::CommandNotFound { .. }) = result {
-                help_modules(engine_state, stack, call)
+                help_modules(engine_state, stack, call).map_err(Into::into)
             } else {
                 result
             };
@@ -100,9 +100,9 @@ You can also learn more at https://www.nushell.sh/book/"#;
                 let rest_spans: Vec<Span> = rest.iter().map(|arg| arg.span).collect();
                 Err(ShellError::NotFound {
                     span: span(&rest_spans),
-                })
+                })?
             } else {
-                result
+                result.map_err(Into::into)
             }
         }
     }
@@ -134,7 +134,7 @@ pub fn highlight_search_in_table(
     searched_cols: &[&str],
     string_style: &Style,
     highlight_style: &Style,
-) -> Result<Vec<Value>, ShellError> {
+) -> ShellResult<Vec<Value>> {
     let orig_search_string = search_string;
     let search_string = search_string.to_folded_case();
     let mut matches = vec![];
@@ -149,12 +149,12 @@ pub fn highlight_search_in_table(
                 msg: "Expected record".to_string(),
                 label: format!("got {}", value.get_type()),
                 span: value.span(),
-            });
+            })?;
         };
 
         let has_match = record.to_mut().iter_mut().try_fold(
             false,
-            |acc: bool, (col, val)| -> Result<bool, ShellError> {
+            |acc: bool, (col, val)| -> ShellResult<bool> {
                 if !searched_cols.contains(&col.as_str()) {
                     // don't search this column
                     return Ok(acc);
@@ -194,7 +194,7 @@ pub fn highlight_search_string(
     needle: &str,
     string_style: &Style,
     highlight_style: &Style,
-) -> Result<String, ShellError> {
+) -> ShellResult<String> {
     let regex_string = format!("(?i){needle}");
     let regex = match Regex::new(&regex_string) {
         Ok(regex) => regex,
@@ -205,7 +205,7 @@ pub fn highlight_search_string(
                 span: Some(Span::test_data()),
                 help: None,
                 inner: vec![],
-            });
+            })?;
         }
     };
     // strip haystack to remove existing ansi style
@@ -237,13 +237,13 @@ pub fn highlight_search_string(
                 last_match_end = end;
             }
             Err(e) => {
-                return Err(ShellError::GenericError {
+                Err(ShellError::GenericError {
                     error: "Error with regular expression capture".into(),
                     msg: e.to_string(),
                     span: None,
                     help: None,
                     inner: vec![],
-                });
+                })?;
             }
         }
     }

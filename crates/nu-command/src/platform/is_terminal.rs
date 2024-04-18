@@ -41,7 +41,7 @@ impl Command for IsTerminal {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let stdin = call.has_flag(engine_state, stack, "stdin")?;
         let stdout = call.has_flag(engine_state, stack, "stdout")?;
         let stderr = call.has_flag(engine_state, stack, "stderr")?;
@@ -54,7 +54,7 @@ impl Command for IsTerminal {
                 return Err(ShellError::MissingParameter {
                     param_name: "one of --stdin, --stdout, --stderr".into(),
                     span: call.head,
-                });
+                })?;
             }
             _ => {
                 let spans: Vec<_> = call.arguments.iter().map(|arg| arg.span()).collect();
@@ -63,7 +63,7 @@ impl Command for IsTerminal {
                 return Err(ShellError::IncompatibleParametersSingle {
                     msg: "Only one stream may be checked".into(),
                     span,
-                });
+                })?;
             }
         };
 

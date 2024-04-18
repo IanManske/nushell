@@ -46,7 +46,7 @@ a variable. On the other hand, the "row condition" syntax is not supported."#
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let capture_block: Closure = call.req(engine_state, stack, 0)?;
         let metadata = input.metadata();
         let ctrlc = engine_state.ctrlc.clone();

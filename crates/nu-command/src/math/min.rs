@@ -41,7 +41,7 @@ impl Command for SubCommand {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         run_with_function(call, input, minimum)
     }
 
@@ -69,7 +69,7 @@ impl Command for SubCommand {
     }
 }
 
-pub fn minimum(values: &[Value], span: Span, head: Span) -> Result<Value, ShellError> {
+pub fn minimum(values: &[Value], span: Span, head: Span) -> ShellResult<Value> {
     let min_func = reducer_for(Reduce::Minimum);
     min_func(Value::nothing(head), values.to_vec(), span, head)
 }

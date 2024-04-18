@@ -81,7 +81,7 @@ impl Command for Ls {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let all = call.has_flag(engine_state, stack, "all")?;
         let long = call.has_flag(engine_state, stack, "long")?;
         let short_names = call.has_flag(engine_state, stack, "short-names")?;
@@ -196,7 +196,7 @@ fn ls_for_one_pattern(
     args: Args,
     ctrl_c: Option<Arc<AtomicBool>>,
     cwd: PathBuf,
-) -> Result<Box<dyn Iterator<Item = Value> + Send>, ShellError> {
+) -> ShellResult<Box<dyn Iterator<Item = Value> + Send>> {
     let Args {
         all,
         long,
@@ -211,10 +211,10 @@ fn ls_for_one_pattern(
         if let Some(path) = pattern_arg {
             // it makes no sense to list an empty string.
             if path.item.as_ref().is_empty() {
-                return Err(ShellError::FileNotFoundCustom {
+                Err(ShellError::FileNotFoundCustom {
                     msg: "empty string('') directory or file does not exist".to_string(),
                     span: path.span,
-                });
+                })?;
             }
             match path.item {
                 NuGlob::DoNotExpand(p) => Some(Spanned {
@@ -257,13 +257,13 @@ fn ls_for_one_pattern(
                     );
                     #[cfg(not(unix))]
                     let error_msg = String::from("Permission denied");
-                    return Err(ShellError::GenericError {
+                    Err(ShellError::GenericError {
                         error: "Permission denied".into(),
                         msg: error_msg,
                         span: Some(p_tag),
                         help: None,
                         inner: vec![],
-                    });
+                    })?;
                 }
                 if is_empty_dir(&expanded) {
                     return Ok(Box::new(vec![].into_iter()));
@@ -337,13 +337,13 @@ fn ls_for_one_pattern(
 
     let mut paths_peek = paths.peekable();
     if paths_peek.peek().is_none() {
-        return Err(ShellError::GenericError {
+        Err(ShellError::GenericError {
             error: format!("No matches found for {}", &path),
             msg: "Pattern, file or folder not found".into(),
             span: Some(p_tag),
             help: Some("no matches found".into()),
             inner: vec![],
-        });
+        })?;
     }
 
     let mut hidden_dirs = vec![];
@@ -531,7 +531,7 @@ pub(crate) fn dir_entry_dict(
     du: bool,
     ctrl_c: Option<Arc<AtomicBool>>,
     use_mime_type: bool,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     #[cfg(windows)]
     if metadata.is_none() {
         return Ok(windows_helper::dir_entry_dict_windows_fallback(
@@ -848,7 +848,7 @@ mod windows_helper {
     }
 
     // wrapper around the FindFirstFileW Win32 API
-    fn find_first_file(filename: &Path, span: Span) -> Result<WIN32_FIND_DATAW, ShellError> {
+    fn find_first_file(filename: &Path, span: Span) -> ShellResult<WIN32_FIND_DATAW> {
         unsafe {
             let mut find_data = WIN32_FIND_DATAW::default();
             // The windows crate really needs a nicer way to do string conversions
@@ -870,7 +870,7 @@ mod windows_helper {
                         e
                     ),
                     span,
-                }),
+                })?,
             }
         }
     }

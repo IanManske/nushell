@@ -25,7 +25,7 @@ impl Command for Seq {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         seq(engine_state, stack, call)
     }
 
@@ -79,11 +79,7 @@ impl Command for Seq {
     }
 }
 
-fn seq(
-    engine_state: &EngineState,
-    stack: &mut Stack,
-    call: &Call,
-) -> Result<PipelineData, ShellError> {
+fn seq(engine_state: &EngineState, stack: &mut Stack, call: &Call) -> ShellResult<PipelineData> {
     let span = call.head;
     let rest_nums: Vec<Spanned<f64>> = call.rest(engine_state, stack, 0)?;
 
@@ -91,17 +87,17 @@ fn seq(
     // everything had been generated; this does not work well with ListStreams.
     // As such, the simple test is to check if this errors out: that means there is a float in the
     // input, which necessarily means that parts of the output will be floats.
-    let rest_nums_check: Result<Vec<Spanned<i64>>, ShellError> = call.rest(engine_state, stack, 0);
+    let rest_nums_check: ShellResult<Vec<Spanned<i64>>> = call.rest(engine_state, stack, 0);
     let contains_decimals = rest_nums_check.is_err();
 
     if rest_nums.is_empty() {
-        return Err(ShellError::GenericError {
+        Err(ShellError::GenericError {
             error: "seq requires some parameters".into(),
             msg: "needs parameter".into(),
             span: Some(call.head),
             help: None,
             inner: vec![],
-        });
+        })?;
     }
 
     let rest_nums: Vec<f64> = rest_nums.iter().map(|n| n.item).collect();
@@ -114,7 +110,7 @@ pub fn run_seq(
     span: Span,
     contains_decimals: bool,
     engine_state: &EngineState,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let first = free[0];
     let step = if free.len() > 2 { free[1] } else { 1.0 };
     let last = { free[free.len() - 1] };

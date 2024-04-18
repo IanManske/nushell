@@ -82,10 +82,10 @@ impl Command for SubCommand {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
 
-        let output: Result<String, ShellError> = input
+        let output: ShellResult<String> = input
             .into_iter()
             .map(move |value| {
                 let span = value.span();
@@ -100,13 +100,13 @@ impl Command for SubCommand {
 
                         url_components?.to_url(span)
                     }
-                    Value::Error { error, .. } => Err(*error),
+                    Value::Error { error, .. } => Err(error),
                     other => Err(ShellError::UnsupportedInput {
                         msg: "Expected a record from pipeline".to_string(),
                         input: "value originates from here".into(),
                         msg_span: head,
                         input_span: other.span(),
-                    }),
+                    })?,
                 }
             })
             .collect();
@@ -140,7 +140,7 @@ impl UrlComponents {
         value: Value,
         span: Span,
         engine_state: &EngineState,
-    ) -> Result<Self, ShellError> {
+    ) -> ShellResult<Self> {
         let value_span = value.span();
         if key == "port" {
             return match value {
@@ -158,7 +158,7 @@ impl UrlComponents {
                                     "Port parameter should represent an unsigned int",
                                 ),
                                 span: value_span,
-                            }),
+                            })?,
                         }
                     }
                 }
@@ -166,13 +166,13 @@ impl UrlComponents {
                     port: Some(val),
                     ..self
                 }),
-                Value::Error { error, .. } => Err(*error),
+                Value::Error { error, .. } => Err(error),
                 other => Err(ShellError::IncompatibleParametersSingle {
                     msg: String::from(
                         "Port parameter should be an unsigned int or a string representing it",
                     ),
                     span: other.span(),
-                }),
+                })?,
             };
         }
 
@@ -186,7 +186,7 @@ impl UrlComponents {
                             Ok(val) => Ok(format!("{k}={val}")),
                             Err(err) => Err(err),
                         })
-                        .collect::<Result<Vec<String>, ShellError>>()?
+                        .collect::<ShellResult<Vec<String>>>()?
                         .join("&");
 
                     qs = if !qs.trim().is_empty() {
@@ -203,7 +203,7 @@ impl UrlComponents {
                                 left_span: value_span,
                                 right_message: format!("instead query is: {q}"),
                                 right_span: self.query_span.unwrap_or(Span::unknown()),
-                            });
+                            })?;
                         }
                     }
 
@@ -213,11 +213,11 @@ impl UrlComponents {
                         ..self
                     })
                 }
-                Value::Error { error, .. } => Err(*error),
+                Value::Error { error, .. } => Err(error),
                 other => Err(ShellError::IncompatibleParametersSingle {
                     msg: String::from("Key params has to be a record"),
                     span: other.span(),
-                }),
+                })?,
             };
         }
 
@@ -260,7 +260,7 @@ impl UrlComponents {
                             left_span: value_span,
                             right_message: format!("instead qs from params is: {q}"),
                             right_span: self.params_span.unwrap_or(Span::unknown()),
-                        });
+                        })?;
                     }
                 }
 
@@ -295,7 +295,7 @@ impl UrlComponents {
     }
 
     // Check if value is empty. If so, check if that is fine, i.e., not a required input
-    fn check_empty_string_ok(key: &str, s: &str, value_span: Span) -> Result<bool, ShellError> {
+    fn check_empty_string_ok(key: &str, s: &str, value_span: Span) -> ShellResult<bool> {
         if !s.trim().is_empty() {
             return Ok(true);
         }
@@ -304,17 +304,17 @@ impl UrlComponents {
                 expected: "non-empty string".into(),
                 value: "empty string".into(),
                 span: value_span,
-            }),
+            })?,
             "scheme" => Err(ShellError::UnsupportedConfigValue {
                 expected: "non-empty string".into(),
                 value: "empty string".into(),
                 span: value_span,
-            }),
+            })?,
             _ => Ok(false),
         }
     }
 
-    pub fn to_url(&self, span: Span) -> Result<String, ShellError> {
+    pub fn to_url(&self, span: Span) -> ShellResult<String> {
         let user_and_pwd = match (&self.username, &self.password) {
             (Some(usr), Some(pwd)) => format!("{usr}:{pwd}@"),
             (Some(usr), None) => format!("{usr}@"),

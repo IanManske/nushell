@@ -50,7 +50,7 @@ impl Command for StorCreate {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let span = call.head;
         let table_name: Option<String> = call.get_flag(engine_state, stack, "table-name")?;
         let columns: Option<Record> = call.get_flag(engine_state, stack, "columns")?;
@@ -67,12 +67,12 @@ fn process(
     span: Span,
     db: &SQLiteDatabase,
     columns: Option<Record>,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     if table_name.is_none() {
-        return Err(ShellError::MissingParameter {
+        Err(ShellError::MissingParameter {
             param_name: "requires at table name".into(),
             span,
-        });
+        })?;
     }
     let new_table_name = table_name.unwrap_or("table".into());
     if let Ok(conn) = db.open_connection() {
@@ -102,12 +102,12 @@ fn process(
                         }
 
                         _ => {
-                            return Err(ShellError::UnsupportedInput {
+                            Err(ShellError::UnsupportedInput {
                                 msg: "unsupported column data type".into(),
                                 input: format!("{:?}", column_datatype),
                                 msg_span: column_datatype.span(),
                                 input_span: column_datatype.span(),
-                            });
+                            })?;
                         }
                     }
                 }
@@ -129,10 +129,10 @@ fn process(
                     })?;
             }
             None => {
-                return Err(ShellError::MissingParameter {
+                Err(ShellError::MissingParameter {
                     param_name: "requires at least one column".into(),
                     span,
-                });
+                })?;
             }
         };
     }

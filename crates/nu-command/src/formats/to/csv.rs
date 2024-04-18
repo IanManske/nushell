@@ -60,7 +60,7 @@ impl Command for ToCsv {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let noheaders = call.has_flag(engine_state, stack, "noheaders")?;
         let separator: Option<Spanned<String>> = call.get_flag(engine_state, stack, "separator")?;
@@ -75,7 +75,7 @@ fn to_csv(
     separator: Option<Spanned<String>>,
     head: Span,
     config: &Config,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let sep = match separator {
         Some(Spanned { item: s, span, .. }) => {
             if s == r"\t" {
@@ -83,11 +83,11 @@ fn to_csv(
             } else {
                 let vec_s: Vec<char> = s.chars().collect();
                 if vec_s.len() != 1 {
-                    return Err(ShellError::TypeMismatch {
+                    Err(ShellError::TypeMismatch {
                         err_message: "Expected a single separator char from --separator"
                             .to_string(),
                         span,
-                    });
+                    })?;
                 };
                 vec_s[0]
             }

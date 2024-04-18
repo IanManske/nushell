@@ -84,7 +84,7 @@ repeating this process with row 1, and so on."#
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let merge_value: Value = call.req(engine_state, stack, 0)?;
 
         let metadata = input.metadata();
@@ -136,13 +136,13 @@ repeating this process with row 1, and so on."#
                         .to_string(),
                     dst_span: call.head,
                     src_span: span,
-                })
+                })?
             }
             _ => Err(ShellError::PipelineMismatch {
                 exp_input_type: "input, and argument, to be both record or both table".to_string(),
                 dst_span: call.head,
                 src_span: Span::new(call.head.start, call.head.start),
-            }),
+            })?,
         }
     }
 }

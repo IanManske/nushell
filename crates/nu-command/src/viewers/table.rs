@@ -112,7 +112,7 @@ impl Command for Table {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let list_themes: bool = call.has_flag(engine_state, stack, "list")?;
         // if list argument is present we just need to return a list of supported table themes
         if list_themes {
@@ -237,7 +237,7 @@ fn parse_table_config(
     call: &Call,
     state: &EngineState,
     stack: &mut Stack,
-) -> Result<TableConfig, ShellError> {
+) -> ShellResult<TableConfig> {
     let width_param: Option<i64> = call.get_flag(state, stack, "width")?;
     let expand: bool = call.has_flag(state, stack, "expand")?;
     let expand_limit: Option<usize> = call.get_flag(state, stack, "expand-deep")?;
@@ -275,7 +275,7 @@ fn get_index_flag(
     call: &Call,
     state: &EngineState,
     stack: &mut Stack,
-) -> Result<Option<usize>, ShellError> {
+) -> ShellResult<Option<usize>> {
     let index: Option<Value> = call.get_flag(state, stack, "index")?;
     let value = match index {
         Some(value) => value,
@@ -297,7 +297,7 @@ fn get_index_flag(
                     input: val.to_string(),
                     msg_span: call.span(),
                     input_span: internal_span,
-                })
+                })?
             } else {
                 Ok(Some(val as usize))
             }
@@ -308,7 +308,7 @@ fn get_index_flag(
             from_type: String::new(),
             span: call.span(),
             help: Some(String::from("supported values: [bool, int, nothing]")),
-        }),
+        })?,
     }
 }
 
@@ -316,14 +316,17 @@ fn get_theme_flag(
     call: &Call,
     state: &EngineState,
     stack: &mut Stack,
-) -> Result<Option<TableMode>, ShellError> {
+) -> ShellResult<Option<TableMode>> {
     call.get_flag(state, stack, "theme")?
         .map(|theme: String| {
-            TableMode::from_str(&theme).map_err(|err| ShellError::CantConvert {
-                to_type: String::from("theme"),
-                from_type: String::from("string"),
-                span: call.span(),
-                help: Some(format!("{}, but found '{}'.", err, theme)),
+            TableMode::from_str(&theme).map_err(|err| {
+                ShellError::CantConvert {
+                    to_type: String::from("theme"),
+                    from_type: String::from("string"),
+                    span: call.span(),
+                    help: Some(format!("{}, but found '{}'.", err, theme)),
+                }
+                .into()
             })
         })
         .transpose()
@@ -352,10 +355,7 @@ impl<'a> CmdInput<'a> {
     }
 }
 
-fn handle_table_command(
-    mut input: CmdInput<'_>,
-    cfg: TableConfig,
-) -> Result<PipelineData, ShellError> {
+fn handle_table_command(mut input: CmdInput<'_>, cfg: TableConfig) -> ShellResult<PipelineData> {
     let span = input.data.span().unwrap_or(input.call.head);
     match input.data {
         PipelineData::ExternalStream { .. } => Ok(input.data),
@@ -401,7 +401,7 @@ fn handle_table_command(
         PipelineData::Value(Value::Error { error, .. }, ..) => {
             // Propagate this error outward, so that it goes to stderr
             // instead of stdout.
-            Err(*error)
+            Err(error)
         }
         PipelineData::Value(Value::Custom { val, .. }, ..) => {
             let base_pipeline = val.to_base_value(span)?.into_pipeline_data();
@@ -421,7 +421,7 @@ fn handle_record(
     input: CmdInput,
     cfg: TableConfig,
     mut record: Record,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let config = get_config(input.engine_state, input.stack);
     let span = input.data.span().unwrap_or(input.call.head);
     let styles = &StyleComputer::from_config(input.engine_state, input.stack);
@@ -532,7 +532,7 @@ fn handle_row_stream(
     cfg: TableConfig,
     stream: ListStream,
     metadata: Option<PipelineMetadata>,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let ctrlc = input.engine_state.ctrlc.clone();
 
     let stream = match metadata.as_ref() {
@@ -759,7 +759,7 @@ impl PagingTableCreator {
         )
     }
 
-    fn build_table(&mut self, batch: Vec<Value>) -> Result<Option<String>, ShellError> {
+    fn build_table(&mut self, batch: Vec<Value>) -> ShellResult<Option<String>> {
         match &self.cfg.table_view {
             TableView::General => self.build_general(batch),
             TableView::Collapsed => self.build_collapsed(batch),
@@ -773,7 +773,7 @@ impl PagingTableCreator {
 }
 
 impl Iterator for PagingTableCreator {
-    type Item = Result<Vec<u8>, ShellError>;
+    type Item = ShellResult<Vec<u8>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let batch;
@@ -1008,11 +1008,11 @@ fn create_empty_placeholder(
 }
 
 fn convert_table_to_output(
-    table: Result<Option<String>, ShellError>,
+    table: ShellResult<Option<String>>,
     config: &Config,
     ctrlc: &Option<Arc<AtomicBool>>,
     term_width: usize,
-) -> Option<Result<Vec<u8>, ShellError>> {
+) -> Option<ShellResult<Vec<u8>>> {
     match table {
         Ok(Some(table)) => {
             let table = maybe_strip_color(table, config);

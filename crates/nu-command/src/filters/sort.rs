@@ -133,7 +133,7 @@ impl Command for Sort {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let reverse = call.has_flag(engine_state, stack, "reverse")?;
         let insensitive = call.has_flag(engine_state, stack, "ignore-case")?;
         let natural = call.has_flag(engine_state, stack, "natural")?;
@@ -250,12 +250,7 @@ fn sort_record(
     Value::record(input_pairs.into_iter().collect(), rec_span)
 }
 
-pub fn sort(
-    vec: &mut [Value],
-    span: Span,
-    insensitive: bool,
-    natural: bool,
-) -> Result<(), ShellError> {
+pub fn sort(vec: &mut [Value], span: Span, insensitive: bool, natural: bool) -> ShellResult<()> {
     match vec.first() {
         Some(Value::Record { val, .. }) => {
             let columns: Vec<String> = val.columns().cloned().collect();

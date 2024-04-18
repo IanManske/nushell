@@ -121,7 +121,7 @@ impl Command for Fill {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<nu_protocol::PipelineData, nu_protocol::ShellError> {
+    ) -> ShellResult<PipelineData> {
         fill(engine_state, stack, call, input)
     }
 }
@@ -131,7 +131,7 @@ fn fill(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<nu_protocol::PipelineData, nu_protocol::ShellError> {
+) -> ShellResult<PipelineData> {
     let width_arg: Option<usize> = call.get_flag(engine_state, stack, "width")?;
     let alignment_arg: Option<String> = call.get_flag(engine_state, stack, "alignment")?;
     let character_arg: Option<String> = call.get_flag(engine_state, stack, "character")?;

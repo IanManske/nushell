@@ -31,7 +31,7 @@ impl Command for FromYaml {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         from_yaml(input, head)
     }
@@ -61,7 +61,7 @@ impl Command for FromYml {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         from_yaml(input, head)
     }
@@ -75,7 +75,7 @@ fn convert_yaml_value_to_nu_value(
     v: &serde_yaml::Value,
     span: Span,
     val_span: Span,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     let err_not_compatible_number = ShellError::UnsupportedInput {
         msg: "Expected a nu-compatible number in YAML input".to_string(),
         input: "value originates from here".into(),
@@ -92,7 +92,7 @@ fn convert_yaml_value_to_nu_value(
         }
         serde_yaml::Value::String(s) => Value::string(s.to_string(), span),
         serde_yaml::Value::Sequence(a) => {
-            let result: Result<Vec<Value>, ShellError> = a
+            let result: ShellResult<_> = a
                 .iter()
                 .map(|x| convert_yaml_value_to_nu_value(x, span, val_span))
                 .collect();
@@ -109,7 +109,8 @@ fn convert_yaml_value_to_nu_value(
                     input: "value originates from here".into(),
                     msg_span: span,
                     input_span: val_span,
-                };
+                }
+                .into();
                 match (k, v) {
                     (serde_yaml::Value::Number(k), _) => {
                         collected.insert(
@@ -185,11 +186,7 @@ fn convert_yaml_value_to_nu_value(
     })
 }
 
-pub fn from_yaml_string_to_value(
-    s: String,
-    span: Span,
-    val_span: Span,
-) -> Result<Value, ShellError> {
+pub fn from_yaml_string_to_value(s: String, span: Span, val_span: Span) -> ShellResult<Value> {
     let mut documents = vec![];
 
     for document in serde_yaml::Deserializer::from_str(&s) {
@@ -235,7 +232,7 @@ pub fn get_examples() -> Vec<Example<'static>> {
     ]
 }
 
-fn from_yaml(input: PipelineData, head: Span) -> Result<PipelineData, ShellError> {
+fn from_yaml(input: PipelineData, head: Span) -> ShellResult<PipelineData> {
     let (concat_string, span, metadata) = input.collect_string_strict(head)?;
 
     match from_yaml_string_to_value(concat_string, head, span) {
@@ -254,7 +251,7 @@ mod test {
         struct TestCase {
             description: &'static str,
             input: &'static str,
-            expected: Result<Value, ShellError>,
+            expected: ShellResult<Value>,
         }
         let tt: Vec<TestCase> = vec![
             TestCase {
@@ -319,7 +316,7 @@ mod test {
                 Span::test_data(),
             );
 
-            let expected: Result<Value, ShellError> = Ok(Value::test_list(vec![
+            let expected: ShellResult<Value> = Ok(Value::test_list(vec![
                 Value::test_record(record! {
                     "a" => Value::test_string("b"),
                     "b" => Value::test_string("c"),
@@ -363,7 +360,7 @@ mod test {
     fn test_convert_yaml_value_to_nu_value_for_tagged_values() {
         struct TestCase {
             input: &'static str,
-            expected: Result<Value, ShellError>,
+            expected: ShellResult<Value>,
         }
 
         let test_cases: Vec<TestCase> = vec![

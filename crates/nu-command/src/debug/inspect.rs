@@ -27,13 +27,13 @@ impl Command for Inspect {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let input_metadata = input.metadata();
         let input_val = input.into_value(call.head);
         if input_val.is_nothing() {
             return Err(ShellError::PipelineEmpty {
                 dst_span: call.head,
-            });
+            })?;
         }
         let original_input = input_val.clone();
         let description = input_val.get_type().to_string();

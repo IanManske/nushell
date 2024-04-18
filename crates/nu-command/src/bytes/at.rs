@@ -67,12 +67,12 @@ impl Command for BytesAt {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let range: Range = call.req(engine_state, stack, 0)?;
         let indexes = match util::process_range(&range) {
             Ok(idxs) => idxs.into(),
             Err(processing_error) => {
-                return Err(processing_error("could not perform subbytes", call.head));
+                return Err(processing_error("could not perform subbytes", call.head))?;
             }
         };
 

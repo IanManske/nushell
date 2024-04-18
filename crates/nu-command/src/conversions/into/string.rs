@@ -72,7 +72,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         string_helper(engine_state, stack, call, input)
     }
 
@@ -142,15 +142,15 @@ fn string_helper(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let head = call.head;
     let decimals_value: Option<i64> = call.get_flag(engine_state, stack, "decimals")?;
     if let Some(decimal_val) = decimals_value {
         if decimal_val.is_negative() {
-            return Err(ShellError::TypeMismatch {
+            Err(ShellError::TypeMismatch {
                 err_message: "Cannot accept negative integers for decimals arguments".to_string(),
                 span: head,
-            });
+            })?;
         }
     }
     let cell_paths = call.rest(engine_state, stack, 0)?;
@@ -236,7 +236,7 @@ fn action(input: &Value, args: &Arguments, span: Span) -> Value {
                         from_type: val.type_name(),
                         span,
                         help: Some("this custom value can't be represented as a string".into()),
-                    }),
+                    })?,
                     success => Ok(success),
                 })
                 .unwrap_or_else(|err| Value::error(err, span))

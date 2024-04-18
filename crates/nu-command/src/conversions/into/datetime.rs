@@ -108,7 +108,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         if call.has_flag(engine_state, stack, "list")? {
             Ok(generate_strftime_list(call.head, true).into_pipeline_data())
         } else if call.has_flag(engine_state, stack, "list-human")? {

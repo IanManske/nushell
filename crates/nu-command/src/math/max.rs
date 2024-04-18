@@ -41,7 +41,7 @@ impl Command for SubCommand {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         run_with_function(call, input, maximum)
     }
 
@@ -71,7 +71,7 @@ impl Command for SubCommand {
     }
 }
 
-pub fn maximum(values: &[Value], span: Span, head: Span) -> Result<Value, ShellError> {
+pub fn maximum(values: &[Value], span: Span, head: Span) -> ShellResult<Value> {
     let max_func = reducer_for(Reduce::Maximum);
     max_func(Value::nothing(head), values.to_vec(), span, head)
 }

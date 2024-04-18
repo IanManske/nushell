@@ -30,7 +30,7 @@ impl Command for IsNotEmpty {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         // Call the same `empty` function but negate the result
         empty(engine_state, stack, call, input, true)
     }

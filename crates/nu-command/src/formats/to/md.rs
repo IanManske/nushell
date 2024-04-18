@@ -66,7 +66,7 @@ impl Command for ToMd {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let pretty = call.has_flag(engine_state, stack, "pretty")?;
         let per_element = call.has_flag(engine_state, stack, "per-element")?;
@@ -81,7 +81,7 @@ fn to_md(
     per_element: bool,
     config: &Config,
     head: Span,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let (grouped_input, single_list) = group_by(input, head, config);
     if per_element || single_list {
         return Ok(Value::string(

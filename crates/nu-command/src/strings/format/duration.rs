@@ -59,7 +59,7 @@ impl Command for FormatDuration {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let format_value = call
             .req::<Value>(engine_state, stack, 0)?
             .coerce_into_string()?
@@ -145,7 +145,7 @@ fn convert_inner_to_unit(
     to_unit: &str,
     span: Span,
     value_span: Span,
-) -> Result<f64, ShellError> {
+) -> ShellResult<f64> {
     match to_unit {
         "ns" => Ok(val as f64),
         "us" => Ok(val as f64 / 1000.0),
@@ -169,7 +169,7 @@ fn convert_inner_to_unit(
                 "supported units are ns, us/µs, ms, sec, min, hr, day, wk, month, yr, and dec"
                     .to_string(),
             ),
-        }),
+        })?,
     }
 }
 #[cfg(test)]

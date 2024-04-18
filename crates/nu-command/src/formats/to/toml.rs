@@ -34,7 +34,7 @@ impl Command for ToToml {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         to_toml(engine_state, input, head)
     }
@@ -42,7 +42,7 @@ impl Command for ToToml {
 
 // Helper method to recursively convert nu_protocol::Value -> toml::Value
 // This shouldn't be called at the top-level
-fn helper(engine_state: &EngineState, v: &Value) -> Result<toml::Value, ShellError> {
+fn helper(engine_state: &EngineState, v: &Value) -> ShellResult<toml::Value> {
     let span = v.span();
     Ok(match &v {
         Value::Bool { val, .. } => toml::Value::Boolean(*val),
@@ -78,7 +78,7 @@ fn helper(engine_state: &EngineState, v: &Value) -> Result<toml::Value, ShellErr
             toml::Value::String(code)
         }
         Value::Nothing { .. } => toml::Value::String("<Nothing>".to_string()),
-        Value::Error { error, .. } => return Err(*error.clone()),
+        Value::Error { error, .. } => return Err(error.clone()),
         Value::Binary { val, .. } => toml::Value::Array(
             val.iter()
                 .map(|x| toml::Value::Integer(*x as i64))
@@ -88,16 +88,16 @@ fn helper(engine_state: &EngineState, v: &Value) -> Result<toml::Value, ShellErr
             val.members
                 .iter()
                 .map(|x| match &x {
-                    PathMember::String { val, .. } => Ok(toml::Value::String(val.clone())),
-                    PathMember::Int { val, .. } => Ok(toml::Value::Integer(*val as i64)),
+                    PathMember::String { val, .. } => toml::Value::String(val.clone()),
+                    PathMember::Int { val, .. } => toml::Value::Integer(*val as i64),
                 })
-                .collect::<Result<Vec<toml::Value>, ShellError>>()?,
+                .collect(),
         ),
         Value::Custom { .. } => toml::Value::String("<Custom Value>".to_string()),
     })
 }
 
-fn toml_list(engine_state: &EngineState, input: &[Value]) -> Result<Vec<toml::Value>, ShellError> {
+fn toml_list(engine_state: &EngineState, input: &[Value]) -> ShellResult<Vec<toml::Value>> {
     let mut out = vec![];
 
     for value in input {
@@ -111,7 +111,7 @@ fn toml_into_pipeline_data(
     toml_value: &toml::Value,
     value_type: Type,
     span: Span,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     match toml::to_string(&toml_value) {
         Ok(serde_toml_string) => Ok(Value::string(serde_toml_string, span).into_pipeline_data()),
         _ => Ok(Value::error(
@@ -131,17 +131,17 @@ fn value_to_toml_value(
     engine_state: &EngineState,
     v: &Value,
     head: Span,
-) -> Result<toml::Value, ShellError> {
+) -> ShellResult<toml::Value> {
     match v {
         Value::Record { .. } => helper(engine_state, v),
         // Propagate existing errors
-        Value::Error { error, .. } => Err(*error.clone()),
+        Value::Error { error, .. } => Err(error.clone()),
         _ => Err(ShellError::UnsupportedInput {
             msg: format!("{:?} is not valid top-level TOML", v.get_type()),
             input: "value originates from here".into(),
             msg_span: head,
             input_span: v.span(),
-        }),
+        })?,
     }
 }
 
@@ -149,7 +149,7 @@ fn to_toml(
     engine_state: &EngineState,
     input: PipelineData,
     span: Span,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let value = input.into_value(span);
 
     let toml_value = value_to_toml_value(engine_state, &value, span)?;

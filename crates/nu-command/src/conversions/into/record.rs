@@ -36,7 +36,7 @@ impl Command for SubCommand {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         into_record(engine_state, call, input)
     }
 
@@ -107,7 +107,7 @@ fn into_record(
     engine_state: &EngineState,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let input = input.into_value(call.head);
     let input_type = input.get_type();
     let span = input.span();

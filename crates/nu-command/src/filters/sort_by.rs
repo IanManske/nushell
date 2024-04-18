@@ -77,7 +77,7 @@ impl Command for SortBy {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let columns: Vec<String> = call.rest(engine_state, stack, 0)?;
         let reverse = call.has_flag(engine_state, stack, "reverse")?;
         let insensitive = call.has_flag(engine_state, stack, "ignore-case")?;
@@ -89,7 +89,7 @@ impl Command for SortBy {
             return Err(ShellError::MissingParameter {
                 param_name: "columns".into(),
                 span: call.head,
-            });
+            })?;
         }
 
         crate::sort(&mut vec, columns, call.head, insensitive, natural)?;

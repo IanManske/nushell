@@ -41,7 +41,7 @@ impl Command for StorOpen {
         _stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         // eprintln!("Initializing nudb");
         // eprintln!("Here's some things to try:");
         // eprintln!("* stor open | schema | table -e");

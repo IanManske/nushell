@@ -64,7 +64,7 @@ impl Command for Rm {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         rm(engine_state, stack, call)
     }
 
@@ -104,11 +104,7 @@ impl Command for Rm {
     }
 }
 
-fn rm(
-    engine_state: &EngineState,
-    stack: &mut Stack,
-    call: &Call,
-) -> Result<PipelineData, ShellError> {
+fn rm(engine_state: &EngineState, stack: &mut Stack, call: &Call) -> ShellResult<PipelineData> {
     let trash = call.has_flag(engine_state, stack, "trash")?;
     let permanent = call.has_flag(engine_state, stack, "permanent")?;
     let recursive = call.has_flag(engine_state, stack, "recursive")?;
@@ -122,10 +118,10 @@ fn rm(
     let mut paths = get_rest_for_glob_pattern(engine_state, stack, call, 0)?;
 
     if paths.is_empty() {
-        return Err(ShellError::MissingParameter {
+        Err(ShellError::MissingParameter {
             param_name: "requires file paths".to_string(),
             span: call.head,
-        });
+        })?;
     }
 
     let mut unique_argument_check = None;
@@ -174,7 +170,7 @@ fn rm(
 
     if !TRASH_SUPPORTED {
         if rm_always_trash {
-            return Err(ShellError::GenericError {
+            Err(ShellError::GenericError {
                 error: "Cannot execute `rm`; the current configuration specifies \
                     `always_trash = true`, but the current nu executable was not \
                     built with feature `trash_support`."
@@ -183,9 +179,9 @@ fn rm(
                 span: Some(span),
                 help: None,
                 inner: vec![],
-            });
+            })?;
         } else if trash {
-            return Err(ShellError::GenericError{
+            Err(ShellError::GenericError{
                 error: "Cannot execute `rm` with option `--trash`; feature `trash-support` not enabled or on an unsupported platform"
                     .into(),
                 msg: "this option is only available if nu is built with the `trash-support` feature and the platform supports trash"
@@ -193,28 +189,28 @@ fn rm(
                 span: Some(span),
                 help: None,
                 inner: vec![],
-            });
+            })?;
         }
     }
 
     if paths.is_empty() {
-        return Err(ShellError::GenericError {
+        Err(ShellError::GenericError {
             error: "rm requires target paths".into(),
             msg: "needs parameter".into(),
             span: Some(span),
             help: None,
             inner: vec![],
-        });
+        })?;
     }
 
     if unique_argument_check.is_some() && !(interactive_once || interactive) {
-        return Err(ShellError::GenericError {
+        Err(ShellError::GenericError {
             error: "You are trying to remove your home dir".into(),
             msg: "If you really want to remove your home dir, please use -I or -i".into(),
             span: unique_argument_check,
             help: None,
             inner: vec![],
-        });
+        })?;
     }
 
     let targets_span = Span::new(
@@ -242,13 +238,13 @@ fn rm(
         if currentdir_path.to_string_lossy() == path.to_string_lossy()
             || currentdir_path.starts_with(format!("{}{}", target.item, std::path::MAIN_SEPARATOR))
         {
-            return Err(ShellError::GenericError {
+            Err(ShellError::GenericError {
                 error: "Cannot remove any parent directory".into(),
                 msg: "cannot remove any parent directory".into(),
                 span: Some(target.span),
                 help: None,
                 inner: vec![],
-            });
+            })?;
         }
 
         match nu_engine::glob_from(
@@ -285,13 +281,13 @@ fn rm(
                                 .or_insert_with(|| target.span);
                         }
                         Err(e) => {
-                            return Err(ShellError::GenericError {
+                            Err(ShellError::GenericError {
                                 error: format!("Could not remove {:}", path.to_string_lossy()),
                                 msg: e.to_string(),
                                 span: Some(target.span),
                                 help: None,
                                 inner: vec![],
-                            });
+                            })?;
                         }
                     }
                 }
@@ -304,7 +300,7 @@ fn rm(
             Err(e) => {
                 // glob_from may canonicalize path and return `DirectoryNotFound`
                 // nushell should suppress the error if `--force` is used.
-                if !(force && matches!(e, ShellError::DirectoryNotFound { .. })) {
+                if !(force && matches!(*e, ShellError::DirectoryNotFound { .. })) {
                     return Err(e);
                 }
             }
@@ -312,13 +308,13 @@ fn rm(
     }
 
     if all_targets.is_empty() && !force {
-        return Err(ShellError::GenericError {
+        Err(ShellError::GenericError {
             error: "File(s) not found".into(),
             msg: "File(s) not found".into(),
             span: Some(targets_span),
             help: None,
             inner: vec![],
-        });
+        })?;
     }
 
     if interactive_once {
@@ -327,13 +323,13 @@ fn rm(
             format!("rm: remove {} files? ", all_targets.len()),
         );
         if let Err(e) = interaction {
-            return Err(ShellError::GenericError {
+            Err(ShellError::GenericError {
                 error: format!("Error during interaction: {e:}"),
                 msg: "could not move".into(),
                 span: None,
                 help: None,
                 inner: vec![],
-            });
+            })?;
         } else if !confirmed {
             return Ok(PipelineData::Empty);
         }

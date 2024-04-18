@@ -109,7 +109,7 @@ only unwrap the outer list, and leave the variable's contents untouched."#
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let other: Value = call.req(engine_state, stack, 0)?;
         let metadata = input.metadata();
 

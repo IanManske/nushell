@@ -65,7 +65,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let cell_paths: Vec<CellPath> = call.rest(engine_state, stack, 0)?;
         let args = CellPathOnlyArgs::from(cell_paths);
         operate(action, args, input, call.head, engine_state.ctrlc.clone())
@@ -138,7 +138,7 @@ pub fn action(input: &Value, _args: &CellPathOnlyArgs, span: Span) -> Value {
         ),
     }
 }
-fn int_from_string(a_string: &str, span: Span) -> Result<i64, ShellError> {
+fn int_from_string(a_string: &str, span: Span) -> ShellResult<i64> {
     // Get the Locale so we know what the thousands separator is
     let locale = get_system_locale();
 
@@ -156,7 +156,7 @@ fn int_from_string(a_string: &str, span: Span) -> Result<i64, ShellError> {
                 from_type: "string".into(),
                 span,
                 help: None,
-            }),
+            })?,
         }
     } else {
         match clean_string.parse::<bytesize::ByteSize>() {
@@ -166,7 +166,7 @@ fn int_from_string(a_string: &str, span: Span) -> Result<i64, ShellError> {
                 from_type: "string".into(),
                 span,
                 help: None,
-            }),
+            })?,
         }
     }
 }

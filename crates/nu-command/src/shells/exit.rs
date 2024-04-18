@@ -33,7 +33,7 @@ impl Command for Exit {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let exit_code: Option<i64> = call.opt(engine_state, stack, 0)?;
 
         if let Some(exit_code) = exit_code {
