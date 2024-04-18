@@ -36,7 +36,7 @@ impl Command for KnownExternal {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head_span = call.head;
         let decl_id = engine_state
             .find_decl("run-external".as_bytes(), &[])
@@ -53,7 +53,7 @@ impl Command for KnownExternal {
                 msg: "known external name not found".to_string(),
                 label: "could not find name for this command".to_string(),
                 span: call.head,
-            });
+            })?;
         };
 
         let extern_name: Vec<_> = extern_name.split(' ').collect();

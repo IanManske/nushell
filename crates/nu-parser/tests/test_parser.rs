@@ -2,7 +2,7 @@ use nu_parser::*;
 use nu_protocol::{
     ast::{Argument, Call, Expr, PathMember},
     engine::{Command, EngineState, Stack, StateWorkingSet},
-    ParseError, PipelineData, ShellError, Signature, Span, SyntaxShape,
+    ParseError, PipelineData, ShellResult, Signature, Span, SyntaxShape,
 };
 use rstest::rstest;
 
@@ -36,7 +36,7 @@ impl Command for Let {
         _stack: &mut Stack,
         _call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         todo!()
     }
 }
@@ -1208,7 +1208,7 @@ mod input_types {
     use super::*;
     use nu_protocol::{
         ast::{Argument, Call},
-        Category, PipelineData, ShellError, Type,
+        Category, PipelineData, Type,
     };
 
     #[derive(Clone)]
@@ -1233,7 +1233,7 @@ mod input_types {
             _stack: &mut Stack,
             _call: &Call,
             _input: PipelineData,
-        ) -> Result<PipelineData, ShellError> {
+        ) -> ShellResult<PipelineData> {
             todo!()
         }
     }
@@ -1265,7 +1265,7 @@ mod input_types {
             _stack: &mut Stack,
             _call: &Call,
             _input: PipelineData,
-        ) -> Result<PipelineData, ShellError> {
+        ) -> ShellResult<PipelineData> {
             todo!()
         }
     }
@@ -1294,7 +1294,7 @@ mod input_types {
             _stack: &mut Stack,
             _call: &Call,
             _input: PipelineData,
-        ) -> Result<PipelineData, ShellError> {
+        ) -> ShellResult<PipelineData> {
             todo!()
         }
     }
@@ -1323,7 +1323,7 @@ mod input_types {
             _stack: &mut Stack,
             _call: &Call,
             _input: PipelineData,
-        ) -> Result<PipelineData, ShellError> {
+        ) -> ShellResult<PipelineData> {
             todo!()
         }
     }
@@ -1354,7 +1354,7 @@ mod input_types {
             _stack: &mut Stack,
             _call: &Call,
             _input: PipelineData,
-        ) -> Result<PipelineData, ShellError> {
+        ) -> ShellResult<PipelineData> {
             todo!()
         }
     }
@@ -1384,7 +1384,7 @@ mod input_types {
             _stack: &mut Stack,
             _call: &Call,
             _input: PipelineData,
-        ) -> Result<PipelineData, ShellError> {
+        ) -> ShellResult<PipelineData> {
             todo!()
         }
     }
@@ -1411,7 +1411,7 @@ mod input_types {
             _stack: &mut Stack,
             _call: &Call,
             _input: PipelineData,
-        ) -> Result<PipelineData, ShellError> {
+        ) -> ShellResult<PipelineData> {
             todo!()
         }
     }
@@ -1441,7 +1441,7 @@ mod input_types {
             _stack: &mut Stack,
             _call: &Call,
             _input: PipelineData,
-        ) -> Result<PipelineData, ShellError> {
+        ) -> ShellResult<PipelineData> {
             todo!()
         }
     }
@@ -1470,7 +1470,7 @@ mod input_types {
             _stack: &mut Stack,
             _call: &Call,
             _input: PipelineData,
-        ) -> Result<PipelineData, ShellError> {
+        ) -> ShellResult<PipelineData> {
             todo!()
         }
     }
@@ -1515,7 +1515,7 @@ mod input_types {
             _stack: &mut Stack,
             _call: &Call,
             _input: PipelineData,
-        ) -> Result<PipelineData, ShellError> {
+        ) -> ShellResult<PipelineData> {
             todo!()
         }
     }
