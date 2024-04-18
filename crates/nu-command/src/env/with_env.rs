@@ -105,11 +105,11 @@ fn with_env(
                         env.insert(row[0].coerce_string()?, row[1].clone());
                     }
                     if row.len() == 1 {
-                        return Err(ShellError::IncorrectValue {
+                        Err(ShellError::IncorrectValue {
                             msg: format!("Missing value for $env.{}", row[0].coerce_string()?),
                             val_span: row[0].span(),
                             call_span: call.head,
-                        });
+                        })?;
                     }
                 }
             }
@@ -136,10 +136,10 @@ fn with_env(
     // TODO: factor list of prohibited env vars into common place
     for prohibited in ["PWD", "FILE_PWD", "CURRENT_FILE"] {
         if env.contains_key(prohibited) {
-            return Err(ShellError::AutomaticEnvVarSetManually {
+            Err(ShellError::AutomaticEnvVarSetManually {
                 envvar_name: prohibited.into(),
                 span: call.head,
-            });
+            })?;
         }
     }
 
