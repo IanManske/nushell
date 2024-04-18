@@ -72,13 +72,13 @@
 //! }
 //!
 //! // #[test]
-//! fn test_examples() -> Result<(), ShellError> {
+//! fn test_examples() -> ShellResult<()> {
 //!     PluginTest::new("lowercase", LowercasePlugin.into())?
 //!         .test_command_examples(&Lowercase)
 //! }
 //!
 //! // #[test]
-//! fn test_lowercase() -> Result<(), ShellError> {
+//! fn test_lowercase() -> ShellResult<()> {
 //!     let input = vec![Value::test_string("FooBar")].into_pipeline_data(None);
 //!     let output = PluginTest::new("lowercase", LowercasePlugin.into())?
 //!         .eval_with("lowercase", input)?

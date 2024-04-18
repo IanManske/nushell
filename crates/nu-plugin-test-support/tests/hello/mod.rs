@@ -2,7 +2,7 @@
 
 use nu_plugin::*;
 use nu_plugin_test_support::PluginTest;
-use nu_protocol::{Example, LabeledError, ShellError, Signature, Type, Value};
+use nu_protocol::{Example, LabeledError, ShellResult, Signature, Type, Value};
 
 struct HelloPlugin;
 struct Hello;
@@ -48,12 +48,12 @@ impl SimplePluginCommand for Hello {
 }
 
 #[test]
-fn test_specified_examples() -> Result<(), ShellError> {
+fn test_specified_examples() -> ShellResult<()> {
     PluginTest::new("hello", HelloPlugin.into())?.test_command_examples(&Hello)
 }
 
 #[test]
-fn test_an_error_causing_example() -> Result<(), ShellError> {
+fn test_an_error_causing_example() -> ShellResult<()> {
     let result = PluginTest::new("hello", HelloPlugin.into())?.test_examples(&[Example {
         example: "hello --unknown-flag",
         description: "Run hello with an unknown flag",
@@ -64,7 +64,7 @@ fn test_an_error_causing_example() -> Result<(), ShellError> {
 }
 
 #[test]
-fn test_an_example_with_the_wrong_result() -> Result<(), ShellError> {
+fn test_an_example_with_the_wrong_result() -> ShellResult<()> {
     let result = PluginTest::new("hello", HelloPlugin.into())?.test_examples(&[Example {
         example: "hello",
         description: "Run hello but the example result is wrong",
@@ -75,7 +75,7 @@ fn test_an_example_with_the_wrong_result() -> Result<(), ShellError> {
 }
 
 #[test]
-fn test_requiring_nu_cmd_lang_commands() -> Result<(), ShellError> {
+fn test_requiring_nu_cmd_lang_commands() -> ShellResult<()> {
     use nu_protocol::Span;
 
     let result = PluginTest::new("hello", HelloPlugin.into())?

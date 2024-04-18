@@ -9,7 +9,7 @@ use nu_protocol::{
     debugger::WithoutDebug,
     engine::{EngineState, Stack, StateWorkingSet},
     report_error_new, CustomValue, Example, IntoSpanned as _, LabeledError, PipelineData,
-    ShellError, Span, Value,
+    ShellError, ShellResult, Span, Value,
 };
 
 use crate::{diff::diff_by_line, fake_register::fake_register};
@@ -28,16 +28,13 @@ impl PluginTest {
     ///
     /// ```rust,no_run
     /// # use nu_plugin_test_support::PluginTest;
-    /// # use nu_protocol::ShellError;
+    /// # use nu_protocol::ShellResult;
     /// # use nu_plugin::*;
-    /// # fn test(MyPlugin: impl Plugin + Send + 'static) -> Result<PluginTest, ShellError> {
+    /// # fn test(MyPlugin: impl Plugin + Send + 'static) -> ShellResult<PluginTest> {
     /// PluginTest::new("my_plugin", MyPlugin.into())
     /// # }
     /// ```
-    pub fn new(
-        name: &str,
-        plugin: Arc<impl Plugin + Send + 'static>,
-    ) -> Result<PluginTest, ShellError> {
+    pub fn new(name: &str, plugin: Arc<impl Plugin + Send + 'static>) -> ShellResult<PluginTest> {
         let mut engine_state = create_default_context();
         let mut working_set = StateWorkingSet::new(&engine_state);
 
@@ -69,7 +66,7 @@ impl PluginTest {
     pub fn add_decl(
         &mut self,
         decl: Box<dyn nu_protocol::engine::Command>,
-    ) -> Result<&mut Self, ShellError> {
+    ) -> ShellResult<&mut Self> {
         let mut working_set = StateWorkingSet::new(&self.engine_state);
         working_set.add_decl(decl);
         self.engine_state.merge_delta(working_set.render())?;
@@ -85,7 +82,7 @@ impl PluginTest {
     /// # use nu_plugin_test_support::PluginTest;
     /// # use nu_protocol::{ShellError, Span, Value, IntoInterruptiblePipelineData};
     /// # use nu_plugin::*;
-    /// # fn test(MyPlugin: impl Plugin + Send + 'static) -> Result<(), ShellError> {
+    /// # fn test(MyPlugin: impl Plugin + Send + 'static) -> ShellResult<()> {
     /// let result = PluginTest::new("my_plugin", MyPlugin.into())?
     ///     .eval_with(
     ///         "my-command",
@@ -96,11 +93,7 @@ impl PluginTest {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn eval_with(
-        &mut self,
-        nu_source: &str,
-        input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    pub fn eval_with(&mut self, nu_source: &str, input: PipelineData) -> ShellResult<PipelineData> {
         let mut working_set = StateWorkingSet::new(&self.engine_state);
         let fname = format!("entry #{}", self.entry_num);
         self.entry_num += 1;
@@ -129,7 +122,7 @@ impl PluginTest {
         // Return error if set. We merge the delta even if we have errors so that printing the error
         // based on the engine state still works.
         if let Some(error) = error {
-            return Err(error);
+            return Err(error)?;
         }
 
         // Serialize custom values in the input
@@ -168,7 +161,7 @@ impl PluginTest {
     /// # use nu_plugin_test_support::PluginTest;
     /// # use nu_protocol::{ShellError, Span, Value, IntoInterruptiblePipelineData};
     /// # use nu_plugin::*;
-    /// # fn test(MyPlugin: impl Plugin + Send + 'static) -> Result<(), ShellError> {
+    /// # fn test(MyPlugin: impl Plugin + Send + 'static) -> ShellResult<()> {
     /// let result = PluginTest::new("my_plugin", MyPlugin.into())?
     ///     .eval("42 | my-command")?
     ///     .into_value(Span::test_data());
@@ -176,7 +169,7 @@ impl PluginTest {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn eval(&mut self, nu_source: &str) -> Result<PipelineData, ShellError> {
+    pub fn eval(&mut self, nu_source: &str) -> ShellResult<PipelineData> {
         self.eval_with(nu_source, PipelineData::Empty)
     }
 
@@ -190,7 +183,7 @@ impl PluginTest {
     /// # use nu_plugin_test_support::PluginTest;
     /// # use nu_protocol::{ShellError, Example, Value};
     /// # use nu_plugin::*;
-    /// # fn test(MyPlugin: impl Plugin + Send + 'static) -> Result<(), ShellError> {
+    /// # fn test(MyPlugin: impl Plugin + Send + 'static) -> ShellResult<()> {
     /// PluginTest::new("my_plugin", MyPlugin.into())?
     ///     .test_examples(&[
     ///         Example {
@@ -201,7 +194,7 @@ impl PluginTest {
     ///     ])
     /// # }
     /// ```
-    pub fn test_examples(&mut self, examples: &[Example]) -> Result<(), ShellError> {
+    pub fn test_examples(&mut self, examples: &[Example]) -> ShellResult<()> {
         let mut failed = false;
 
         for example in examples {
@@ -251,7 +244,7 @@ impl PluginTest {
                 span: None,
                 help: None,
                 inner: vec![],
-            })
+            })?
         }
     }
 
@@ -263,15 +256,12 @@ impl PluginTest {
     /// # use nu_plugin_test_support::PluginTest;
     /// # use nu_protocol::ShellError;
     /// # use nu_plugin::*;
-    /// # fn test(MyPlugin: impl Plugin + Send + 'static, MyCommand: impl PluginCommand) -> Result<(), ShellError> {
+    /// # fn test(MyPlugin: impl Plugin + Send + 'static, MyCommand: impl PluginCommand) -> ShellResult<()> {
     /// PluginTest::new("my_plugin", MyPlugin.into())?
     ///     .test_command_examples(&MyCommand)
     /// # }
     /// ```
-    pub fn test_command_examples(
-        &mut self,
-        command: &impl PluginCommand,
-    ) -> Result<(), ShellError> {
+    pub fn test_command_examples(&mut self, command: &impl PluginCommand) -> ShellResult<()> {
         self.test_examples(&command.examples())
     }
 
@@ -280,7 +270,7 @@ impl PluginTest {
     ///
     /// NOTE: Try to keep these reflecting the same comparison as `Value::partial_cmp` does under
     /// normal circumstances. Otherwise people will be very confused.
-    fn value_eq(&self, a: &Value, b: &Value) -> Result<bool, ShellError> {
+    fn value_eq(&self, a: &Value, b: &Value) -> ShellResult<bool> {
         match (a, b) {
             (Value::Custom { val, .. }, _) => {
                 // We have to serialize both custom values before handing them to the plugin
@@ -353,7 +343,7 @@ impl PluginTest {
         &self,
         val: &dyn CustomValue,
         span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         let mut serialized = PluginCustomValue::serialize_from_custom_value(val, span)?;
         serialized.set_source(Some(self.source.clone()));
         let persistent = self.source.persistent(None)?.get_plugin(None)?;

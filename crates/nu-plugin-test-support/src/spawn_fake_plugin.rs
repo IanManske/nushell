@@ -4,7 +4,7 @@ use nu_plugin::{
     InterfaceManager, Plugin, PluginInput, PluginInterfaceManager, PluginOutput, PluginRead,
     PluginSource, PluginWrite,
 };
-use nu_protocol::{PluginIdentity, ShellError};
+use nu_protocol::{IntoSpanned, PluginIdentity, ShellError, ShellResult, Span};
 
 use crate::fake_persistent_plugin::FakePersistentPlugin;
 
@@ -12,21 +12,22 @@ struct FakePluginRead<T>(mpsc::Receiver<T>);
 struct FakePluginWrite<T>(mpsc::Sender<T>);
 
 impl<T> PluginRead<T> for FakePluginRead<T> {
-    fn read(&mut self) -> Result<Option<T>, ShellError> {
+    fn read(&mut self) -> ShellResult<Option<T>> {
         Ok(self.0.recv().ok())
     }
 }
 
 impl<T: Clone + Send> PluginWrite<T> for FakePluginWrite<T> {
-    fn write(&self, data: &T) -> Result<(), ShellError> {
-        self.0
-            .send(data.clone())
-            .map_err(|err| ShellError::IOError {
+    fn write(&self, data: &T) -> ShellResult<()> {
+        self.0.send(data.clone()).map_err(|err| {
+            ShellError::IOError {
                 msg: err.to_string(),
-            })
+            }
+            .into()
+        })
     }
 
-    fn flush(&self) -> Result<(), ShellError> {
+    fn flush(&self) -> ShellResult<()> {
         Ok(())
     }
 }
@@ -40,7 +41,7 @@ fn fake_plugin_channel<T: Clone + Send>() -> (FakePluginRead<T>, FakePluginWrite
 pub(crate) fn spawn_fake_plugin(
     name: &str,
     plugin: Arc<impl Plugin + Send + 'static>,
-) -> Result<Arc<FakePersistentPlugin>, ShellError> {
+) -> ShellResult<Arc<FakePersistentPlugin>> {
     let (input_read, input_write) = fake_plugin_channel::<PluginInput>();
     let (output_read, output_write) = fake_plugin_channel::<PluginOutput>();
 
@@ -59,7 +60,8 @@ pub(crate) fn spawn_fake_plugin(
     // Start the interface reader on another thread
     std::thread::Builder::new()
         .name(format!("fake plugin interface reader ({name})"))
-        .spawn(move || manager.consume_all(output_read).expect("Plugin read error"))?;
+        .spawn(move || manager.consume_all(output_read).expect("Plugin read error"))
+        .map_err(|e| e.into_spanned(Span::test_data()))?;
 
     // Start the plugin on another thread
     let name_string = name.to_owned();
@@ -73,7 +75,8 @@ pub(crate) fn spawn_fake_plugin(
                 move || output_write,
             )
             .expect("Plugin runner error")
-        })?;
+        })
+        .map_err(|e| e.into_spanned(Span::unknown()))?;
 
     Ok(reg_plugin)
 }

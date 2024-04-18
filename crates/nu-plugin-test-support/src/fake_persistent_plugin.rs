@@ -6,7 +6,7 @@ use std::{
 use nu_plugin::{GetPlugin, PluginInterface};
 use nu_protocol::{
     engine::{EngineState, Stack},
-    PluginGcConfig, PluginIdentity, RegisteredPlugin, ShellError,
+    PluginGcConfig, PluginIdentity, RegisteredPlugin, ShellError, ShellResult,
 };
 
 pub struct FakePersistentPlugin {
@@ -46,12 +46,12 @@ impl RegisteredPlugin for FakePersistentPlugin {
         // We don't have a GC
     }
 
-    fn stop(&self) -> Result<(), ShellError> {
+    fn stop(&self) -> ShellResult<()> {
         // We can't stop
         Ok(())
     }
 
-    fn reset(&self) -> Result<(), ShellError> {
+    fn reset(&self) -> ShellResult<()> {
         // We can't stop
         Ok(())
     }
@@ -65,12 +65,12 @@ impl GetPlugin for FakePersistentPlugin {
     fn get_plugin(
         self: Arc<Self>,
         _context: Option<(&EngineState, &mut Stack)>,
-    ) -> Result<PluginInterface, ShellError> {
-        self.plugin
-            .get()
-            .cloned()
-            .ok_or_else(|| ShellError::PluginFailedToLoad {
+    ) -> ShellResult<PluginInterface> {
+        self.plugin.get().cloned().ok_or_else(|| {
+            ShellError::PluginFailedToLoad {
                 msg: "FakePersistentPlugin was not initialized".into(),
-            })
+            }
+            .into()
+        })
     }
 }

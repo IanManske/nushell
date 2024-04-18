@@ -1,7 +1,7 @@
 use std::{ops::Deref, sync::Arc};
 
 use nu_plugin::{create_plugin_signature, Plugin, PluginDeclaration};
-use nu_protocol::{engine::StateWorkingSet, RegisteredPlugin, ShellError};
+use nu_protocol::{engine::StateWorkingSet, RegisteredPlugin, ShellResult};
 
 use crate::{fake_persistent_plugin::FakePersistentPlugin, spawn_fake_plugin::spawn_fake_plugin};
 
@@ -10,7 +10,7 @@ pub fn fake_register(
     working_set: &mut StateWorkingSet,
     name: &str,
     plugin: Arc<impl Plugin + Send + 'static>,
-) -> Result<Arc<FakePersistentPlugin>, ShellError> {
+) -> ShellResult<Arc<FakePersistentPlugin>> {
     let reg_plugin = spawn_fake_plugin(name, plugin.clone())?;
     let reg_plugin_clone = reg_plugin.clone();
 
