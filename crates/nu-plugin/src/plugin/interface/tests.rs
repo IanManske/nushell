@@ -11,7 +11,8 @@ use crate::{
     sequence::Sequence,
 };
 use nu_protocol::{
-    DataSource, ListStream, PipelineData, PipelineMetadata, RawStream, ShellError, Span, Value,
+    DataSource, ListStream, PipelineData, PipelineMetadata, RawStream, ShellError, ShellResult,
+    Span, Value,
 };
 use std::{path::Path, sync::Arc};
 
@@ -44,7 +45,7 @@ impl TestInterfaceManager {
         }
     }
 
-    fn consume_all(&mut self) -> Result<(), ShellError> {
+    fn consume_all(&mut self) -> ShellResult<()> {
         while let Some(msg) = self.test.read()? {
             self.consume(msg)?;
         }
@@ -64,7 +65,7 @@ impl InterfaceManager for TestInterfaceManager {
         }
     }
 
-    fn consume(&mut self, input: Self::Input) -> Result<(), ShellError> {
+    fn consume(&mut self, input: Self::Input) -> ShellResult<()> {
         match input {
             PluginInput::Data(..)
             | PluginInput::End(..)
@@ -82,7 +83,7 @@ impl InterfaceManager for TestInterfaceManager {
         &self.stream_manager
     }
 
-    fn prepare_pipeline_data(&self, data: PipelineData) -> Result<PipelineData, ShellError> {
+    fn prepare_pipeline_data(&self, data: PipelineData) -> ShellResult<PipelineData> {
         Ok(data.set_metadata(Some(test_metadata())))
     }
 }
@@ -91,11 +92,11 @@ impl Interface for TestInterface {
     type Output = PluginOutput;
     type DataContext = ();
 
-    fn write(&self, output: Self::Output) -> Result<(), ShellError> {
+    fn write(&self, output: Self::Output) -> ShellResult<()> {
         self.test.write(&output)
     }
 
-    fn flush(&self) -> Result<(), ShellError> {
+    fn flush(&self) -> ShellResult<()> {
         Ok(())
     }
 
@@ -111,19 +112,19 @@ impl Interface for TestInterface {
         &self,
         data: PipelineData,
         _context: &(),
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         // Add an arbitrary check to the data to verify this is being called
         match data {
             PipelineData::Value(Value::Binary { .. }, None) => Err(ShellError::NushellFailed {
                 msg: "TEST can't send binary".into(),
-            }),
+            })?,
             _ => Ok(data),
         }
     }
 }
 
 #[test]
-fn read_pipeline_data_empty() -> Result<(), ShellError> {
+fn read_pipeline_data_empty() -> ShellResult<()> {
     let manager = TestInterfaceManager::new(&TestCase::new());
     let header = PipelineDataHeader::Empty;
 
@@ -135,7 +136,7 @@ fn read_pipeline_data_empty() -> Result<(), ShellError> {
 }
 
 #[test]
-fn read_pipeline_data_value() -> Result<(), ShellError> {
+fn read_pipeline_data_value() -> ShellResult<()> {
     let manager = TestInterfaceManager::new(&TestCase::new());
     let value = Value::test_int(4);
     let header = PipelineDataHeader::Value(value.clone());
@@ -151,7 +152,7 @@ fn read_pipeline_data_value() -> Result<(), ShellError> {
 }
 
 #[test]
-fn read_pipeline_data_list_stream() -> Result<(), ShellError> {
+fn read_pipeline_data_list_stream() -> ShellResult<()> {
     let test = TestCase::new();
     let mut manager = TestInterfaceManager::new(&test);
 
@@ -186,7 +187,7 @@ fn read_pipeline_data_list_stream() -> Result<(), ShellError> {
 }
 
 #[test]
-fn read_pipeline_data_external_stream() -> Result<(), ShellError> {
+fn read_pipeline_data_external_stream() -> ShellResult<()> {
     let test = TestCase::new();
     let mut manager = TestInterfaceManager::new(&test);
 
@@ -286,7 +287,7 @@ fn read_pipeline_data_external_stream() -> Result<(), ShellError> {
 }
 
 #[test]
-fn read_pipeline_data_ctrlc() -> Result<(), ShellError> {
+fn read_pipeline_data_ctrlc() -> ShellResult<()> {
     let manager = TestInterfaceManager::new(&TestCase::new());
     let header = PipelineDataHeader::ListStream(ListStreamInfo { id: 0 });
     let ctrlc = Default::default();
@@ -306,7 +307,7 @@ fn read_pipeline_data_ctrlc() -> Result<(), ShellError> {
 }
 
 #[test]
-fn read_pipeline_data_prepared_properly() -> Result<(), ShellError> {
+fn read_pipeline_data_prepared_properly() -> ShellResult<()> {
     let manager = TestInterfaceManager::new(&TestCase::new());
     let header = PipelineDataHeader::ListStream(ListStreamInfo { id: 0 });
     match manager.read_pipeline_data(header, None)? {
@@ -325,7 +326,7 @@ fn read_pipeline_data_prepared_properly() -> Result<(), ShellError> {
 }
 
 #[test]
-fn write_pipeline_data_empty() -> Result<(), ShellError> {
+fn write_pipeline_data_empty() -> ShellResult<()> {
     let test = TestCase::new();
     let manager = TestInterfaceManager::new(&test);
     let interface = manager.get_interface();
@@ -345,7 +346,7 @@ fn write_pipeline_data_empty() -> Result<(), ShellError> {
 }
 
 #[test]
-fn write_pipeline_data_value() -> Result<(), ShellError> {
+fn write_pipeline_data_value() -> ShellResult<()> {
     let test = TestCase::new();
     let manager = TestInterfaceManager::new(&test);
     let interface = manager.get_interface();
@@ -392,7 +393,7 @@ fn write_pipeline_data_prepared_properly() {
 }
 
 #[test]
-fn write_pipeline_data_list_stream() -> Result<(), ShellError> {
+fn write_pipeline_data_list_stream() -> ShellResult<()> {
     let test = TestCase::new();
     let manager = TestInterfaceManager::new(&test);
     let interface = manager.get_interface();
@@ -445,7 +446,7 @@ fn write_pipeline_data_list_stream() -> Result<(), ShellError> {
 }
 
 #[test]
-fn write_pipeline_data_external_stream() -> Result<(), ShellError> {
+fn write_pipeline_data_external_stream() -> ShellResult<()> {
     let test = TestCase::new();
     let manager = TestInterfaceManager::new(&test);
     let interface = manager.get_interface();
@@ -519,14 +520,14 @@ fn write_pipeline_data_external_stream() -> Result<(), ShellError> {
         match msg {
             PluginOutput::Data(id, data) => {
                 if id == stdout_info.id {
-                    let result: Result<Vec<u8>, ShellError> =
+                    let result: ShellResult<Vec<u8>> =
                         data.try_into().expect("wrong data in stdout stream");
                     assert_eq!(
                         stdout_iter.next().expect("too much data in stdout"),
                         result.expect("unexpected error in stdout stream")
                     );
                 } else if id == stderr_info.id {
-                    let result: Result<Vec<u8>, ShellError> =
+                    let result: ShellResult<Vec<u8>> =
                         data.try_into().expect("wrong data in stderr stream");
                     assert_eq!(
                         stderr_iter.next().expect("too much data in stderr"),

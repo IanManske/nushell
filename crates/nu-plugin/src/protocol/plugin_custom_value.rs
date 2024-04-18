@@ -5,7 +5,9 @@ use crate::{
     plugin::{PluginInterface, PluginSource},
     util::with_custom_values_in,
 };
-use nu_protocol::{ast::Operator, CustomValue, IntoSpanned, ShellError, Span, Spanned, Value};
+use nu_protocol::{
+    ast::Operator, CustomValue, Error, IntoSpanned, ShellError, ShellResult, Span, Spanned, Value,
+};
 use nu_utils::SharedCow;
 
 use serde::{Deserialize, Serialize};
@@ -73,7 +75,7 @@ impl CustomValue for PluginCustomValue {
         self.name().to_owned()
     }
 
-    fn to_base_value(&self, span: Span) -> Result<Value, ShellError> {
+    fn to_base_value(&self, span: Span) -> ShellResult<Value> {
         self.get_plugin(Some(span), "get base value")?
             .custom_value_to_base_value(self.clone().into_spanned(span))
     }
@@ -83,7 +85,7 @@ impl CustomValue for PluginCustomValue {
         self_span: Span,
         index: usize,
         path_span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         self.get_plugin(Some(self_span), "follow cell path")?
             .custom_value_follow_path_int(
                 self.clone().into_spanned(self_span),
@@ -96,7 +98,7 @@ impl CustomValue for PluginCustomValue {
         self_span: Span,
         column_name: String,
         path_span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         self.get_plugin(Some(self_span), "follow cell path")?
             .custom_value_follow_path_string(
                 self.clone().into_spanned(self_span),
@@ -128,7 +130,7 @@ impl CustomValue for PluginCustomValue {
         operator: Operator,
         op_span: Span,
         right: &Value,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         self.get_plugin(Some(lhs_span), "invoke operator")?
             .custom_value_operation(
                 self.clone().into_spanned(lhs_span),
@@ -198,25 +200,31 @@ impl PluginCustomValue {
     }
 
     /// Helper to get the plugin to implement an op
-    fn get_plugin(&self, span: Option<Span>, for_op: &str) -> Result<PluginInterface, ShellError> {
-        let wrap_err = |err: ShellError| ShellError::GenericError {
-            error: format!(
-                "Unable to spawn plugin `{}` to {for_op}",
-                self.source
-                    .as_ref()
-                    .map(|s| s.name())
-                    .unwrap_or("<unknown>")
-            ),
-            msg: err.to_string(),
-            span,
-            help: None,
-            inner: vec![err],
+    fn get_plugin(&self, span: Option<Span>, for_op: &str) -> ShellResult<PluginInterface> {
+        let wrap_err = |err: Error| {
+            ShellError::GenericError {
+                error: format!(
+                    "Unable to spawn plugin `{}` to {for_op}",
+                    self.source
+                        .as_ref()
+                        .map(|s| s.name())
+                        .unwrap_or("<unknown>")
+                ),
+                msg: err.to_string(),
+                span,
+                help: None,
+                inner: vec![err.into()],
+            }
+            .into()
         };
 
         let source = self.source.clone().ok_or_else(|| {
-            wrap_err(ShellError::NushellFailed {
-                msg: "The plugin source for the custom value was not set".into(),
-            })
+            wrap_err(
+                ShellError::NushellFailed {
+                    msg: "The plugin source for the custom value was not set".into(),
+                }
+                .into(),
+            )
         })?;
 
         source
@@ -230,28 +238,31 @@ impl PluginCustomValue {
     pub fn serialize_from_custom_value(
         custom_value: &dyn CustomValue,
         span: Span,
-    ) -> Result<PluginCustomValue, ShellError> {
+    ) -> ShellResult<PluginCustomValue> {
         let name = custom_value.type_name();
         let notify_on_drop = custom_value.notify_plugin_on_drop();
         bincode::serialize(custom_value)
             .map(|data| PluginCustomValue::new(name, data, notify_on_drop, None))
-            .map_err(|err| ShellError::CustomValueFailedToEncode {
-                msg: err.to_string(),
-                span,
+            .map_err(|err| {
+                ShellError::CustomValueFailedToEncode {
+                    msg: err.to_string(),
+                    span,
+                }
+                .into()
             })
     }
 
     /// Deserialize a [`PluginCustomValue`] into a `Box<dyn CustomValue>`. This should only be done
     /// on the plugin side.
-    pub fn deserialize_to_custom_value(
-        &self,
-        span: Span,
-    ) -> Result<Box<dyn CustomValue>, ShellError> {
+    pub fn deserialize_to_custom_value(&self, span: Span) -> ShellResult<Box<dyn CustomValue>> {
         bincode::deserialize::<Box<dyn CustomValue>>(self.data()).map_err(|err| {
-            ShellError::CustomValueFailedToDecode {
-                msg: err.to_string(),
-                span,
+            {
+                ShellError::CustomValueFailedToDecode {
+                    msg: err.to_string(),
+                    span,
+                }
             }
+            .into()
         })
     }
 
@@ -263,10 +274,10 @@ impl PluginCustomValue {
     }
 
     /// Add a [`PluginSource`] to all [`PluginCustomValue`]s within the value, recursively.
-    pub fn add_source_in(value: &mut Value, source: &Arc<PluginSource>) -> Result<(), ShellError> {
+    pub fn add_source_in(value: &mut Value, source: &Arc<PluginSource>) -> ShellResult<()> {
         with_custom_values_in(value, |custom_value| {
             Self::add_source(custom_value.item, source);
-            Ok::<_, ShellError>(())
+            ShellResult::Ok(())
         })
     }
 
@@ -278,7 +289,7 @@ impl PluginCustomValue {
     pub fn verify_source(
         value: Spanned<&dyn CustomValue>,
         source: &PluginSource,
-    ) -> Result<(), ShellError> {
+    ) -> ShellResult<()> {
         if let Some(custom_value) = value.item.as_any().downcast_ref::<PluginCustomValue>() {
             if custom_value
                 .source
@@ -293,7 +304,7 @@ impl PluginCustomValue {
                     span: value.span,
                     dest_plugin: source.name().to_owned(),
                     src_plugin: custom_value.source.as_ref().map(|s| s.name().to_owned()),
-                })
+                })?
             }
         } else {
             // Only PluginCustomValues can be sent
@@ -302,13 +313,13 @@ impl PluginCustomValue {
                 span: value.span,
                 dest_plugin: source.name().to_owned(),
                 src_plugin: None,
-            })
+            })?
         }
     }
 
     /// Convert all plugin-native custom values to [`PluginCustomValue`] within the given `value`,
     /// recursively. This should only be done on the plugin side.
-    pub fn serialize_custom_values_in(value: &mut Value) -> Result<(), ShellError> {
+    pub fn serialize_custom_values_in(value: &mut Value) -> ShellResult<()> {
         value.recurse_mut(&mut |value| {
             let span = value.span();
             match value {
@@ -334,7 +345,7 @@ impl PluginCustomValue {
 
     /// Convert all [`PluginCustomValue`]s to plugin-native custom values within the given `value`,
     /// recursively. This should only be done on the plugin side.
-    pub fn deserialize_custom_values_in(value: &mut Value) -> Result<(), ShellError> {
+    pub fn deserialize_custom_values_in(value: &mut Value) -> ShellResult<()> {
         value.recurse_mut(&mut |value| {
             let span = value.span();
             match value {
@@ -359,7 +370,7 @@ impl PluginCustomValue {
     }
 
     /// Render any custom values in the `Value` using `to_base_value()`
-    pub fn render_to_base_value_in(value: &mut Value) -> Result<(), ShellError> {
+    pub fn render_to_base_value_in(value: &mut Value) -> ShellResult<()> {
         value.recurse_mut(&mut |value| {
             let span = value.span();
             match value {

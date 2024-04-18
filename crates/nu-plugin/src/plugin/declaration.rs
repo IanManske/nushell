@@ -1,7 +1,7 @@
 use super::{GetPlugin, PluginExecutionCommandContext, PluginSource};
 use crate::protocol::{CallInfo, EvaluatedCall};
 use nu_engine::{command_prelude::*, get_eval_expression};
-use nu_protocol::{PluginIdentity, PluginSignature};
+use nu_protocol::{PluginIdentity, PluginSignature, ShellResult};
 use std::sync::Arc;
 
 #[doc(hidden)] // Note: not for plugin authors / only used in nu-parser
@@ -66,7 +66,7 @@ impl Command for PluginDeclaration {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let eval_expression = get_eval_expression(engine_state);
 
         // Create the EvaluatedCall to send to the plugin first - it's best for this to fail early,

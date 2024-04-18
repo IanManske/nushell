@@ -1,4 +1,4 @@
-use nu_protocol::{CustomValue, IntoSpanned, ShellError, Spanned, Value};
+use nu_protocol::{CustomValue, Error, IntoSpanned, Spanned, Value};
 
 /// Do something with all [`CustomValue`]s recursively within a `Value`. This is not limited to
 /// plugin custom values.
@@ -9,7 +9,7 @@ pub fn with_custom_values_in<E>(
     mut f: impl FnMut(Spanned<&mut (dyn CustomValue + '_)>) -> Result<(), E>,
 ) -> Result<(), E>
 where
-    E: From<ShellError>,
+    E: From<Error>,
 {
     value.recurse_mut(&mut |value| {
         let span = value.span();
@@ -33,7 +33,7 @@ where
 #[test]
 fn find_custom_values() {
     use crate::protocol::test_util::test_plugin_custom_value;
-    use nu_protocol::{engine::Closure, record, LazyRecord, Span};
+    use nu_protocol::{engine::Closure, record, LazyRecord, ShellResult, Span};
 
     #[derive(Debug, Clone)]
     struct Lazy;
@@ -42,7 +42,7 @@ fn find_custom_values() {
             vec!["custom", "plain"]
         }
 
-        fn get_column_value(&self, column: &str) -> Result<Value, ShellError> {
+        fn get_column_value(&self, column: &str) -> ShellResult<Value> {
             Ok(match column {
                 "custom" => Value::test_custom_value(Box::new(test_plugin_custom_value())),
                 "plain" => Value::test_int(42),
@@ -78,7 +78,7 @@ fn find_custom_values() {
 
     // Do with_custom_values_in, and count the number of custom values found
     let mut found = 0;
-    with_custom_values_in::<ShellError>(&mut value, |_| {
+    with_custom_values_in::<Error>(&mut value, |_| {
         found += 1;
         Ok(())
     })
@@ -87,7 +87,7 @@ fn find_custom_values() {
 
     // Try it on bare custom value too
     found = 0;
-    with_custom_values_in::<ShellError>(&mut cv, |_| {
+    with_custom_values_in::<Error>(&mut cv, |_| {
         found += 1;
         Ok(())
     })

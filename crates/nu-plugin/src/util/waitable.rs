@@ -1,9 +1,8 @@
+use nu_protocol::{ShellError, ShellResult};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Condvar, Mutex, MutexGuard, PoisonError,
 };
-
-use nu_protocol::ShellError;
 
 /// A container that may be empty, and allows threads to block until it has a value.
 #[derive(Debug)]
@@ -16,13 +15,13 @@ pub struct Waitable<T: Clone + Send> {
 #[track_caller]
 fn fail_if_poisoned<'a, T>(
     result: Result<MutexGuard<'a, T>, PoisonError<MutexGuard<'a, T>>>,
-) -> Result<MutexGuard<'a, T>, ShellError> {
+) -> ShellResult<MutexGuard<'a, T>> {
     match result {
         Ok(guard) => Ok(guard),
         Err(_) => Err(ShellError::NushellFailedHelp {
             msg: "Waitable mutex poisoned".into(),
             help: std::panic::Location::caller().to_string(),
-        }),
+        })?,
     }
 }
 
@@ -38,7 +37,7 @@ impl<T: Clone + Send> Waitable<T> {
 
     /// Wait for a value to be available and then clone it.
     #[track_caller]
-    pub fn get(&self) -> Result<T, ShellError> {
+    pub fn get(&self) -> ShellResult<T> {
         let guard = fail_if_poisoned(self.mutex.lock())?;
         if let Some(value) = (*guard).clone() {
             Ok(value)
@@ -52,7 +51,7 @@ impl<T: Clone + Send> Waitable<T> {
 
     /// Clone the value if one is available, but don't wait if not.
     #[track_caller]
-    pub fn try_get(&self) -> Result<Option<T>, ShellError> {
+    pub fn try_get(&self) -> ShellResult<Option<T>> {
         let guard = fail_if_poisoned(self.mutex.lock())?;
         Ok((*guard).clone())
     }
@@ -65,7 +64,7 @@ impl<T: Clone + Send> Waitable<T> {
 
     /// Set the value and let waiting threads know.
     #[track_caller]
-    pub fn set(&self, value: T) -> Result<(), ShellError> {
+    pub fn set(&self, value: T) -> ShellResult<()> {
         let mut guard = fail_if_poisoned(self.mutex.lock())?;
         self.is_set.store(true, Ordering::SeqCst);
         *guard = Some(value);
@@ -81,7 +80,7 @@ impl<T: Clone + Send> Default for Waitable<T> {
 }
 
 #[test]
-fn set_from_other_thread() -> Result<(), ShellError> {
+fn set_from_other_thread() -> ShellResult<()> {
     use std::sync::Arc;
 
     let waitable = Arc::new(Waitable::new());

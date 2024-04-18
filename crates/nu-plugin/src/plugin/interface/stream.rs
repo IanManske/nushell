@@ -1,5 +1,5 @@
 use crate::protocol::{StreamData, StreamId, StreamMessage};
-use nu_protocol::{ShellError, Span, Value};
+use nu_protocol::{Error, ShellError, ShellResult, Span, Value};
 use std::{
     collections::{btree_map, BTreeMap},
     iter::FusedIterator,
@@ -12,7 +12,7 @@ mod tests;
 
 /// Receives messages from a stream read from input by a [`StreamManager`].
 ///
-/// The receiver reads for messages of type `Result<Option<StreamData>, ShellError>` from the
+/// The receiver reads for messages of type `ShellResult<Option<StreamData>>` from the
 /// channel, which is managed by a [`StreamManager`]. Signalling for end-of-stream is explicit
 /// through `Ok(Some)`.
 ///
@@ -30,7 +30,7 @@ where
     W: WriteStreamMessage,
 {
     id: StreamId,
-    receiver: Option<mpsc::Receiver<Result<Option<StreamData>, ShellError>>>,
+    receiver: Option<mpsc::Receiver<ShellResult<Option<StreamData>>>>,
     writer: W,
     /// Iterator requires the item type to be fixed, so we have to keep it as part of the type,
     /// even though we're actually receiving dynamic data.
@@ -39,13 +39,13 @@ where
 
 impl<T, W> StreamReader<T, W>
 where
-    T: TryFrom<StreamData, Error = ShellError>,
+    T: TryFrom<StreamData, Error = Error>,
     W: WriteStreamMessage,
 {
     /// Create a new StreamReader from parts
     pub(crate) fn new(
         id: StreamId,
-        receiver: mpsc::Receiver<Result<Option<StreamData>, ShellError>>,
+        receiver: mpsc::Receiver<ShellResult<Option<StreamData>>>,
         writer: W,
     ) -> StreamReader<T, W> {
         StreamReader {
@@ -61,13 +61,16 @@ where
     /// * the channel couldn't be received from
     /// * an error was sent on the channel
     /// * the message received couldn't be converted to `T`
-    pub(crate) fn recv(&mut self) -> Result<Option<T>, ShellError> {
-        let connection_lost = || ShellError::GenericError {
-            error: "Stream ended unexpectedly".into(),
-            msg: "connection lost before explicit end of stream".into(),
-            span: None,
-            help: None,
-            inner: vec![],
+    pub(crate) fn recv(&mut self) -> ShellResult<Option<T>> {
+        let connection_lost = || {
+            ShellError::GenericError {
+                error: "Stream ended unexpectedly".into(),
+                msg: "connection lost before explicit end of stream".into(),
+                span: None,
+                help: None,
+                inner: vec![],
+            }
+            .into()
         };
 
         if let Some(ref rx) = self.receiver {
@@ -104,7 +107,7 @@ where
 
 impl<T, W> Iterator for StreamReader<T, W>
 where
-    T: FromShellError + TryFrom<StreamData, Error = ShellError>,
+    T: FromShellError + TryFrom<StreamData, Error = Error>,
     W: WriteStreamMessage,
 {
     type Item = T;
@@ -116,7 +119,7 @@ where
             Err(err) => {
                 // Drop the receiver so we don't keep returning errors
                 self.receiver = None;
-                Some(T::from_shell_error(err))
+                Some(T::from_error(err))
             }
         }
     }
@@ -125,7 +128,7 @@ where
 // Guaranteed not to return anything after the end
 impl<T, W> FusedIterator for StreamReader<T, W>
 where
-    T: FromShellError + TryFrom<StreamData, Error = ShellError>,
+    T: FromShellError + TryFrom<StreamData, Error = Error>,
     W: WriteStreamMessage,
 {
 }
@@ -145,21 +148,21 @@ where
     }
 }
 
-/// Values that can contain a `ShellError` to signal an error has occurred.
+/// Values that can contain an [`Error`]` to signal an error has occurred.
 pub(crate) trait FromShellError {
-    fn from_shell_error(err: ShellError) -> Self;
+    fn from_error(err: Error) -> Self;
 }
 
 // For List streams.
 impl FromShellError for Value {
-    fn from_shell_error(err: ShellError) -> Self {
+    fn from_error(err: Error) -> Self {
         Value::error(err, Span::unknown())
     }
 }
 
 // For Raw streams, mostly.
-impl<T> FromShellError for Result<T, ShellError> {
-    fn from_shell_error(err: ShellError) -> Self {
+impl<T> FromShellError for ShellResult<T> {
+    fn from_error(err: Error) -> Self {
         Err(err)
     }
 }
@@ -190,7 +193,7 @@ where
 
     /// Check if the stream was dropped from the other end. Recommended to do this before calling
     /// [`.write()`], especially in a loop.
-    pub(crate) fn is_dropped(&self) -> Result<bool, ShellError> {
+    pub(crate) fn is_dropped(&self) -> ShellResult<bool> {
         self.signal.is_dropped()
     }
 
@@ -198,7 +201,7 @@ where
     ///
     /// Error if something failed with the write, or if [`.end()`] was already called
     /// previously.
-    pub(crate) fn write(&mut self, data: impl Into<StreamData>) -> Result<(), ShellError> {
+    pub(crate) fn write(&mut self, data: impl Into<StreamData>) -> ShellResult<()> {
         if !self.ended {
             self.writer
                 .write_stream_message(StreamMessage::Data(self.id, data.into()))?;
@@ -220,7 +223,7 @@ where
                 span: None,
                 help: Some("this may be a bug in the nu-plugin crate".into()),
                 inner: vec![],
-            })
+            })?
         }
     }
 
@@ -232,10 +235,7 @@ where
     ///
     /// Returns `Ok(true)` if the iterator was fully consumed, or `Ok(false)` if a drop interrupted
     /// the stream from the other side.
-    pub(crate) fn write_all<T>(
-        &mut self,
-        data: impl IntoIterator<Item = T>,
-    ) -> Result<bool, ShellError>
+    pub(crate) fn write_all<T>(&mut self, data: impl IntoIterator<Item = T>) -> ShellResult<bool>
     where
         T: Into<StreamData>,
     {
@@ -257,7 +257,7 @@ where
 
     /// End the stream. Recommend doing this instead of relying on `Drop` so that you can catch the
     /// error.
-    pub(crate) fn end(&mut self) -> Result<(), ShellError> {
+    pub(crate) fn end(&mut self) -> ShellResult<()> {
         if !self.ended {
             // Set the flag first so we don't double-report in the Drop
             self.ended = true;
@@ -319,20 +319,23 @@ impl StreamWriterSignal {
         }
     }
 
-    fn lock(&self) -> Result<MutexGuard<StreamWriterSignalState>, ShellError> {
-        self.mutex.lock().map_err(|_| ShellError::NushellFailed {
-            msg: "StreamWriterSignal mutex poisoned due to panic".into(),
+    fn lock(&self) -> ShellResult<MutexGuard<StreamWriterSignalState>> {
+        self.mutex.lock().map_err(|_| {
+            ShellError::NushellFailed {
+                msg: "StreamWriterSignal mutex poisoned due to panic".into(),
+            }
+            .into()
         })
     }
 
     /// True if the stream was dropped and the consumer is no longer interested in it. Indicates
     /// that no more messages should be sent, other than `End`.
-    pub(crate) fn is_dropped(&self) -> Result<bool, ShellError> {
+    pub(crate) fn is_dropped(&self) -> ShellResult<bool> {
         Ok(self.lock()?.dropped)
     }
 
     /// Notify the writers that the stream has been dropped, so they can stop writing.
-    pub(crate) fn set_dropped(&self) -> Result<(), ShellError> {
+    pub(crate) fn set_dropped(&self) -> ShellResult<()> {
         let mut state = self.lock()?;
         state.dropped = true;
         // Unblock the writers so they can terminate
@@ -343,7 +346,7 @@ impl StreamWriterSignal {
     /// Track that a message has been sent. Returns `Ok(true)` if more messages can be sent,
     /// or `Ok(false)` if the high pressure mark has been reached and [`.wait_for_drain()`] should
     /// be called to block.
-    pub(crate) fn notify_sent(&self) -> Result<bool, ShellError> {
+    pub(crate) fn notify_sent(&self) -> ShellResult<bool> {
         let mut state = self.lock()?;
         state.unacknowledged =
             state
@@ -357,7 +360,7 @@ impl StreamWriterSignal {
     }
 
     /// Wait for acknowledgements before sending more data. Also returns if the stream is dropped.
-    pub(crate) fn wait_for_drain(&self) -> Result<(), ShellError> {
+    pub(crate) fn wait_for_drain(&self) -> ShellResult<()> {
         let mut state = self.lock()?;
         while !state.dropped && state.unacknowledged >= state.high_pressure_mark {
             state = self
@@ -372,7 +375,7 @@ impl StreamWriterSignal {
 
     /// Notify the writers that a message has been acknowledged, so they can continue to write
     /// if they were waiting.
-    pub(crate) fn notify_acknowledged(&self) -> Result<(), ShellError> {
+    pub(crate) fn notify_acknowledged(&self) -> ShellResult<()> {
         let mut state = self.lock()?;
         state.unacknowledged =
             state
@@ -389,23 +392,24 @@ impl StreamWriterSignal {
 
 /// A sink for a [`StreamMessage`]
 pub trait WriteStreamMessage {
-    fn write_stream_message(&mut self, msg: StreamMessage) -> Result<(), ShellError>;
-    fn flush(&mut self) -> Result<(), ShellError>;
+    fn write_stream_message(&mut self, msg: StreamMessage) -> ShellResult<()>;
+    fn flush(&mut self) -> ShellResult<()>;
 }
 
 #[derive(Debug, Default)]
 struct StreamManagerState {
-    reading_streams: BTreeMap<StreamId, mpsc::Sender<Result<Option<StreamData>, ShellError>>>,
+    reading_streams: BTreeMap<StreamId, mpsc::Sender<ShellResult<Option<StreamData>>>>,
     writing_streams: BTreeMap<StreamId, Weak<StreamWriterSignal>>,
 }
 
 impl StreamManagerState {
-    /// Lock the state, or return a [`ShellError`] if the mutex is poisoned.
-    fn lock(
-        state: &Mutex<StreamManagerState>,
-    ) -> Result<MutexGuard<StreamManagerState>, ShellError> {
-        state.lock().map_err(|_| ShellError::NushellFailed {
-            msg: "StreamManagerState mutex poisoned due to a panic".into(),
+    /// Lock the state, or return an error if the mutex is poisoned.
+    fn lock(state: &Mutex<StreamManagerState>) -> ShellResult<MutexGuard<StreamManagerState>> {
+        state.lock().map_err(|_| {
+            ShellError::NushellFailed {
+                msg: "StreamManagerState mutex poisoned due to a panic".into(),
+            }
+            .into()
         })
     }
 }
@@ -423,7 +427,7 @@ impl StreamManager {
         }
     }
 
-    fn lock(&self) -> Result<MutexGuard<StreamManagerState>, ShellError> {
+    fn lock(&self) -> ShellResult<MutexGuard<StreamManagerState>> {
         StreamManagerState::lock(&self.state)
     }
 
@@ -435,7 +439,7 @@ impl StreamManager {
     }
 
     /// Process a stream message, and update internal state accordingly.
-    pub(crate) fn handle_message(&self, message: StreamMessage) -> Result<(), ShellError> {
+    pub(crate) fn handle_message(&self, message: StreamMessage) -> ShellResult<()> {
         let mut state = self.lock()?;
         match message {
             StreamMessage::Data(id, data) => {
@@ -448,7 +452,7 @@ impl StreamManager {
                 } else {
                     Err(ShellError::PluginFailedToDecode {
                         msg: format!("received Data for unknown stream {id}"),
-                    })
+                    })?
                 }
             }
             StreamMessage::End(id) => {
@@ -460,7 +464,7 @@ impl StreamManager {
                 } else {
                     Err(ShellError::PluginFailedToDecode {
                         msg: format!("received End for unknown stream {id}"),
-                    })
+                    })?
                 }
             }
             StreamMessage::Drop(id) => {
@@ -492,7 +496,7 @@ impl StreamManager {
     }
 
     /// Broadcast an error to all stream readers. This is useful for error propagation.
-    pub(crate) fn broadcast_read_error(&self, error: ShellError) -> Result<(), ShellError> {
+    pub(crate) fn broadcast_read_error(&self, error: Error) -> ShellResult<()> {
         let state = self.lock()?;
         for channel in state.reading_streams.values() {
             // Ignore send errors.
@@ -504,7 +508,7 @@ impl StreamManager {
     // If the `StreamManager` is dropped, we should let all of the stream writers know that they
     // won't be able to write anymore. We don't need to do anything about the readers though
     // because they'll know when the `Sender` is dropped automatically
-    fn drop_all_writers(&self) -> Result<(), ShellError> {
+    fn drop_all_writers(&self) -> ShellResult<()> {
         let mut state = self.lock()?;
         let writers = std::mem::take(&mut state.writing_streams);
         for (_, signal) in writers {
@@ -538,9 +542,9 @@ impl StreamManagerHandle {
     /// Because the handle only has a weak reference to the [`StreamManager`] state, we have to
     /// first try to upgrade to a strong reference and then lock. This function wraps those two
     /// operations together, handling errors appropriately.
-    fn with_lock<T, F>(&self, f: F) -> Result<T, ShellError>
+    fn with_lock<T, F>(&self, f: F) -> ShellResult<T>
     where
-        F: FnOnce(MutexGuard<StreamManagerState>) -> Result<T, ShellError>,
+        F: FnOnce(MutexGuard<StreamManagerState>) -> ShellResult<T>,
     {
         let upgraded = self
             .state
@@ -561,9 +565,9 @@ impl StreamManagerHandle {
         &self,
         id: StreamId,
         writer: W,
-    ) -> Result<StreamReader<T, W>, ShellError>
+    ) -> ShellResult<StreamReader<T, W>>
     where
-        T: TryFrom<StreamData, Error = ShellError>,
+        T: TryFrom<StreamData, Error = Error>,
         W: WriteStreamMessage,
     {
         let (tx, rx) = mpsc::channel();
@@ -579,7 +583,7 @@ impl StreamManagerHandle {
                     span: None,
                     help: Some("this may be a bug in the nu-plugin crate".into()),
                     inner: vec![],
-                })
+                })?
             }
         })?;
         Ok(StreamReader::new(id, rx, writer))
@@ -596,7 +600,7 @@ impl StreamManagerHandle {
         id: StreamId,
         writer: W,
         high_pressure_mark: i32,
-    ) -> Result<StreamWriter<W>, ShellError>
+    ) -> ShellResult<StreamWriter<W>>
     where
         W: WriteStreamMessage,
     {
@@ -617,7 +621,7 @@ impl StreamManagerHandle {
                     span: None,
                     help: Some("this may be a bug in the nu-plugin crate".into()),
                     inner: vec![],
-                })
+                })?
             }
         })?;
         Ok(StreamWriter::new(id, signal, writer))

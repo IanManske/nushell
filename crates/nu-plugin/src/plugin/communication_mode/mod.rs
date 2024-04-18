@@ -1,8 +1,7 @@
+use nu_protocol::{ShellError, ShellResult};
 use std::ffi::OsStr;
 use std::io::{Stdin, Stdout};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
-
-use nu_protocol::ShellError;
 
 #[cfg(feature = "local-socket")]
 use interprocess::local_socket::LocalSocketListener;
@@ -69,7 +68,7 @@ impl CommunicationMode {
         }
     }
 
-    pub fn serve(&self) -> Result<PreparedServerCommunication, ShellError> {
+    pub fn serve(&self) -> ShellResult<PreparedServerCommunication> {
         match self {
             // Nothing to set up for stdio - we just take it from the child.
             CommunicationMode::Stdio => Ok(PreparedServerCommunication::Stdio),
@@ -89,7 +88,7 @@ impl CommunicationMode {
         }
     }
 
-    pub fn connect_as_client(&self) -> Result<ClientCommunicationIo, ShellError> {
+    pub fn connect_as_client(&self) -> ShellResult<ClientCommunicationIo> {
         match self {
             CommunicationMode::Stdio => Ok(ClientCommunicationIo::Stdio(
                 std::io::stdin(),
@@ -126,7 +125,7 @@ pub(crate) enum PreparedServerCommunication {
 }
 
 impl PreparedServerCommunication {
-    pub fn connect(&self, child: &mut Child) -> Result<ServerCommunicationIo, ShellError> {
+    pub fn connect(&self, child: &mut Child) -> ShellResult<ServerCommunicationIo> {
         match self {
             PreparedServerCommunication::Stdio => {
                 let stdin = child
@@ -156,7 +155,11 @@ impl PreparedServerCommunication {
 
                 // Use a loop to try to get two clients from the listener: one for read (the plugin
                 // output) and one for write (the plugin input)
-                listener.set_nonblocking(true)?;
+                listener
+                    .set_nonblocking(true)
+                    .map_err(|_| ShellError::PluginFailedToLoad {
+                        msg: "Failed to set socket as nonblocking".into(),
+                    })?;
                 let mut get_socket = || {
                     let mut result = None;
                     while let Ok(None) = child.try_wait() {

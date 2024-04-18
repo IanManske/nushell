@@ -23,8 +23,8 @@ use std::{
 
 use nu_engine::documentation::get_flags_section;
 use nu_protocol::{
-    ast::Operator, CustomValue, IntoSpanned, LabeledError, PipelineData, PluginSignature,
-    ShellError, Spanned, Value,
+    ast::Operator, CustomValue, Error, IntoSpanned, LabeledError, PipelineData, PluginSignature,
+    ShellError, ShellResult, Spanned, Value,
 };
 use thiserror::Error;
 
@@ -75,7 +75,7 @@ pub trait Encoder<T>: Clone + Send + Sync {
     /// Returns [`ShellError::IOError`] if there was a problem writing, or
     /// [`ShellError::PluginFailedToEncode`] for a serialization error.
     #[doc(hidden)]
-    fn encode(&self, data: &T, writer: &mut impl std::io::Write) -> Result<(), ShellError>;
+    fn encode(&self, data: &T, writer: &mut impl std::io::Write) -> ShellResult<()>;
 
     /// Deserialize a value from the [`PluginEncoder`]'s format
     ///
@@ -84,7 +84,7 @@ pub trait Encoder<T>: Clone + Send + Sync {
     /// Returns [`ShellError::IOError`] if there was a problem reading, or
     /// [`ShellError::PluginFailedToDecode`] for a deserialization error.
     #[doc(hidden)]
-    fn decode(&self, reader: &mut impl std::io::BufRead) -> Result<Option<T>, ShellError>;
+    fn decode(&self, reader: &mut impl std::io::BufRead) -> ShellResult<Option<T>>;
 }
 
 /// Encoding scheme that defines a plugin's communication protocol with Nu
@@ -160,7 +160,7 @@ fn make_plugin_interface(
     source: Arc<PluginSource>,
     pid: Option<u32>,
     gc: Option<PluginGc>,
-) -> Result<PluginInterface, ShellError> {
+) -> ShellResult<PluginInterface> {
     match comm.connect(&mut child)? {
         ServerCommunicationIo::Stdio(stdin, stdout) => make_plugin_interface_with_streams(
             stdout,
@@ -195,7 +195,7 @@ fn make_plugin_interface_with_streams(
     source: Arc<PluginSource>,
     pid: Option<u32>,
     gc: Option<PluginGc>,
-) -> Result<PluginInterface, ShellError> {
+) -> ShellResult<PluginInterface> {
     let encoder = get_plugin_encoding(&mut reader)?;
 
     let reader = BufReader::with_capacity(OUTPUT_BUFFER_SIZE, reader);
@@ -235,8 +235,8 @@ fn make_plugin_interface_with_streams(
 #[doc(hidden)] // Note: not for plugin authors / only used in nu-parser
 pub fn get_signature(
     plugin: Arc<PersistentPlugin>,
-    envs: impl FnOnce() -> Result<HashMap<String, String>, ShellError>,
-) -> Result<Vec<PluginSignature>, ShellError> {
+    envs: impl FnOnce() -> ShellResult<HashMap<String, String>>,
+) -> ShellResult<Vec<PluginSignature>> {
     plugin.get(envs)?.get_signature()
 }
 
@@ -545,16 +545,16 @@ fn tell_nushell_encoding(
 pub enum ServePluginError {
     /// An error occurred that could not be reported to the engine.
     #[error("{0}")]
-    UnreportedError(#[source] ShellError),
+    UnreportedError(#[source] Error),
     /// An error occurred that could be reported to the engine.
     #[error("{0}")]
-    ReportedError(#[source] ShellError),
+    ReportedError(#[source] Error),
     /// A version mismatch occurred.
     #[error("{0}")]
-    Incompatible(#[source] ShellError),
+    Incompatible(#[source] Error),
     /// An I/O error occurred.
     #[error("{0}")]
-    IOError(#[source] ShellError),
+    IOError(#[source] Error),
     /// A thread spawning error occurred.
     #[error("{0}")]
     ThreadSpawnError(#[source] std::io::Error),
@@ -563,9 +563,9 @@ pub enum ServePluginError {
     Panicked,
 }
 
-impl From<ShellError> for ServePluginError {
-    fn from(error: ShellError) -> Self {
-        match error {
+impl From<Error> for ServePluginError {
+    fn from(error: Error) -> Self {
+        match *error {
             ShellError::IOError { .. } => ServePluginError::IOError(error),
             ShellError::PluginFailedToLoad { .. } => ServePluginError::Incompatible(error),
             _ => ServePluginError::UnreportedError(error),
@@ -715,7 +715,7 @@ where
                             render_examples(plugin, &engine, &mut sig.examples)?;
                             Ok(sig)
                         })
-                        .collect::<Result<Vec<_>, ShellError>>()
+                        .collect::<ShellResult<_>>()
                         .try_to_report(&engine)?;
                     engine.write_signature(sigs).try_to_report(&engine)?;
                 }
@@ -764,7 +764,7 @@ fn custom_value_op(
     engine: &EngineInterface,
     custom_value: Spanned<PluginCustomValue>,
     op: CustomValueOp,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     let local_value = custom_value
         .item
         .deserialize_to_custom_value(custom_value.span)?
@@ -892,9 +892,7 @@ fn print_help(plugin: &impl Plugin, encoder: impl PluginEncoder) {
     println!("{help}")
 }
 
-pub fn get_plugin_encoding(
-    child_stdout: &mut impl std::io::Read,
-) -> Result<EncodingType, ShellError> {
+pub fn get_plugin_encoding(child_stdout: &mut impl std::io::Read) -> ShellResult<EncodingType> {
     let mut length_buf = [0u8; 1];
     child_stdout
         .read_exact(&mut length_buf)
@@ -914,5 +912,6 @@ pub fn get_plugin_encoding(
         ShellError::PluginFailedToLoad {
             msg: format!("get unsupported plugin encoding: {encoding_for_debug}"),
         }
+        .into()
     })
 }

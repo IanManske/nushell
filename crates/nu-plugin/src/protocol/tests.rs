@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn protocol_info_compatible() -> Result<(), ShellError> {
+fn protocol_info_compatible() -> ShellResult<()> {
     let ver_1_2_3 = ProtocolInfo {
         protocol: Protocol::NuPlugin,
         version: "1.2.3".into(),
@@ -18,7 +18,7 @@ fn protocol_info_compatible() -> Result<(), ShellError> {
 }
 
 #[test]
-fn protocol_info_incompatible() -> Result<(), ShellError> {
+fn protocol_info_incompatible() -> ShellResult<()> {
     let ver_2_0_0 = ProtocolInfo {
         protocol: Protocol::NuPlugin,
         version: "2.0.0".into(),

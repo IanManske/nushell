@@ -14,7 +14,7 @@ use crate::{
 };
 use nu_protocol::{
     engine::Closure, Config, IntoInterruptiblePipelineData, LabeledError, ListStream, PipelineData,
-    PluginSignature, ShellError, Span, Spanned, Value,
+    PluginSignature, ShellError, ShellResult, Span, Spanned, Value,
 };
 use std::{
     collections::{btree_map, BTreeMap, HashMap},
@@ -138,15 +138,18 @@ impl EngineInterfaceManager {
     }
 
     /// Send a [`ReceivedPluginCall`] to the channel
-    fn send_plugin_call(&self, plugin_call: ReceivedPluginCall) -> Result<(), ShellError> {
+    fn send_plugin_call(&self, plugin_call: ReceivedPluginCall) -> ShellResult<()> {
         self.plugin_call_sender
             .as_ref()
             .ok_or_else(|| ShellError::PluginFailedToDecode {
                 msg: "Received a plugin call after Goodbye".into(),
             })?
             .send(plugin_call)
-            .map_err(|_| ShellError::NushellFailed {
-                msg: "Received a plugin call, but there's nowhere to send it".into(),
+            .map_err(|_| {
+                ShellError::NushellFailed {
+                    msg: "Received a plugin call, but there's nowhere to send it".into(),
+                }
+                .into()
             })
     }
 
@@ -166,7 +169,7 @@ impl EngineInterfaceManager {
         &mut self,
         id: EngineCallId,
         response: EngineCallResponse<PipelineData>,
-    ) -> Result<(), ShellError> {
+    ) -> ShellResult<()> {
         // Ensure all of the subscriptions have been flushed out of the receiver
         self.receive_engine_call_subscriptions();
         // Remove the sender - there is only one response per engine call
@@ -178,7 +181,7 @@ impl EngineInterfaceManager {
         } else {
             Err(ShellError::PluginFailedToDecode {
                 msg: format!("Unknown engine call ID: {id}"),
-            })
+            })?
         }
     }
 
@@ -194,7 +197,7 @@ impl EngineInterfaceManager {
     pub(crate) fn consume_all(
         &mut self,
         mut reader: impl PluginRead<PluginInput>,
-    ) -> Result<(), ShellError> {
+    ) -> ShellResult<()> {
         while let Some(msg) = reader.read().transpose() {
             if self.is_finished() {
                 break;
@@ -227,7 +230,7 @@ impl InterfaceManager for EngineInterfaceManager {
         }
     }
 
-    fn consume(&mut self, input: Self::Input) -> Result<(), ShellError> {
+    fn consume(&mut self, input: Self::Input) -> ShellResult<()> {
         log::trace!("from engine: {:?}", input);
 
         match input {
@@ -245,7 +248,7 @@ impl InterfaceManager for EngineInterfaceManager {
                                 which is not compatible with version {}",
                             local_info.version, info.version
                         ),
-                    })
+                    })?
                 }
             }
             _ if !self.state.protocol_info.is_set() => {
@@ -253,7 +256,7 @@ impl InterfaceManager for EngineInterfaceManager {
                 Err(ShellError::PluginFailedToLoad {
                     msg: "Failed to receive initial Hello message. This engine might be too old"
                         .into(),
-                })
+                })?
             }
             // Stream messages
             PluginInput::Data(..)
@@ -327,7 +330,7 @@ impl InterfaceManager for EngineInterfaceManager {
         &self.stream_manager
     }
 
-    fn prepare_pipeline_data(&self, mut data: PipelineData) -> Result<PipelineData, ShellError> {
+    fn prepare_pipeline_data(&self, mut data: PipelineData) -> ShellResult<PipelineData> {
         // Deserialize custom values in the pipeline data
         match data {
             PipelineData::Value(ref mut value, _) => {
@@ -348,7 +351,7 @@ impl InterfaceManager for EngineInterfaceManager {
 }
 
 /// Deserialize custom values in call arguments
-fn deserialize_call_args(call: &mut crate::EvaluatedCall) -> Result<(), ShellError> {
+fn deserialize_call_args(call: &mut crate::EvaluatedCall) -> ShellResult<()> {
     call.positional
         .iter_mut()
         .try_for_each(PluginCustomValue::deserialize_custom_values_in)?;
@@ -371,16 +374,19 @@ pub struct EngineInterface {
 
 impl EngineInterface {
     /// Write the protocol info. This should be done after initialization
-    pub(crate) fn hello(&self) -> Result<(), ShellError> {
+    pub(crate) fn hello(&self) -> ShellResult<()> {
         self.write(PluginOutput::Hello(ProtocolInfo::default()))?;
         self.flush()
     }
 
-    fn context(&self) -> Result<PluginCallId, ShellError> {
-        self.context.ok_or_else(|| ShellError::NushellFailed {
-            msg: "Tried to call an EngineInterface method that requires a call context \
+    fn context(&self) -> ShellResult<PluginCallId> {
+        self.context.ok_or_else(|| {
+            ShellError::NushellFailed {
+                msg: "Tried to call an EngineInterface method that requires a call context \
                 outside of one"
-                .into(),
+                    .into(),
+            }
+            .into()
         })
     }
 
@@ -389,7 +395,7 @@ impl EngineInterface {
     pub(crate) fn write_response(
         &self,
         result: Result<PipelineData, impl Into<LabeledError>>,
-    ) -> Result<PipelineDataWriter<Self>, ShellError> {
+    ) -> ShellResult<PipelineDataWriter<Self>> {
         match result {
             Ok(data) => {
                 let (header, writer) = match self.init_write_pipeline_data(data, &()) {
@@ -416,10 +422,7 @@ impl EngineInterface {
     /// Write a call response of plugin signatures.
     ///
     /// Any custom values in the examples will be rendered using `to_base_value()`.
-    pub(crate) fn write_signature(
-        &self,
-        signature: Vec<PluginSignature>,
-    ) -> Result<(), ShellError> {
+    pub(crate) fn write_signature(&self, signature: Vec<PluginSignature>) -> ShellResult<()> {
         let response = PluginCallResponse::Signature(signature);
         self.write(PluginOutput::CallResponse(self.context()?, response))?;
         self.flush()
@@ -430,13 +433,10 @@ impl EngineInterface {
     fn write_engine_call(
         &self,
         call: EngineCall<PipelineData>,
-    ) -> Result<
-        (
-            PipelineDataWriter<Self>,
-            mpsc::Receiver<EngineCallResponse<PipelineData>>,
-        ),
-        ShellError,
-    > {
+    ) -> ShellResult<(
+        PipelineDataWriter<Self>,
+        mpsc::Receiver<EngineCallResponse<PipelineData>>,
+    )> {
         let context = self.context()?;
         let id = self.state.engine_call_id_sequence.next()?;
         let (tx, rx) = mpsc::channel();
@@ -470,15 +470,18 @@ impl EngineInterface {
     fn engine_call(
         &self,
         call: EngineCall<PipelineData>,
-    ) -> Result<EngineCallResponse<PipelineData>, ShellError> {
+    ) -> ShellResult<EngineCallResponse<PipelineData>> {
         let (writer, rx) = self.write_engine_call(call)?;
 
         // Finish writing stream in the background
         writer.write_background()?;
 
         // Wait on receiver to get the response
-        rx.recv().map_err(|_| ShellError::NushellFailed {
-            msg: "Failed to get response to engine call because the channel was closed".into(),
+        rx.recv().map_err(|_| {
+            ShellError::NushellFailed {
+                msg: "Failed to get response to engine call because the channel was closed".into(),
+            }
+            .into()
         })
     }
 
@@ -501,19 +504,19 @@ impl EngineInterface {
     /// ```rust,no_run
     /// # use nu_protocol::{Value, ShellError};
     /// # use nu_plugin::EngineInterface;
-    /// # fn example(engine: &EngineInterface, value: &Value) -> Result<(), ShellError> {
+    /// # fn example(engine: &EngineInterface, value: &Value) -> ShellResult<()> {
     /// let config = engine.get_config()?;
     /// eprintln!("{}", value.to_expanded_string(", ", &config));
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_config(&self) -> Result<Box<Config>, ShellError> {
+    pub fn get_config(&self) -> ShellResult<Box<Config>> {
         match self.engine_call(EngineCall::GetConfig)? {
             EngineCallResponse::Config(config) => Ok(config),
             EngineCallResponse::Error(err) => Err(err),
             _ => Err(ShellError::PluginFailedToDecode {
                 msg: "Received unexpected response for EngineCall::GetConfig".into(),
-            }),
+            })?,
         }
     }
 
@@ -522,7 +525,7 @@ impl EngineInterface {
     fn engine_call_option_value(
         &self,
         engine_call: EngineCall<PipelineData>,
-    ) -> Result<Option<Value>, ShellError> {
+    ) -> ShellResult<Option<Value>> {
         let name = engine_call.name();
         match self.engine_call(engine_call)? {
             EngineCallResponse::PipelineData(PipelineData::Empty) => Ok(None),
@@ -530,7 +533,7 @@ impl EngineInterface {
             EngineCallResponse::Error(err) => Err(err),
             _ => Err(ShellError::PluginFailedToDecode {
                 msg: format!("Received unexpected response for EngineCall::{name}"),
-            }),
+            })?,
         }
     }
 
@@ -545,13 +548,13 @@ impl EngineInterface {
     /// ```rust,no_run
     /// # use nu_protocol::{Value, ShellError};
     /// # use nu_plugin::EngineInterface;
-    /// # fn example(engine: &EngineInterface, value: &Value) -> Result<(), ShellError> {
+    /// # fn example(engine: &EngineInterface, value: &Value) -> ShellResult<()> {
     /// let config = engine.get_plugin_config()?;
     /// eprintln!("{:?}", config);
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_plugin_config(&self) -> Result<Option<Value>, ShellError> {
+    pub fn get_plugin_config(&self) -> ShellResult<Option<Value>> {
         self.engine_call_option_value(EngineCall::GetPluginConfig)
     }
 
@@ -564,13 +567,13 @@ impl EngineInterface {
     /// Get `$env.PATH`:
     ///
     /// ```rust,no_run
-    /// # use nu_protocol::{Value, ShellError};
+    /// # use nu_protocol::{Value, ShellResult};
     /// # use nu_plugin::EngineInterface;
-    /// # fn example(engine: &EngineInterface) -> Result<Option<Value>, ShellError> {
+    /// # fn example(engine: &EngineInterface) -> ShellResult<Option<Value>> {
     /// engine.get_env_var("PATH") // => Ok(Some(Value::List([...])))
     /// # }
     /// ```
-    pub fn get_env_var(&self, name: impl Into<String>) -> Result<Option<Value>, ShellError> {
+    pub fn get_env_var(&self, name: impl Into<String>) -> ShellResult<Option<Value>> {
         self.engine_call_option_value(EngineCall::GetEnvVar(name.into()))
     }
 
@@ -580,11 +583,11 @@ impl EngineInterface {
     /// ```rust,no_run
     /// # use nu_protocol::{Value, ShellError};
     /// # use nu_plugin::EngineInterface;
-    /// # fn example(engine: &EngineInterface) -> Result<String, ShellError> {
+    /// # fn example(engine: &EngineInterface) -> ShellResult<String> {
     /// engine.get_current_dir() // => "/home/user"
     /// # }
     /// ```
-    pub fn get_current_dir(&self) -> Result<String, ShellError> {
+    pub fn get_current_dir(&self) -> ShellResult<String> {
         match self.engine_call(EngineCall::GetCurrentDir)? {
             // Always a string, and the span doesn't matter.
             EngineCallResponse::PipelineData(PipelineData::Value(Value::String { val, .. }, _)) => {
@@ -593,7 +596,7 @@ impl EngineInterface {
             EngineCallResponse::Error(err) => Err(err),
             _ => Err(ShellError::PluginFailedToDecode {
                 msg: "Received unexpected response for EngineCall::GetCurrentDir".into(),
-            }),
+            })?,
         }
     }
 
@@ -604,20 +607,20 @@ impl EngineInterface {
     ///
     /// # Example
     /// ```rust,no_run
-    /// # use nu_protocol::{Value, ShellError};
+    /// # use nu_protocol::{Value, ShellResult};
     /// # use nu_plugin::EngineInterface;
     /// # use std::collections::HashMap;
-    /// # fn example(engine: &EngineInterface) -> Result<HashMap<String, Value>, ShellError> {
+    /// # fn example(engine: &EngineInterface) -> ShellResult<HashMap<String, Value>> {
     /// engine.get_env_vars() // => Ok({"PATH": Value::List([...]), ...})
     /// # }
     /// ```
-    pub fn get_env_vars(&self) -> Result<HashMap<String, Value>, ShellError> {
+    pub fn get_env_vars(&self) -> ShellResult<HashMap<String, Value>> {
         match self.engine_call(EngineCall::GetEnvVars)? {
             EngineCallResponse::ValueMap(map) => Ok(map),
             EngineCallResponse::Error(err) => Err(err),
             _ => Err(ShellError::PluginFailedToDecode {
                 msg: "Received unexpected response type for EngineCall::GetEnvVars".into(),
-            }),
+            })?,
         }
     }
 
@@ -631,17 +634,17 @@ impl EngineInterface {
     /// ```rust,no_run
     /// # use nu_protocol::{Value, ShellError};
     /// # use nu_plugin::EngineInterface;
-    /// # fn example(engine: &EngineInterface) -> Result<(), ShellError> {
+    /// # fn example(engine: &EngineInterface) -> ShellResult<()> {
     /// engine.add_env_var("FOO", Value::test_string("bar"))
     /// # }
     /// ```
-    pub fn add_env_var(&self, name: impl Into<String>, value: Value) -> Result<(), ShellError> {
+    pub fn add_env_var(&self, name: impl Into<String>, value: Value) -> ShellResult<()> {
         match self.engine_call(EngineCall::AddEnvVar(name.into(), value))? {
             EngineCallResponse::PipelineData(_) => Ok(()),
             EngineCallResponse::Error(err) => Err(err),
             _ => Err(ShellError::PluginFailedToDecode {
                 msg: "Received unexpected response type for EngineCall::AddEnvVar".into(),
-            }),
+            })?,
         }
     }
 
@@ -654,19 +657,19 @@ impl EngineInterface {
     /// ```rust,no_run
     /// # use nu_protocol::{Value, ShellError};
     /// # use nu_plugin::EngineInterface;
-    /// # fn example(engine: &EngineInterface) -> Result<(), ShellError> {
+    /// # fn example(engine: &EngineInterface) -> ShellResult<()> {
     /// eprintln!("{}", engine.get_help()?);
     /// # Ok(())
     /// # }
     /// ```
-    pub fn get_help(&self) -> Result<String, ShellError> {
+    pub fn get_help(&self) -> ShellResult<String> {
         match self.engine_call(EngineCall::GetHelp)? {
             EngineCallResponse::PipelineData(PipelineData::Value(Value::String { val, .. }, _)) => {
                 Ok(val)
             }
             _ => Err(ShellError::PluginFailedToDecode {
                 msg: "Received unexpected response type for EngineCall::GetHelp".into(),
-            }),
+            })?,
         }
     }
 
@@ -677,7 +680,7 @@ impl EngineInterface {
     ///
     /// The exact implementation is operating system-specific. On Unix, this ensures that the
     /// plugin process becomes part of the process group controlling the terminal.
-    pub fn enter_foreground(&self) -> Result<ForegroundGuard, ShellError> {
+    pub fn enter_foreground(&self) -> ShellResult<ForegroundGuard> {
         match self.engine_call(EngineCall::EnterForeground)? {
             EngineCallResponse::Error(error) => Err(error),
             EngineCallResponse::PipelineData(PipelineData::Value(
@@ -692,18 +695,18 @@ impl EngineInterface {
             }
             _ => Err(ShellError::PluginFailedToDecode {
                 msg: "Received unexpected response type for EngineCall::SetForeground".into(),
-            }),
+            })?,
         }
     }
 
     /// Internal: for exiting the foreground after `enter_foreground()`. Called from the guard.
-    fn leave_foreground(&self) -> Result<(), ShellError> {
+    fn leave_foreground(&self) -> ShellResult<()> {
         match self.engine_call(EngineCall::LeaveForeground)? {
             EngineCallResponse::Error(error) => Err(error),
             EngineCallResponse::PipelineData(PipelineData::Empty) => Ok(()),
             _ => Err(ShellError::PluginFailedToDecode {
                 msg: "Received unexpected response type for EngineCall::LeaveForeground".into(),
-            }),
+            })?,
         }
     }
 
@@ -712,14 +715,14 @@ impl EngineInterface {
     /// This method returns `Vec<u8>` as it's possible for the matched span to not be a valid UTF-8
     /// string, perhaps because it sliced through the middle of a UTF-8 byte sequence, as the
     /// offsets are byte-indexed. Use [`String::from_utf8_lossy()`] for display if necessary.
-    pub fn get_span_contents(&self, span: Span) -> Result<Vec<u8>, ShellError> {
+    pub fn get_span_contents(&self, span: Span) -> ShellResult<Vec<u8>> {
         match self.engine_call(EngineCall::GetSpanContents(span))? {
             EngineCallResponse::PipelineData(PipelineData::Value(Value::Binary { val, .. }, _)) => {
                 Ok(val)
             }
             _ => Err(ShellError::PluginFailedToDecode {
                 msg: "Received unexpected response type for EngineCall::GetSpanContents".into(),
-            }),
+            })?,
         }
     }
 
@@ -743,7 +746,7 @@ impl EngineInterface {
     /// ```rust,no_run
     /// # use nu_protocol::{Value, ShellError, PipelineData};
     /// # use nu_plugin::{EngineInterface, EvaluatedCall};
-    /// # fn example(engine: &EngineInterface, call: &EvaluatedCall) -> Result<(), ShellError> {
+    /// # fn example(engine: &EngineInterface, call: &EvaluatedCall) -> ShellResult<()> {
     /// let closure = call.req(0)?;
     /// let input = PipelineData::Value(Value::int(4, call.head), None);
     /// let output = engine.eval_closure_with_stream(
@@ -775,7 +778,7 @@ impl EngineInterface {
         input: PipelineData,
         redirect_stdout: bool,
         redirect_stderr: bool,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         // Ensure closure args have custom values serialized
         positional
             .iter_mut()
@@ -794,7 +797,7 @@ impl EngineInterface {
             EngineCallResponse::PipelineData(data) => Ok(data),
             _ => Err(ShellError::PluginFailedToDecode {
                 msg: "Received unexpected response type for EngineCall::EvalClosure".into(),
-            }),
+            })?,
         }
     }
 
@@ -820,7 +823,7 @@ impl EngineInterface {
     /// ```rust,no_run
     /// # use nu_protocol::{Value, ShellError};
     /// # use nu_plugin::{EngineInterface, EvaluatedCall};
-    /// # fn example(engine: &EngineInterface, call: &EvaluatedCall) -> Result<(), ShellError> {
+    /// # fn example(engine: &EngineInterface, call: &EvaluatedCall) -> ShellResult<()> {
     /// let closure = call.req(0)?;
     /// for n in 0..4 {
     ///     let result = engine.eval_closure(&closure, vec![Value::int(n, call.head)], None)?;
@@ -843,12 +846,12 @@ impl EngineInterface {
         closure: &Spanned<Closure>,
         positional: Vec<Value>,
         input: Option<Value>,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         let input = input.map_or_else(|| PipelineData::Empty, |v| PipelineData::Value(v, None));
         let output = self.eval_closure_with_stream(closure, positional, input, true, false)?;
         // Unwrap an error value
         match output.into_value(closure.span) {
-            Value::Error { error, .. } => Err(*error),
+            Value::Error { error, .. } => Err(error),
             value => Ok(value),
         }
     }
@@ -860,16 +863,13 @@ impl EngineInterface {
     /// running for longer than the engine can automatically determine.
     ///
     /// The user can still stop the plugin if they want to with the `plugin stop` command.
-    pub fn set_gc_disabled(&self, disabled: bool) -> Result<(), ShellError> {
+    pub fn set_gc_disabled(&self, disabled: bool) -> ShellResult<()> {
         self.write(PluginOutput::Option(PluginOption::GcDisabled(disabled)))?;
         self.flush()
     }
 
     /// Write a call response of [`Ordering`], for `partial_cmp`.
-    pub(crate) fn write_ordering(
-        &self,
-        ordering: Option<impl Into<Ordering>>,
-    ) -> Result<(), ShellError> {
+    pub(crate) fn write_ordering(&self, ordering: Option<impl Into<Ordering>>) -> ShellResult<()> {
         let response = PluginCallResponse::Ordering(ordering.map(|o| o.into()));
         self.write(PluginOutput::CallResponse(self.context()?, response))?;
         self.flush()
@@ -880,12 +880,12 @@ impl Interface for EngineInterface {
     type Output = PluginOutput;
     type DataContext = ();
 
-    fn write(&self, output: PluginOutput) -> Result<(), ShellError> {
+    fn write(&self, output: PluginOutput) -> ShellResult<()> {
         log::trace!("to engine: {:?}", output);
         self.state.writer.write(&output)
     }
 
-    fn flush(&self) -> Result<(), ShellError> {
+    fn flush(&self) -> ShellResult<()> {
         self.state.writer.flush()
     }
 
@@ -901,7 +901,7 @@ impl Interface for EngineInterface {
         &self,
         mut data: PipelineData,
         _context: &(),
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         // Serialize custom values in the pipeline data
         match data {
             PipelineData::Value(ref mut value, _) => {
@@ -928,7 +928,7 @@ pub struct ForegroundGuard(Option<EngineInterface>);
 
 impl ForegroundGuard {
     // Should be called only once
-    fn leave_internal(&mut self) -> Result<(), ShellError> {
+    fn leave_internal(&mut self) -> ShellResult<()> {
         if let Some(interface) = self.0.take() {
             // On Unix, we need to put ourselves back in our own process group
             #[cfg(unix)]
@@ -945,7 +945,7 @@ impl ForegroundGuard {
     }
 
     /// Leave the foreground. In contrast to dropping the guard, this preserves the error (if any).
-    pub fn leave(mut self) -> Result<(), ShellError> {
+    pub fn leave(mut self) -> ShellResult<()> {
         let result = self.leave_internal();
         std::mem::forget(self);
         result
@@ -959,25 +959,28 @@ impl Drop for ForegroundGuard {
 }
 
 #[cfg(unix)]
-fn set_pgrp_from_enter_foreground(pgrp: i64) -> Result<(), ShellError> {
+fn set_pgrp_from_enter_foreground(pgrp: i64) -> ShellResult<()> {
     use nix::unistd::{setpgid, Pid};
     if let Ok(pgrp) = pgrp.try_into() {
-        setpgid(Pid::from_raw(0), Pid::from_raw(pgrp)).map_err(|err| ShellError::GenericError {
-            error: "Failed to set process group for foreground".into(),
-            msg: "".into(),
-            span: None,
-            help: Some(err.to_string()),
-            inner: vec![],
+        setpgid(Pid::from_raw(0), Pid::from_raw(pgrp)).map_err(|err| {
+            ShellError::GenericError {
+                error: "Failed to set process group for foreground".into(),
+                msg: "".into(),
+                span: None,
+                help: Some(err.to_string()),
+                inner: vec![],
+            }
+            .into()
         })
     } else {
         Err(ShellError::NushellFailed {
             msg: "Engine returned an invalid process group ID".into(),
-        })
+        })?
     }
 }
 
 #[cfg(not(unix))]
-fn set_pgrp_from_enter_foreground(_pgrp: i64) -> Result<(), ShellError> {
+fn set_pgrp_from_enter_foreground(_pgrp: i64) -> ShellResult<()> {
     Err(ShellError::NushellFailed {
         msg: concat!(
             "EnterForeground asked plugin to join process group, but not supported on ",

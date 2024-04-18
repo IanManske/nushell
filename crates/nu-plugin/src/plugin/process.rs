@@ -1,6 +1,6 @@
 use std::sync::{atomic::AtomicU32, Arc, Mutex, MutexGuard};
 
-use nu_protocol::{ShellError, Span};
+use nu_protocol::{ShellError, ShellResult, Span};
 use nu_system::ForegroundGuard;
 
 /// Provides a utility interface for a plugin interface to manage the process the plugin is running
@@ -32,9 +32,12 @@ impl PluginProcess {
         self.pid
     }
 
-    fn lock_mutable(&self) -> Result<MutexGuard<MutablePart>, ShellError> {
-        self.mutable.lock().map_err(|_| ShellError::NushellFailed {
-            msg: "the PluginProcess mutable lock has been poisoned".into(),
+    fn lock_mutable(&self) -> ShellResult<MutexGuard<MutablePart>> {
+        self.mutable.lock().map_err(|_| {
+            ShellError::NushellFailed {
+                msg: "the PluginProcess mutable lock has been poisoned".into(),
+            }
+            .into()
         })
     }
 
@@ -48,7 +51,7 @@ impl PluginProcess {
         &self,
         span: Span,
         pipeline_state: &Arc<(AtomicU32, AtomicU32)>,
-    ) -> Result<Option<u32>, ShellError> {
+    ) -> ShellResult<Option<u32>> {
         let pid = self.pid;
         let mut mutable = self.lock_mutable()?;
         if mutable.foreground_guard.is_none() {
@@ -75,14 +78,14 @@ impl PluginProcess {
                         .into(),
                 ),
                 inner: vec![],
-            })
+            })?
         }
     }
 
     /// Move the plugin process out of the foreground. See [`ForegroundGuard::reset`].
     ///
     /// This is a no-op if the plugin process was already in the background.
-    pub(crate) fn exit_foreground(&self) -> Result<(), ShellError> {
+    pub(crate) fn exit_foreground(&self) -> ShellResult<()> {
         let mut mutable = self.lock_mutable()?;
         drop(mutable.foreground_guard.take());
         Ok(())

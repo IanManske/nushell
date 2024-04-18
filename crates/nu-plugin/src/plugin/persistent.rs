@@ -4,7 +4,7 @@ use super::{
 };
 use nu_protocol::{
     engine::{EngineState, Stack},
-    PluginGcConfig, PluginIdentity, RegisteredPlugin, ShellError,
+    IntoSpanned, PluginGcConfig, PluginIdentity, RegisteredPlugin, ShellError, ShellResult, Span,
 };
 use std::{
     collections::HashMap,
@@ -71,8 +71,8 @@ impl PersistentPlugin {
     /// spawned.
     pub(crate) fn get(
         self: Arc<Self>,
-        envs: impl FnOnce() -> Result<HashMap<String, String>, ShellError>,
-    ) -> Result<PluginInterface, ShellError> {
+        envs: impl FnOnce() -> ShellResult<HashMap<String, String>>,
+    ) -> ShellResult<PluginInterface> {
         let mut mutable = self.mutable.lock().map_err(|_| ShellError::NushellFailed {
             msg: format!(
                 "plugin `{}` mutex poisoned, probably panic during spawn",
@@ -127,7 +127,7 @@ impl PersistentPlugin {
         self: Arc<Self>,
         envs: &HashMap<String, String>,
         mutable: &mut MutableState,
-    ) -> Result<(), ShellError> {
+    ) -> ShellResult<()> {
         // Make sure `running` is set to None to begin
         if let Some(running) = mutable.running.take() {
             // Stop the GC if there was a running plugin
@@ -177,7 +177,8 @@ impl PersistentPlugin {
         })?;
 
         // Start the plugin garbage collector
-        let gc = PluginGc::new(mutable.gc_config.clone(), &self)?;
+        let gc = PluginGc::new(mutable.gc_config.clone(), &self)
+            .map_err(|e| e.into_spanned(Span::unknown()))?;
 
         let pid = child.id();
         let interface = make_plugin_interface(
@@ -212,7 +213,7 @@ impl PersistentPlugin {
         Ok(())
     }
 
-    fn stop_internal(&self, reset: bool) -> Result<(), ShellError> {
+    fn stop_internal(&self, reset: bool) -> ShellResult<()> {
         let mut mutable = self.mutable.lock().map_err(|_| ShellError::NushellFailed {
             msg: format!(
                 "plugin `{}` mutable mutex poisoned, probably panic during spawn",
@@ -260,11 +261,11 @@ impl RegisteredPlugin for PersistentPlugin {
             .and_then(|r| r.running.as_ref().and_then(|r| r.interface.pid()))
     }
 
-    fn stop(&self) -> Result<(), ShellError> {
+    fn stop(&self) -> ShellResult<()> {
         self.stop_internal(false)
     }
 
-    fn reset(&self) -> Result<(), ShellError> {
+    fn reset(&self) -> ShellResult<()> {
         self.stop_internal(true)
     }
 
@@ -298,14 +299,14 @@ pub trait GetPlugin: RegisteredPlugin {
     fn get_plugin(
         self: Arc<Self>,
         context: Option<(&EngineState, &mut Stack)>,
-    ) -> Result<PluginInterface, ShellError>;
+    ) -> ShellResult<PluginInterface>;
 }
 
 impl GetPlugin for PersistentPlugin {
     fn get_plugin(
         self: Arc<Self>,
         mut context: Option<(&EngineState, &mut Stack)>,
-    ) -> Result<PluginInterface, ShellError> {
+    ) -> ShellResult<PluginInterface> {
         self.get(|| {
             // Get envs from the context if provided.
             let envs = context

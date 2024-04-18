@@ -21,8 +21,8 @@ use crate::{
 use nu_protocol::{
     ast::{Math, Operator},
     engine::Closure,
-    CustomValue, IntoInterruptiblePipelineData, IntoSpanned, PipelineData, PluginSignature,
-    ShellError, Span, Spanned, Value,
+    CustomValue, Error, IntoInterruptiblePipelineData, IntoSpanned, PipelineData, PluginSignature,
+    ShellError, ShellResult, Span, Spanned, Value,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -31,7 +31,7 @@ use std::{
 };
 
 #[test]
-fn manager_consume_all_consumes_messages() -> Result<(), ShellError> {
+fn manager_consume_all_consumes_messages() -> ShellResult<()> {
     let mut test = TestCase::new();
     let mut manager = test.plugin("test");
 
@@ -45,7 +45,7 @@ fn manager_consume_all_consumes_messages() -> Result<(), ShellError> {
 }
 
 #[test]
-fn manager_consume_all_exits_after_streams_and_interfaces_are_dropped() -> Result<(), ShellError> {
+fn manager_consume_all_exits_after_streams_and_interfaces_are_dropped() -> ShellResult<()> {
     let mut test = TestCase::new();
     let mut manager = test.plugin("test");
 
@@ -88,13 +88,14 @@ fn manager_consume_all_exits_after_streams_and_interfaces_are_dropped() -> Resul
     Ok(())
 }
 
-fn test_io_error() -> ShellError {
+fn test_io_error() -> Error {
     ShellError::IOError {
         msg: "test io error".into(),
     }
+    .into()
 }
 
-fn check_test_io_error(error: &ShellError) {
+fn check_test_io_error(error: &Error) {
     assert!(
         format!("{error:?}").contains("test io error"),
         "error: {error}"
@@ -102,7 +103,7 @@ fn check_test_io_error(error: &ShellError) {
 }
 
 #[test]
-fn manager_consume_all_propagates_io_error_to_readers() -> Result<(), ShellError> {
+fn manager_consume_all_propagates_io_error_to_readers() -> ShellResult<()> {
     let mut test = TestCase::new();
     let mut manager = test.plugin("test");
 
@@ -145,7 +146,7 @@ fn check_invalid_output_error(error: &ShellError) {
 }
 
 #[test]
-fn manager_consume_all_propagates_message_error_to_readers() -> Result<(), ShellError> {
+fn manager_consume_all_propagates_message_error_to_readers() -> ShellResult<()> {
     let mut test = TestCase::new();
     let mut manager = test.plugin("test");
 
@@ -205,7 +206,7 @@ fn fake_plugin_call(
 }
 
 #[test]
-fn manager_consume_all_propagates_io_error_to_plugin_calls() -> Result<(), ShellError> {
+fn manager_consume_all_propagates_io_error_to_plugin_calls() -> ShellResult<()> {
     let mut test = TestCase::new();
     let mut manager = test.plugin("test");
     let interface = manager.get_interface();
@@ -238,7 +239,7 @@ fn manager_consume_all_propagates_io_error_to_plugin_calls() -> Result<(), Shell
 }
 
 #[test]
-fn manager_consume_all_propagates_message_error_to_plugin_calls() -> Result<(), ShellError> {
+fn manager_consume_all_propagates_message_error_to_plugin_calls() -> ShellResult<()> {
     let mut test = TestCase::new();
     let mut manager = test.plugin("test");
     let interface = manager.get_interface();
@@ -271,7 +272,7 @@ fn manager_consume_all_propagates_message_error_to_plugin_calls() -> Result<(), 
 }
 
 #[test]
-fn manager_consume_sets_protocol_info_on_hello() -> Result<(), ShellError> {
+fn manager_consume_sets_protocol_info_on_hello() -> ShellResult<()> {
     let mut manager = TestCase::new().plugin("test");
 
     let info = ProtocolInfo::default();
@@ -288,7 +289,7 @@ fn manager_consume_sets_protocol_info_on_hello() -> Result<(), ShellError> {
 }
 
 #[test]
-fn manager_consume_errors_on_wrong_nushell_version() -> Result<(), ShellError> {
+fn manager_consume_errors_on_wrong_nushell_version() -> ShellResult<()> {
     let mut manager = TestCase::new().plugin("test");
 
     let info = ProtocolInfo {
@@ -304,7 +305,7 @@ fn manager_consume_errors_on_wrong_nushell_version() -> Result<(), ShellError> {
 }
 
 #[test]
-fn manager_consume_errors_on_sending_other_messages_before_hello() -> Result<(), ShellError> {
+fn manager_consume_errors_on_sending_other_messages_before_hello() -> ShellResult<()> {
     let mut manager = TestCase::new().plugin("test");
 
     // hello not set
@@ -318,7 +319,7 @@ fn manager_consume_errors_on_sending_other_messages_before_hello() -> Result<(),
     Ok(())
 }
 
-fn set_default_protocol_info(manager: &mut PluginInterfaceManager) -> Result<(), ShellError> {
+fn set_default_protocol_info(manager: &mut PluginInterfaceManager) -> ShellResult<()> {
     manager
         .state
         .protocol_info
@@ -326,8 +327,7 @@ fn set_default_protocol_info(manager: &mut PluginInterfaceManager) -> Result<(),
 }
 
 #[test]
-fn manager_consume_call_response_forwards_to_subscriber_with_pipeline_data(
-) -> Result<(), ShellError> {
+fn manager_consume_call_response_forwards_to_subscriber_with_pipeline_data() -> ShellResult<()> {
     let mut manager = TestCase::new().plugin("test");
     set_default_protocol_info(&mut manager)?;
 
@@ -365,7 +365,7 @@ fn manager_consume_call_response_forwards_to_subscriber_with_pipeline_data(
 }
 
 #[test]
-fn manager_consume_call_response_registers_streams() -> Result<(), ShellError> {
+fn manager_consume_call_response_registers_streams() -> ShellResult<()> {
     let mut manager = TestCase::new().plugin("test");
     set_default_protocol_info(&mut manager)?;
 
@@ -433,8 +433,7 @@ fn manager_consume_call_response_registers_streams() -> Result<(), ShellError> {
 }
 
 #[test]
-fn manager_consume_engine_call_forwards_to_subscriber_with_pipeline_data() -> Result<(), ShellError>
-{
+fn manager_consume_engine_call_forwards_to_subscriber_with_pipeline_data() -> ShellResult<()> {
     let mut manager = TestCase::new().plugin("test");
     set_default_protocol_info(&mut manager)?;
 
@@ -485,7 +484,7 @@ fn manager_consume_engine_call_forwards_to_subscriber_with_pipeline_data() -> Re
 }
 
 #[test]
-fn manager_handle_engine_call_after_response_received() -> Result<(), ShellError> {
+fn manager_handle_engine_call_after_response_received() -> ShellResult<()> {
     let test = TestCase::new();
     let mut manager = test.plugin("test");
     set_default_protocol_info(&mut manager)?;
@@ -555,8 +554,8 @@ fn manager_handle_engine_call_after_response_received() -> Result<(), ShellError
 }
 
 #[test]
-fn manager_send_plugin_call_response_removes_context_only_if_no_streams_to_read(
-) -> Result<(), ShellError> {
+fn manager_send_plugin_call_response_removes_context_only_if_no_streams_to_read() -> ShellResult<()>
+{
     let mut manager = TestCase::new().plugin("test");
 
     for n in [0, 1] {
@@ -590,7 +589,7 @@ fn manager_send_plugin_call_response_removes_context_only_if_no_streams_to_read(
 }
 
 #[test]
-fn manager_consume_stream_end_removes_context_only_if_last_stream() -> Result<(), ShellError> {
+fn manager_consume_stream_end_removes_context_only_if_last_stream() -> ShellResult<()> {
     let mut manager = TestCase::new().plugin("test");
     set_default_protocol_info(&mut manager)?;
 
@@ -651,7 +650,7 @@ fn manager_consume_stream_end_removes_context_only_if_last_stream() -> Result<()
 }
 
 #[test]
-fn manager_prepare_pipeline_data_adds_source_to_values() -> Result<(), ShellError> {
+fn manager_prepare_pipeline_data_adds_source_to_values() -> ShellResult<()> {
     let manager = TestCase::new().plugin("test");
 
     let data = manager.prepare_pipeline_data(PipelineData::Value(
@@ -679,7 +678,7 @@ fn manager_prepare_pipeline_data_adds_source_to_values() -> Result<(), ShellErro
 }
 
 #[test]
-fn manager_prepare_pipeline_data_adds_source_to_list_streams() -> Result<(), ShellError> {
+fn manager_prepare_pipeline_data_adds_source_to_list_streams() -> ShellResult<()> {
     let manager = TestCase::new().plugin("test");
 
     let data = manager.prepare_pipeline_data(
@@ -709,7 +708,7 @@ fn manager_prepare_pipeline_data_adds_source_to_list_streams() -> Result<(), She
 }
 
 #[test]
-fn interface_hello_sends_protocol_info() -> Result<(), ShellError> {
+fn interface_hello_sends_protocol_info() -> ShellResult<()> {
     let test = TestCase::new();
     let interface = test.plugin("test").get_interface();
     interface.hello()?;
@@ -728,7 +727,7 @@ fn interface_hello_sends_protocol_info() -> Result<(), ShellError> {
 }
 
 #[test]
-fn interface_goodbye() -> Result<(), ShellError> {
+fn interface_goodbye() -> ShellResult<()> {
     let test = TestCase::new();
     let interface = test.plugin("test").get_interface();
     interface.goodbye()?;
@@ -745,7 +744,7 @@ fn interface_goodbye() -> Result<(), ShellError> {
 }
 
 #[test]
-fn interface_write_plugin_call_registers_subscription() -> Result<(), ShellError> {
+fn interface_write_plugin_call_registers_subscription() -> ShellResult<()> {
     let mut manager = TestCase::new().plugin("test");
     assert!(
         manager.plugin_call_states.is_empty(),
@@ -761,7 +760,7 @@ fn interface_write_plugin_call_registers_subscription() -> Result<(), ShellError
 }
 
 #[test]
-fn interface_write_plugin_call_writes_signature() -> Result<(), ShellError> {
+fn interface_write_plugin_call_writes_signature() -> ShellResult<()> {
     let test = TestCase::new();
     let manager = test.plugin("test");
     let interface = manager.get_interface();
@@ -781,7 +780,7 @@ fn interface_write_plugin_call_writes_signature() -> Result<(), ShellError> {
 }
 
 #[test]
-fn interface_write_plugin_call_writes_custom_value_op() -> Result<(), ShellError> {
+fn interface_write_plugin_call_writes_custom_value_op() -> ShellResult<()> {
     let test = TestCase::new();
     let manager = test.plugin("test");
     let interface = manager.get_interface();
@@ -813,7 +812,7 @@ fn interface_write_plugin_call_writes_custom_value_op() -> Result<(), ShellError
 }
 
 #[test]
-fn interface_write_plugin_call_writes_run_with_value_input() -> Result<(), ShellError> {
+fn interface_write_plugin_call_writes_run_with_value_input() -> ShellResult<()> {
     let test = TestCase::new();
     let manager = test.plugin("test");
     let interface = manager.get_interface();
@@ -850,7 +849,7 @@ fn interface_write_plugin_call_writes_run_with_value_input() -> Result<(), Shell
 }
 
 #[test]
-fn interface_write_plugin_call_writes_run_with_stream_input() -> Result<(), ShellError> {
+fn interface_write_plugin_call_writes_run_with_stream_input() -> ShellResult<()> {
     let test = TestCase::new();
     let manager = test.plugin("test");
     let interface = manager.get_interface();
@@ -918,7 +917,7 @@ fn interface_write_plugin_call_writes_run_with_stream_input() -> Result<(), Shel
 }
 
 #[test]
-fn interface_receive_plugin_call_receives_response() -> Result<(), ShellError> {
+fn interface_receive_plugin_call_receives_response() -> ShellResult<()> {
     let interface = TestCase::new().plugin("test").get_interface();
 
     // Set up a fake channel that has the response in it
@@ -938,7 +937,7 @@ fn interface_receive_plugin_call_receives_response() -> Result<(), ShellError> {
 }
 
 #[test]
-fn interface_receive_plugin_call_receives_error() -> Result<(), ShellError> {
+fn interface_receive_plugin_call_receives_error() -> ShellResult<()> {
     let interface = TestCase::new().plugin("test").get_interface();
 
     // Set up a fake channel that has the error in it
@@ -946,7 +945,8 @@ fn interface_receive_plugin_call_receives_error() -> Result<(), ShellError> {
     tx.send(ReceivedPluginCallMessage::Error(
         ShellError::ExternalNotSupported {
             span: Span::test_data(),
-        },
+        }
+        .into(),
     ))
     .expect("failed to send on new channel");
     drop(tx); // so we don't deadlock on recv()
@@ -955,14 +955,14 @@ fn interface_receive_plugin_call_receives_error() -> Result<(), ShellError> {
         .receive_plugin_call_response(rx, None, CurrentCallState::default())
         .expect_err("did not receive error");
     assert!(
-        matches!(error, ShellError::ExternalNotSupported { .. }),
+        matches!(*error, ShellError::ExternalNotSupported { .. }),
         "wrong error: {error:?}"
     );
     Ok(())
 }
 
 #[test]
-fn interface_receive_plugin_call_handles_engine_call() -> Result<(), ShellError> {
+fn interface_receive_plugin_call_handles_engine_call() -> ShellResult<()> {
     let test = TestCase::new();
     let interface = test.plugin("test").get_interface();
 
@@ -1032,7 +1032,7 @@ fn start_fake_plugin_call_responder(
 }
 
 #[test]
-fn interface_get_signature() -> Result<(), ShellError> {
+fn interface_get_signature() -> ShellResult<()> {
     let test = TestCase::new();
     let manager = test.plugin("test");
     let interface = manager.get_interface();
@@ -1051,7 +1051,7 @@ fn interface_get_signature() -> Result<(), ShellError> {
 }
 
 #[test]
-fn interface_run() -> Result<(), ShellError> {
+fn interface_run() -> ShellResult<()> {
     let test = TestCase::new();
     let manager = test.plugin("test");
     let interface = manager.get_interface();
@@ -1085,7 +1085,7 @@ fn interface_run() -> Result<(), ShellError> {
 }
 
 #[test]
-fn interface_custom_value_to_base_value() -> Result<(), ShellError> {
+fn interface_custom_value_to_base_value() -> ShellResult<()> {
     let test = TestCase::new();
     let manager = test.plugin("test");
     let interface = manager.get_interface();
@@ -1121,7 +1121,7 @@ fn normal_values(interface: &PluginInterface) -> Vec<Value> {
 }
 
 #[test]
-fn interface_prepare_pipeline_data_accepts_normal_values() -> Result<(), ShellError> {
+fn interface_prepare_pipeline_data_accepts_normal_values() -> ShellResult<()> {
     let interface = TestCase::new().plugin("test").get_interface();
     let state = CurrentCallState::default();
     for value in normal_values(&interface) {
@@ -1137,7 +1137,7 @@ fn interface_prepare_pipeline_data_accepts_normal_values() -> Result<(), ShellEr
 }
 
 #[test]
-fn interface_prepare_pipeline_data_accepts_normal_streams() -> Result<(), ShellError> {
+fn interface_prepare_pipeline_data_accepts_normal_streams() -> ShellResult<()> {
     let interface = TestCase::new().plugin("test").get_interface();
     let values = normal_values(&interface);
     let state = CurrentCallState::default();
@@ -1183,12 +1183,12 @@ fn bad_custom_values() -> Vec<Value> {
 }
 
 #[test]
-fn interface_prepare_pipeline_data_rejects_bad_custom_value() -> Result<(), ShellError> {
+fn interface_prepare_pipeline_data_rejects_bad_custom_value() -> ShellResult<()> {
     let interface = TestCase::new().plugin("test").get_interface();
     let state = CurrentCallState::default();
     for value in bad_custom_values() {
         match interface.prepare_pipeline_data(PipelineData::Value(value.clone(), None), &state) {
-            Err(err) => match err {
+            Err(err) => match *err {
                 ShellError::CustomValueIncorrectForPlugin { .. } => (),
                 _ => panic!("expected error type CustomValueIncorrectForPlugin, but got {err:?}"),
             },
@@ -1199,8 +1199,7 @@ fn interface_prepare_pipeline_data_rejects_bad_custom_value() -> Result<(), Shel
 }
 
 #[test]
-fn interface_prepare_pipeline_data_rejects_bad_custom_value_in_a_stream() -> Result<(), ShellError>
-{
+fn interface_prepare_pipeline_data_rejects_bad_custom_value_in_a_stream() -> ShellResult<()> {
     let interface = TestCase::new().plugin("test").get_interface();
     let values = bad_custom_values();
     let state = CurrentCallState::default();
@@ -1259,7 +1258,7 @@ impl CustomValue for DropCustomVal {
         "DropCustomVal".into()
     }
 
-    fn to_base_value(&self, _span: Span) -> Result<Value, ShellError> {
+    fn to_base_value(&self, _span: Span) -> ShellResult<Value> {
         unimplemented!()
     }
 
@@ -1277,7 +1276,7 @@ impl CustomValue for DropCustomVal {
 }
 
 #[test]
-fn prepare_custom_value_sends_to_keep_channel_if_drop_notify() -> Result<(), ShellError> {
+fn prepare_custom_value_sends_to_keep_channel_if_drop_notify() -> ShellResult<()> {
     let span = Span::test_data();
     let source = Arc::new(PluginSource::new_fake("test"));
     let (tx, rx) = mpsc::channel();

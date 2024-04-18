@@ -7,7 +7,9 @@ use crate::{
     },
     sequence::Sequence,
 };
-use nu_protocol::{ListStream, PipelineData, RawStream, ShellError};
+use nu_protocol::{
+    IntoSpanned, ListStream, PipelineData, RawStream, ShellError, ShellResult, Span,
+};
 use std::{
     io::Write,
     sync::{
@@ -47,7 +49,7 @@ const RAW_STREAM_HIGH_PRESSURE: i32 = 50;
 #[doc(hidden)]
 pub trait PluginRead<T> {
     /// Returns `Ok(None)` on end of stream.
-    fn read(&mut self) -> Result<Option<T>, ShellError>;
+    fn read(&mut self) -> ShellResult<Option<T>>;
 }
 
 impl<R, E, T> PluginRead<T> for (R, E)
@@ -55,7 +57,7 @@ where
     R: std::io::BufRead,
     E: Encoder<T>,
 {
-    fn read(&mut self) -> Result<Option<T>, ShellError> {
+    fn read(&mut self) -> ShellResult<Option<T>> {
         self.1.decode(&mut self.0)
     }
 }
@@ -64,7 +66,7 @@ impl<R, T> PluginRead<T> for &mut R
 where
     R: PluginRead<T>,
 {
-    fn read(&mut self) -> Result<Option<T>, ShellError> {
+    fn read(&mut self) -> ShellResult<Option<T>> {
         (**self).read()
     }
 }
@@ -76,10 +78,10 @@ where
 /// This is not a public API.
 #[doc(hidden)]
 pub trait PluginWrite<T>: Send + Sync {
-    fn write(&self, data: &T) -> Result<(), ShellError>;
+    fn write(&self, data: &T) -> ShellResult<()>;
 
     /// Flush any internal buffers, if applicable.
-    fn flush(&self) -> Result<(), ShellError>;
+    fn flush(&self) -> ShellResult<()>;
 
     /// True if this output is stdout, so that plugins can avoid using stdout for their own purpose
     fn is_stdout(&self) -> bool {
@@ -91,14 +93,17 @@ impl<E, T> PluginWrite<T> for (std::io::Stdout, E)
 where
     E: Encoder<T>,
 {
-    fn write(&self, data: &T) -> Result<(), ShellError> {
+    fn write(&self, data: &T) -> ShellResult<()> {
         let mut lock = self.0.lock();
         self.1.encode(data, &mut lock)
     }
 
-    fn flush(&self) -> Result<(), ShellError> {
-        self.0.lock().flush().map_err(|err| ShellError::IOError {
-            msg: err.to_string(),
+    fn flush(&self) -> ShellResult<()> {
+        self.0.lock().flush().map_err(|err| {
+            ShellError::IOError {
+                msg: err.to_string(),
+            }
+            .into()
         })
     }
 
@@ -112,19 +117,22 @@ where
     W: std::io::Write + Send,
     E: Encoder<T>,
 {
-    fn write(&self, data: &T) -> Result<(), ShellError> {
+    fn write(&self, data: &T) -> ShellResult<()> {
         let mut lock = self.0.lock().map_err(|_| ShellError::NushellFailed {
             msg: "writer mutex poisoned".into(),
         })?;
         self.1.encode(data, &mut *lock)
     }
 
-    fn flush(&self) -> Result<(), ShellError> {
+    fn flush(&self) -> ShellResult<()> {
         let mut lock = self.0.lock().map_err(|_| ShellError::NushellFailed {
             msg: "writer mutex poisoned".into(),
         })?;
-        lock.flush().map_err(|err| ShellError::IOError {
-            msg: err.to_string(),
+        lock.flush().map_err(|err| {
+            ShellError::IOError {
+                msg: err.to_string(),
+            }
+            .into()
         })
     }
 }
@@ -133,11 +141,11 @@ impl<W, T> PluginWrite<T> for &W
 where
     W: PluginWrite<T>,
 {
-    fn write(&self, data: &T) -> Result<(), ShellError> {
+    fn write(&self, data: &T) -> ShellResult<()> {
         (**self).write(data)
     }
 
-    fn flush(&self) -> Result<(), ShellError> {
+    fn flush(&self) -> ShellResult<()> {
         (**self).flush()
     }
 
@@ -169,19 +177,19 @@ pub trait InterfaceManager {
     ///
     /// When implementing, call [`.consume_stream_message()`] for any encapsulated
     /// [`StreamMessage`]s received.
-    fn consume(&mut self, input: Self::Input) -> Result<(), ShellError>;
+    fn consume(&mut self, input: Self::Input) -> ShellResult<()>;
 
     /// Get the [`StreamManager`] for handling operations related to stream messages.
     fn stream_manager(&self) -> &StreamManager;
 
     /// Prepare [`PipelineData`] after reading. This is called by `read_pipeline_data()` as
     /// a hook so that values that need special handling can be taken care of.
-    fn prepare_pipeline_data(&self, data: PipelineData) -> Result<PipelineData, ShellError>;
+    fn prepare_pipeline_data(&self, data: PipelineData) -> ShellResult<PipelineData>;
 
     /// Consume an input stream message.
     ///
     /// This method is provided for implementors to use.
-    fn consume_stream_message(&mut self, message: StreamMessage) -> Result<(), ShellError> {
+    fn consume_stream_message(&mut self, message: StreamMessage) -> ShellResult<()> {
         self.stream_manager().handle_message(message)
     }
 
@@ -193,7 +201,7 @@ pub trait InterfaceManager {
         &self,
         header: PipelineDataHeader,
         ctrlc: Option<&Arc<AtomicBool>>,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         self.prepare_pipeline_data(match header {
             PipelineDataHeader::Empty => PipelineData::Empty,
             PipelineDataHeader::Value(value) => PipelineData::Value(value, None),
@@ -210,7 +218,7 @@ pub trait InterfaceManager {
                     let mut stream =
                         RawStream::new(Box::new(reader), ctrlc.cloned(), span, raw_info.known_size);
                     stream.is_binary = raw_info.is_binary;
-                    Ok::<_, ShellError>(stream)
+                    ShellResult::Ok(stream)
                 };
                 PipelineData::ExternalStream {
                     stdout: info.stdout.map(new_raw_stream).transpose()?,
@@ -248,10 +256,10 @@ pub trait Interface: Clone + Send {
     type DataContext;
 
     /// Write an output message.
-    fn write(&self, output: Self::Output) -> Result<(), ShellError>;
+    fn write(&self, output: Self::Output) -> ShellResult<()>;
 
     /// Flush the output buffer, so messages are visible to the other side.
-    fn flush(&self) -> Result<(), ShellError>;
+    fn flush(&self) -> ShellResult<()>;
 
     /// Get the sequence for generating new [`StreamId`](crate::protocol::StreamId)s.
     fn stream_id_sequence(&self) -> &Sequence;
@@ -265,7 +273,7 @@ pub trait Interface: Clone + Send {
         &self,
         data: PipelineData,
         context: &Self::DataContext,
-    ) -> Result<PipelineData, ShellError>;
+    ) -> ShellResult<PipelineData>;
 
     /// Initialize a write for [`PipelineData`]. This returns two parts: the header, which can be
     /// embedded in the particular message that references the stream, and a writer, which will
@@ -279,7 +287,7 @@ pub trait Interface: Clone + Send {
         &self,
         data: PipelineData,
         context: &Self::DataContext,
-    ) -> Result<(PipelineDataHeader, PipelineDataWriter<Self>), ShellError> {
+    ) -> ShellResult<(PipelineDataHeader, PipelineDataWriter<Self>)> {
         // Allocate a stream id and a writer
         let new_stream = |high_pressure_mark: i32| {
             // Get a free stream id
@@ -288,7 +296,7 @@ pub trait Interface: Clone + Send {
             let writer =
                 self.stream_manager_handle()
                     .write_stream(id, self.clone(), high_pressure_mark)?;
-            Ok::<_, ShellError>((id, writer))
+            ShellResult::Ok((id, writer))
         };
         match self.prepare_pipeline_data(data, context)? {
             PipelineData::Value(value, _) => {
@@ -355,11 +363,11 @@ impl<T> WriteStreamMessage for T
 where
     T: Interface,
 {
-    fn write_stream_message(&mut self, msg: StreamMessage) -> Result<(), ShellError> {
+    fn write_stream_message(&mut self, msg: StreamMessage) -> ShellResult<()> {
         self.write(msg.into())
     }
 
-    fn flush(&mut self) -> Result<(), ShellError> {
+    fn flush(&mut self) -> ShellResult<()> {
         <Self as Interface>::flush(self)
     }
 }
@@ -384,7 +392,7 @@ where
     W: WriteStreamMessage + Send + 'static,
 {
     /// Write all of the data in each of the streams. This method waits for completion.
-    pub(crate) fn write(self) -> Result<(), ShellError> {
+    pub(crate) fn write(self) -> ShellResult<()> {
         match self {
             // If no stream was contained in the PipelineData, do nothing.
             PipelineDataWriter::None => Ok(()),
@@ -408,14 +416,16 @@ where
                                     writer.write_all(raw_stream_iter(stream))
                                 })
                         })
-                        .transpose()?;
+                        .transpose()
+                        .map_err(|e| e.into_spanned(Span::unknown()))?;
                     let exit_code_thread = exit_code
                         .map(|(mut writer, stream)| {
                             thread::Builder::new()
                                 .name("plugin exit_code writer".into())
                                 .spawn_scoped(scope, move || writer.write_all(stream))
                         })
-                        .transpose()?;
+                        .transpose()
+                        .map_err(|e| e.into_spanned(Span::unknown()))?;
                     // Optimize for stdout: if only stdout is present, don't spawn any other
                     // threads.
                     if let Some((mut writer, stream)) = stdout {
@@ -426,7 +436,7 @@ where
                             msg: format!(
                                 "{thread_name} thread panicked in PipelineDataWriter::write"
                             ),
-                        })
+                        })?
                     };
                     stderr_thread
                         .map(|t| t.join().unwrap_or_else(|_| panicked("stderr")))
@@ -444,7 +454,7 @@ where
     /// write will happen in the background. If a thread was spawned, its handle is returned.
     pub(crate) fn write_background(
         self,
-    ) -> Result<Option<thread::JoinHandle<Result<(), ShellError>>>, ShellError> {
+    ) -> ShellResult<Option<thread::JoinHandle<ShellResult<()>>>> {
         match self {
             PipelineDataWriter::None => Ok(None),
             _ => Ok(Some(
@@ -458,14 +468,15 @@ where
                             log::warn!("Error while writing pipeline in background: {err}");
                         }
                         result
-                    })?,
+                    })
+                    .map_err(|e| e.into_spanned(Span::unknown()))?,
             )),
         }
     }
 }
 
 /// Custom iterator for [`RawStream`] that respects ctrlc, but still has binary chunks
-fn raw_stream_iter(stream: RawStream) -> impl Iterator<Item = Result<Vec<u8>, ShellError>> {
+fn raw_stream_iter(stream: RawStream) -> impl Iterator<Item = ShellResult<Vec<u8>>> {
     let ctrlc = stream.ctrlc;
     stream
         .stream

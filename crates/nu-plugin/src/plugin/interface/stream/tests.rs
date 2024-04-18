@@ -8,7 +8,7 @@ use std::{
 
 use super::{StreamManager, StreamReader, StreamWriter, StreamWriterSignal, WriteStreamMessage};
 use crate::protocol::{StreamData, StreamMessage};
-use nu_protocol::{ShellError, Value};
+use nu_protocol::{ShellError, ShellResult, Value};
 
 // Should be long enough to definitely complete any quick operation, but not so long that tests are
 // slow to complete. 10 ms is a pretty long time
@@ -48,30 +48,33 @@ fn wait_for_condition(mut cond: impl FnMut() -> bool, message: &str) {
 struct TestSink(Vec<StreamMessage>);
 
 impl WriteStreamMessage for TestSink {
-    fn write_stream_message(&mut self, msg: StreamMessage) -> Result<(), ShellError> {
+    fn write_stream_message(&mut self, msg: StreamMessage) -> ShellResult<()> {
         self.0.push(msg);
         Ok(())
     }
 
-    fn flush(&mut self) -> Result<(), ShellError> {
+    fn flush(&mut self) -> ShellResult<()> {
         Ok(())
     }
 }
 
 impl WriteStreamMessage for mpsc::Sender<StreamMessage> {
-    fn write_stream_message(&mut self, msg: StreamMessage) -> Result<(), ShellError> {
-        self.send(msg).map_err(|err| ShellError::NushellFailed {
-            msg: err.to_string(),
+    fn write_stream_message(&mut self, msg: StreamMessage) -> ShellResult<()> {
+        self.send(msg).map_err(|err| {
+            ShellError::NushellFailed {
+                msg: err.to_string(),
+            }
+            .into()
         })
     }
 
-    fn flush(&mut self) -> Result<(), ShellError> {
+    fn flush(&mut self) -> ShellResult<()> {
         Ok(())
     }
 }
 
 #[test]
-fn reader_recv_list_messages() -> Result<(), ShellError> {
+fn reader_recv_list_messages() -> ShellResult<()> {
     let (tx, rx) = mpsc::channel();
     let mut reader = StreamReader::new(0, rx, TestSink::default());
 
@@ -84,7 +87,7 @@ fn reader_recv_list_messages() -> Result<(), ShellError> {
 }
 
 #[test]
-fn list_reader_recv_wrong_type() -> Result<(), ShellError> {
+fn list_reader_recv_wrong_type() -> ShellResult<()> {
     let (tx, rx) = mpsc::channel();
     let mut reader = StreamReader::<Value, _>::new(0, rx, TestSink::default());
 
@@ -101,10 +104,9 @@ fn list_reader_recv_wrong_type() -> Result<(), ShellError> {
 }
 
 #[test]
-fn reader_recv_raw_messages() -> Result<(), ShellError> {
+fn reader_recv_raw_messages() -> ShellResult<()> {
     let (tx, rx) = mpsc::channel();
-    let mut reader =
-        StreamReader::<Result<Vec<u8>, ShellError>, _>::new(0, rx, TestSink::default());
+    let mut reader = StreamReader::<ShellResult<Vec<u8>>, _>::new(0, rx, TestSink::default());
 
     tx.send(Ok(Some(StreamData::Raw(Ok(vec![10, 20])))))
         .unwrap();
@@ -115,10 +117,9 @@ fn reader_recv_raw_messages() -> Result<(), ShellError> {
 }
 
 #[test]
-fn raw_reader_recv_wrong_type() -> Result<(), ShellError> {
+fn raw_reader_recv_wrong_type() -> ShellResult<()> {
     let (tx, rx) = mpsc::channel();
-    let mut reader =
-        StreamReader::<Result<Vec<u8>, ShellError>, _>::new(0, rx, TestSink::default());
+    let mut reader = StreamReader::<ShellResult<Vec<u8>>, _>::new(0, rx, TestSink::default());
 
     tx.send(Ok(Some(StreamData::List(Value::test_nothing()))))
         .unwrap();
@@ -133,7 +134,7 @@ fn raw_reader_recv_wrong_type() -> Result<(), ShellError> {
 }
 
 #[test]
-fn reader_recv_acknowledge() -> Result<(), ShellError> {
+fn reader_recv_acknowledge() -> ShellResult<()> {
     let (tx, rx) = mpsc::channel();
     let mut reader = StreamReader::<Value, _>::new(0, rx, TestSink::default());
 
@@ -161,7 +162,7 @@ fn reader_recv_acknowledge() -> Result<(), ShellError> {
 }
 
 #[test]
-fn reader_recv_end_of_stream() -> Result<(), ShellError> {
+fn reader_recv_end_of_stream() -> ShellResult<()> {
     let (tx, rx) = mpsc::channel();
     let mut reader = StreamReader::<Value, _>::new(0, rx, TestSink::default());
 
@@ -177,7 +178,7 @@ fn reader_recv_end_of_stream() -> Result<(), ShellError> {
 }
 
 #[test]
-fn reader_iter_fuse_on_error() -> Result<(), ShellError> {
+fn reader_iter_fuse_on_error() -> ShellResult<()> {
     let (tx, rx) = mpsc::channel();
     let mut reader = StreamReader::<Value, _>::new(0, rx, TestSink::default());
 
@@ -199,13 +200,13 @@ fn reader_drop() {
     struct Check(Arc<AtomicBool>);
 
     impl WriteStreamMessage for Check {
-        fn write_stream_message(&mut self, msg: StreamMessage) -> Result<(), ShellError> {
+        fn write_stream_message(&mut self, msg: StreamMessage) -> ShellResult<()> {
             assert!(matches!(msg, StreamMessage::Drop(1)), "got {:?}", msg);
             self.0.store(true, Relaxed);
             Ok(())
         }
 
-        fn flush(&mut self) -> Result<(), ShellError> {
+        fn flush(&mut self) -> ShellResult<()> {
             Ok(())
         }
     }
@@ -219,7 +220,7 @@ fn reader_drop() {
 }
 
 #[test]
-fn writer_write_all_stops_if_dropped() -> Result<(), ShellError> {
+fn writer_write_all_stops_if_dropped() -> ShellResult<()> {
     let signal = Arc::new(StreamWriterSignal::new(20));
     let id = 1337;
     let mut writer = StreamWriter::new(id, signal.clone(), TestSink::default());
@@ -263,7 +264,7 @@ fn writer_write_all_stops_if_dropped() -> Result<(), ShellError> {
 }
 
 #[test]
-fn writer_end() -> Result<(), ShellError> {
+fn writer_end() -> ShellResult<()> {
     let signal = Arc::new(StreamWriterSignal::new(20));
     let mut writer = StreamWriter::new(9001, signal.clone(), TestSink::default());
 
@@ -283,7 +284,7 @@ fn writer_end() -> Result<(), ShellError> {
 }
 
 #[test]
-fn signal_set_dropped() -> Result<(), ShellError> {
+fn signal_set_dropped() -> ShellResult<()> {
     let signal = StreamWriterSignal::new(4);
     assert!(!signal.is_dropped()?);
     signal.set_dropped()?;
@@ -292,7 +293,7 @@ fn signal_set_dropped() -> Result<(), ShellError> {
 }
 
 #[test]
-fn signal_notify_sent_false_if_unacknowledged() -> Result<(), ShellError> {
+fn signal_notify_sent_false_if_unacknowledged() -> ShellResult<()> {
     let signal = StreamWriterSignal::new(2);
     assert!(signal.notify_sent()?);
     for _ in 0..100 {
@@ -302,7 +303,7 @@ fn signal_notify_sent_false_if_unacknowledged() -> Result<(), ShellError> {
 }
 
 #[test]
-fn signal_notify_sent_never_false_if_flowing() -> Result<(), ShellError> {
+fn signal_notify_sent_never_false_if_flowing() -> ShellResult<()> {
     let signal = StreamWriterSignal::new(1);
     for _ in 0..100 {
         signal.notify_acknowledged()?;
@@ -314,7 +315,7 @@ fn signal_notify_sent_never_false_if_flowing() -> Result<(), ShellError> {
 }
 
 #[test]
-fn signal_wait_for_drain_blocks_on_unacknowledged() -> Result<(), ShellError> {
+fn signal_wait_for_drain_blocks_on_unacknowledged() -> ShellResult<()> {
     let signal = StreamWriterSignal::new(50);
     std::thread::scope(|scope| {
         let spawned = scope.spawn(|| {
@@ -336,7 +337,7 @@ fn signal_wait_for_drain_blocks_on_unacknowledged() -> Result<(), ShellError> {
 }
 
 #[test]
-fn signal_wait_for_drain_unblocks_on_dropped() -> Result<(), ShellError> {
+fn signal_wait_for_drain_unblocks_on_dropped() -> ShellResult<()> {
     let signal = StreamWriterSignal::new(1);
     std::thread::scope(|scope| {
         let spawned = scope.spawn(|| {
@@ -356,7 +357,7 @@ fn signal_wait_for_drain_unblocks_on_dropped() -> Result<(), ShellError> {
 }
 
 #[test]
-fn stream_manager_single_stream_read_scenario() -> Result<(), ShellError> {
+fn stream_manager_single_stream_read_scenario() -> ShellResult<()> {
     let manager = StreamManager::new();
     let handle = manager.get_handle();
     let (tx, rx) = mpsc::channel();
@@ -390,7 +391,7 @@ fn stream_manager_single_stream_read_scenario() -> Result<(), ShellError> {
 }
 
 #[test]
-fn stream_manager_multi_stream_read_scenario() -> Result<(), ShellError> {
+fn stream_manager_multi_stream_read_scenario() -> ShellResult<()> {
     let manager = StreamManager::new();
     let handle = manager.get_handle();
     let (tx, rx) = mpsc::channel();
@@ -450,7 +451,7 @@ fn stream_manager_multi_stream_read_scenario() -> Result<(), ShellError> {
 }
 
 #[test]
-fn stream_manager_write_scenario() -> Result<(), ShellError> {
+fn stream_manager_write_scenario() -> ShellResult<()> {
     let manager = StreamManager::new();
     let handle = manager.get_handle();
     let (tx, rx) = mpsc::channel();
@@ -459,7 +460,7 @@ fn stream_manager_write_scenario() -> Result<(), ShellError> {
     let expected_values = vec![b"hello".to_vec(), b"world".to_vec(), b"test".to_vec()];
 
     for value in &expected_values {
-        writable.write(Ok::<_, ShellError>(value.clone()))?;
+        writable.write(ShellResult::Ok(value.clone()))?;
     }
 
     // Now try signalling ack
@@ -501,15 +502,15 @@ fn stream_manager_write_scenario() -> Result<(), ShellError> {
 }
 
 #[test]
-fn stream_manager_broadcast_read_error() -> Result<(), ShellError> {
+fn stream_manager_broadcast_read_error() -> ShellResult<()> {
     let manager = StreamManager::new();
     let handle = manager.get_handle();
     let mut readable0 = handle.read_stream::<Value, _>(0, TestSink::default())?;
     let mut readable1 = handle.read_stream::<Result<Vec<u8>, _>, _>(1, TestSink::default())?;
 
-    let error = ShellError::PluginFailedToDecode {
+    let error = nu_protocol::Error::from(ShellError::PluginFailedToDecode {
         msg: "test decode error".into(),
-    };
+    });
 
     manager.broadcast_read_error(error.clone())?;
     drop(manager);
@@ -535,7 +536,7 @@ fn stream_manager_broadcast_read_error() -> Result<(), ShellError> {
 }
 
 #[test]
-fn stream_manager_drop_writers_on_drop() -> Result<(), ShellError> {
+fn stream_manager_drop_writers_on_drop() -> ShellResult<()> {
     let manager = StreamManager::new();
     let handle = manager.get_handle();
     let writable = handle.write_stream(4, TestSink::default(), 100)?;

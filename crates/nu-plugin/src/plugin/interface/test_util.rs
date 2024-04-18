@@ -1,6 +1,6 @@
 use super::{EngineInterfaceManager, PluginInterfaceManager, PluginRead, PluginWrite};
 use crate::{plugin::PluginSource, protocol::PluginInput, PluginOutput};
-use nu_protocol::ShellError;
+use nu_protocol::{Error, ShellResult};
 use std::{
     collections::VecDeque,
     sync::{Arc, Mutex},
@@ -16,7 +16,7 @@ pub(crate) struct TestCase<I, O> {
 #[derive(Debug)]
 pub(crate) struct TestData<T> {
     data: VecDeque<T>,
-    error: Option<ShellError>,
+    error: Option<Error>,
     flushed: bool,
 }
 
@@ -31,7 +31,7 @@ impl<T> Default for TestData<T> {
 }
 
 impl<I, O> PluginRead<I> for TestCase<I, O> {
-    fn read(&mut self) -> Result<Option<I>, ShellError> {
+    fn read(&mut self) -> ShellResult<Option<I>> {
         let mut lock = self.r#in.lock().unwrap();
         if let Some(err) = lock.error.take() {
             Err(err)
@@ -46,7 +46,7 @@ where
     I: Send + Clone,
     O: Send + Clone,
 {
-    fn write(&self, data: &O) -> Result<(), ShellError> {
+    fn write(&self, data: &O) -> ShellResult<()> {
         let mut lock = self.out.lock().unwrap();
         lock.flushed = false;
 
@@ -58,7 +58,7 @@ where
         }
     }
 
-    fn flush(&self) -> Result<(), ShellError> {
+    fn flush(&self) -> ShellResult<()> {
         let mut lock = self.out.lock().unwrap();
         lock.flushed = true;
         Ok(())
@@ -90,12 +90,12 @@ impl<I, O> TestCase<I, O> {
     }
 
     /// Return an error from the next read operation.
-    pub(crate) fn set_read_error(&self, err: ShellError) {
+    pub(crate) fn set_read_error(&self, err: Error) {
         self.r#in.lock().unwrap().error = Some(err);
     }
 
     /// Return an error from the next write operation.
-    pub(crate) fn set_write_error(&self, err: ShellError) {
+    pub(crate) fn set_write_error(&self, err: Error) {
         self.out.lock().unwrap().error = Some(err);
     }
 

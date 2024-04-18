@@ -10,8 +10,8 @@ use crate::{
     EvaluatedCall, PluginCallResponse, PluginOutput,
 };
 use nu_protocol::{
-    engine::Closure, Config, CustomValue, IntoInterruptiblePipelineData, LabeledError,
-    PipelineData, PluginSignature, ShellError, Span, Spanned, Value,
+    engine::Closure, Config, CustomValue, Error, IntoInterruptiblePipelineData, LabeledError,
+    PipelineData, PluginSignature, ShellError, ShellResult, Span, Spanned, Value,
 };
 use std::{
     collections::HashMap,
@@ -31,7 +31,7 @@ fn is_using_stdio_is_false_for_test() {
 }
 
 #[test]
-fn manager_consume_all_consumes_messages() -> Result<(), ShellError> {
+fn manager_consume_all_consumes_messages() -> ShellResult<()> {
     let mut test = TestCase::new();
     let mut manager = test.engine();
 
@@ -45,7 +45,7 @@ fn manager_consume_all_consumes_messages() -> Result<(), ShellError> {
 }
 
 #[test]
-fn manager_consume_all_exits_after_streams_and_interfaces_are_dropped() -> Result<(), ShellError> {
+fn manager_consume_all_exits_after_streams_and_interfaces_are_dropped() -> ShellResult<()> {
     let mut test = TestCase::new();
     let mut manager = test.engine();
 
@@ -88,13 +88,14 @@ fn manager_consume_all_exits_after_streams_and_interfaces_are_dropped() -> Resul
     Ok(())
 }
 
-fn test_io_error() -> ShellError {
+fn test_io_error() -> Error {
     ShellError::IOError {
         msg: "test io error".into(),
     }
+    .into()
 }
 
-fn check_test_io_error(error: &ShellError) {
+fn check_test_io_error(error: &Error) {
     assert!(
         format!("{error:?}").contains("test io error"),
         "error: {error}"
@@ -102,7 +103,7 @@ fn check_test_io_error(error: &ShellError) {
 }
 
 #[test]
-fn manager_consume_all_propagates_io_error_to_readers() -> Result<(), ShellError> {
+fn manager_consume_all_propagates_io_error_to_readers() -> ShellResult<()> {
     let mut test = TestCase::new();
     let mut manager = test.engine();
 
@@ -145,7 +146,7 @@ fn check_invalid_input_error(error: &ShellError) {
 }
 
 #[test]
-fn manager_consume_all_propagates_message_error_to_readers() -> Result<(), ShellError> {
+fn manager_consume_all_propagates_message_error_to_readers() -> ShellResult<()> {
     let mut test = TestCase::new();
     let mut manager = test.engine();
 
@@ -195,7 +196,7 @@ fn fake_engine_call(
 }
 
 #[test]
-fn manager_consume_all_propagates_io_error_to_engine_calls() -> Result<(), ShellError> {
+fn manager_consume_all_propagates_io_error_to_engine_calls() -> ShellResult<()> {
     let mut test = TestCase::new();
     let mut manager = test.engine();
     let interface = manager.get_interface();
@@ -223,7 +224,7 @@ fn manager_consume_all_propagates_io_error_to_engine_calls() -> Result<(), Shell
 }
 
 #[test]
-fn manager_consume_all_propagates_message_error_to_engine_calls() -> Result<(), ShellError> {
+fn manager_consume_all_propagates_message_error_to_engine_calls() -> ShellResult<()> {
     let mut test = TestCase::new();
     let mut manager = test.engine();
     let interface = manager.get_interface();
@@ -251,7 +252,7 @@ fn manager_consume_all_propagates_message_error_to_engine_calls() -> Result<(), 
 }
 
 #[test]
-fn manager_consume_sets_protocol_info_on_hello() -> Result<(), ShellError> {
+fn manager_consume_sets_protocol_info_on_hello() -> ShellResult<()> {
     let mut manager = TestCase::new().engine();
 
     let info = ProtocolInfo::default();
@@ -268,7 +269,7 @@ fn manager_consume_sets_protocol_info_on_hello() -> Result<(), ShellError> {
 }
 
 #[test]
-fn manager_consume_errors_on_wrong_nushell_version() -> Result<(), ShellError> {
+fn manager_consume_errors_on_wrong_nushell_version() -> ShellResult<()> {
     let mut manager = TestCase::new().engine();
 
     let info = ProtocolInfo {
@@ -284,7 +285,7 @@ fn manager_consume_errors_on_wrong_nushell_version() -> Result<(), ShellError> {
 }
 
 #[test]
-fn manager_consume_errors_on_sending_other_messages_before_hello() -> Result<(), ShellError> {
+fn manager_consume_errors_on_sending_other_messages_before_hello() -> ShellResult<()> {
     let mut manager = TestCase::new().engine();
 
     // hello not set
@@ -298,7 +299,7 @@ fn manager_consume_errors_on_sending_other_messages_before_hello() -> Result<(),
     Ok(())
 }
 
-fn set_default_protocol_info(manager: &mut EngineInterfaceManager) -> Result<(), ShellError> {
+fn set_default_protocol_info(manager: &mut EngineInterfaceManager) -> ShellResult<()> {
     manager
         .state
         .protocol_info
@@ -306,7 +307,7 @@ fn set_default_protocol_info(manager: &mut EngineInterfaceManager) -> Result<(),
 }
 
 #[test]
-fn manager_consume_goodbye_closes_plugin_call_channel() -> Result<(), ShellError> {
+fn manager_consume_goodbye_closes_plugin_call_channel() -> ShellResult<()> {
     let mut manager = TestCase::new().engine();
     set_default_protocol_info(&mut manager)?;
 
@@ -325,7 +326,7 @@ fn manager_consume_goodbye_closes_plugin_call_channel() -> Result<(), ShellError
 }
 
 #[test]
-fn manager_consume_call_signature_forwards_to_receiver_with_context() -> Result<(), ShellError> {
+fn manager_consume_call_signature_forwards_to_receiver_with_context() -> ShellResult<()> {
     let mut manager = TestCase::new().engine();
     set_default_protocol_info(&mut manager)?;
 
@@ -345,7 +346,7 @@ fn manager_consume_call_signature_forwards_to_receiver_with_context() -> Result<
 }
 
 #[test]
-fn manager_consume_call_run_forwards_to_receiver_with_context() -> Result<(), ShellError> {
+fn manager_consume_call_run_forwards_to_receiver_with_context() -> ShellResult<()> {
     let mut manager = TestCase::new().engine();
     set_default_protocol_info(&mut manager)?;
 
@@ -379,7 +380,7 @@ fn manager_consume_call_run_forwards_to_receiver_with_context() -> Result<(), Sh
 }
 
 #[test]
-fn manager_consume_call_run_forwards_to_receiver_with_pipeline_data() -> Result<(), ShellError> {
+fn manager_consume_call_run_forwards_to_receiver_with_pipeline_data() -> ShellResult<()> {
     let mut manager = TestCase::new().engine();
     set_default_protocol_info(&mut manager)?;
 
@@ -421,7 +422,7 @@ fn manager_consume_call_run_forwards_to_receiver_with_pipeline_data() -> Result<
 }
 
 #[test]
-fn manager_consume_call_run_deserializes_custom_values_in_args() -> Result<(), ShellError> {
+fn manager_consume_call_run_deserializes_custom_values_in_args() -> ShellResult<()> {
     let mut manager = TestCase::new().engine();
     set_default_protocol_info(&mut manager)?;
 
@@ -486,8 +487,7 @@ fn manager_consume_call_run_deserializes_custom_values_in_args() -> Result<(), S
 }
 
 #[test]
-fn manager_consume_call_custom_value_op_forwards_to_receiver_with_context() -> Result<(), ShellError>
-{
+fn manager_consume_call_custom_value_op_forwards_to_receiver_with_context() -> ShellResult<()> {
     let mut manager = TestCase::new().engine();
     set_default_protocol_info(&mut manager)?;
 
@@ -527,7 +527,7 @@ fn manager_consume_call_custom_value_op_forwards_to_receiver_with_context() -> R
 
 #[test]
 fn manager_consume_engine_call_response_forwards_to_subscriber_with_pipeline_data(
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     let mut manager = TestCase::new().engine();
     set_default_protocol_info(&mut manager)?;
 
@@ -560,7 +560,7 @@ fn manager_consume_engine_call_response_forwards_to_subscriber_with_pipeline_dat
 }
 
 #[test]
-fn manager_prepare_pipeline_data_deserializes_custom_values() -> Result<(), ShellError> {
+fn manager_prepare_pipeline_data_deserializes_custom_values() -> ShellResult<()> {
     let manager = TestCase::new().engine();
 
     let data = manager.prepare_pipeline_data(PipelineData::Value(
@@ -584,7 +584,7 @@ fn manager_prepare_pipeline_data_deserializes_custom_values() -> Result<(), Shel
 }
 
 #[test]
-fn manager_prepare_pipeline_data_deserializes_custom_values_in_streams() -> Result<(), ShellError> {
+fn manager_prepare_pipeline_data_deserializes_custom_values_in_streams() -> ShellResult<()> {
     let manager = TestCase::new().engine();
 
     let data = manager.prepare_pipeline_data(
@@ -610,8 +610,7 @@ fn manager_prepare_pipeline_data_deserializes_custom_values_in_streams() -> Resu
 }
 
 #[test]
-fn manager_prepare_pipeline_data_embeds_deserialization_errors_in_streams() -> Result<(), ShellError>
-{
+fn manager_prepare_pipeline_data_embeds_deserialization_errors_in_streams() -> ShellResult<()> {
     let manager = TestCase::new().engine();
 
     let invalid_custom_value = PluginCustomValue::new(
@@ -647,7 +646,7 @@ fn manager_prepare_pipeline_data_embeds_deserialization_errors_in_streams() -> R
 }
 
 #[test]
-fn interface_hello_sends_protocol_info() -> Result<(), ShellError> {
+fn interface_hello_sends_protocol_info() -> ShellResult<()> {
     let test = TestCase::new();
     let interface = test.engine().get_interface();
     interface.hello()?;
@@ -666,11 +665,11 @@ fn interface_hello_sends_protocol_info() -> Result<(), ShellError> {
 }
 
 #[test]
-fn interface_write_response_with_value() -> Result<(), ShellError> {
+fn interface_write_response_with_value() -> ShellResult<()> {
     let test = TestCase::new();
     let interface = test.engine().interface_for_context(33);
     interface
-        .write_response(Ok::<_, ShellError>(PipelineData::Value(
+        .write_response(ShellResult::Ok(PipelineData::Value(
             Value::test_int(6),
             None,
         )))?
@@ -698,13 +697,13 @@ fn interface_write_response_with_value() -> Result<(), ShellError> {
 }
 
 #[test]
-fn interface_write_response_with_stream() -> Result<(), ShellError> {
+fn interface_write_response_with_stream() -> ShellResult<()> {
     let test = TestCase::new();
     let manager = test.engine();
     let interface = manager.interface_for_context(34);
 
     interface
-        .write_response(Ok::<_, ShellError>(
+        .write_response(ShellResult::Ok(
             [Value::test_int(3), Value::test_int(4), Value::test_int(5)].into_pipeline_data(None),
         ))?
         .write()?;
@@ -746,7 +745,7 @@ fn interface_write_response_with_stream() -> Result<(), ShellError> {
 }
 
 #[test]
-fn interface_write_response_with_error() -> Result<(), ShellError> {
+fn interface_write_response_with_error() -> ShellResult<()> {
     let test = TestCase::new();
     let interface = test.engine().interface_for_context(35);
     let labeled_error = LabeledError::new("this is an error").with_help("a test error");
@@ -773,7 +772,7 @@ fn interface_write_response_with_error() -> Result<(), ShellError> {
 }
 
 #[test]
-fn interface_write_signature() -> Result<(), ShellError> {
+fn interface_write_signature() -> ShellResult<()> {
     let test = TestCase::new();
     let interface = test.engine().interface_for_context(36);
     let signatures = vec![PluginSignature::build("test command")];
@@ -797,7 +796,7 @@ fn interface_write_signature() -> Result<(), ShellError> {
 }
 
 #[test]
-fn interface_write_engine_call_registers_subscription() -> Result<(), ShellError> {
+fn interface_write_engine_call_registers_subscription() -> ShellResult<()> {
     let mut manager = TestCase::new().engine();
     assert!(
         manager.engine_call_subscriptions.is_empty(),
@@ -816,7 +815,7 @@ fn interface_write_engine_call_registers_subscription() -> Result<(), ShellError
 }
 
 #[test]
-fn interface_write_engine_call_writes_with_correct_context() -> Result<(), ShellError> {
+fn interface_write_engine_call_writes_with_correct_context() -> ShellResult<()> {
     let test = TestCase::new();
     let manager = test.engine();
     let interface = manager.interface_for_context(32);
@@ -858,7 +857,7 @@ fn start_fake_plugin_call_responder(
 }
 
 #[test]
-fn interface_get_config() -> Result<(), ShellError> {
+fn interface_get_config() -> ShellResult<()> {
     let test = TestCase::new();
     let manager = test.engine();
     let interface = manager.interface_for_context(0);
@@ -873,7 +872,7 @@ fn interface_get_config() -> Result<(), ShellError> {
 }
 
 #[test]
-fn interface_get_plugin_config() -> Result<(), ShellError> {
+fn interface_get_plugin_config() -> ShellResult<()> {
     let test = TestCase::new();
     let manager = test.engine();
     let interface = manager.interface_for_context(0);
@@ -897,7 +896,7 @@ fn interface_get_plugin_config() -> Result<(), ShellError> {
 }
 
 #[test]
-fn interface_get_env_var() -> Result<(), ShellError> {
+fn interface_get_env_var() -> ShellResult<()> {
     let test = TestCase::new();
     let manager = test.engine();
     let interface = manager.interface_for_context(0);
@@ -921,7 +920,7 @@ fn interface_get_env_var() -> Result<(), ShellError> {
 }
 
 #[test]
-fn interface_get_current_dir() -> Result<(), ShellError> {
+fn interface_get_current_dir() -> ShellResult<()> {
     let test = TestCase::new();
     let manager = test.engine();
     let interface = manager.interface_for_context(0);
@@ -938,7 +937,7 @@ fn interface_get_current_dir() -> Result<(), ShellError> {
 }
 
 #[test]
-fn interface_get_env_vars() -> Result<(), ShellError> {
+fn interface_get_env_vars() -> ShellResult<()> {
     let test = TestCase::new();
     let manager = test.engine();
     let interface = manager.interface_for_context(0);
@@ -961,7 +960,7 @@ fn interface_get_env_vars() -> Result<(), ShellError> {
 }
 
 #[test]
-fn interface_add_env_var() -> Result<(), ShellError> {
+fn interface_add_env_var() -> ShellResult<()> {
     let test = TestCase::new();
     let manager = test.engine();
     let interface = manager.interface_for_context(0);
@@ -975,7 +974,7 @@ fn interface_add_env_var() -> Result<(), ShellError> {
 }
 
 #[test]
-fn interface_get_help() -> Result<(), ShellError> {
+fn interface_get_help() -> ShellResult<()> {
     let test = TestCase::new();
     let manager = test.engine();
     let interface = manager.interface_for_context(0);
@@ -993,7 +992,7 @@ fn interface_get_help() -> Result<(), ShellError> {
 }
 
 #[test]
-fn interface_get_span_contents() -> Result<(), ShellError> {
+fn interface_get_span_contents() -> ShellResult<()> {
     let test = TestCase::new();
     let manager = test.engine();
     let interface = manager.interface_for_context(0);
@@ -1011,7 +1010,7 @@ fn interface_get_span_contents() -> Result<(), ShellError> {
 }
 
 #[test]
-fn interface_eval_closure_with_stream() -> Result<(), ShellError> {
+fn interface_eval_closure_with_stream() -> ShellResult<()> {
     let test = TestCase::new();
     let manager = test.engine();
     let interface = manager.interface_for_context(0);
@@ -1071,7 +1070,7 @@ fn interface_eval_closure_with_stream() -> Result<(), ShellError> {
 }
 
 #[test]
-fn interface_prepare_pipeline_data_serializes_custom_values() -> Result<(), ShellError> {
+fn interface_prepare_pipeline_data_serializes_custom_values() -> ShellResult<()> {
     let interface = TestCase::new().engine().get_interface();
 
     let data = interface.prepare_pipeline_data(
@@ -1101,7 +1100,7 @@ fn interface_prepare_pipeline_data_serializes_custom_values() -> Result<(), Shel
 }
 
 #[test]
-fn interface_prepare_pipeline_data_serializes_custom_values_in_streams() -> Result<(), ShellError> {
+fn interface_prepare_pipeline_data_serializes_custom_values_in_streams() -> ShellResult<()> {
     let interface = TestCase::new().engine().get_interface();
 
     let data = interface.prepare_pipeline_data(
@@ -1147,7 +1146,7 @@ impl CustomValue for CantSerialize {
         "CantSerialize".into()
     }
 
-    fn to_base_value(&self, _span: Span) -> Result<Value, ShellError> {
+    fn to_base_value(&self, _span: Span) -> ShellResult<Value> {
         unimplemented!()
     }
 
@@ -1161,8 +1160,7 @@ impl CustomValue for CantSerialize {
 }
 
 #[test]
-fn interface_prepare_pipeline_data_embeds_serialization_errors_in_streams() -> Result<(), ShellError>
-{
+fn interface_prepare_pipeline_data_embeds_serialization_errors_in_streams() -> ShellResult<()> {
     let interface = TestCase::new().engine().get_interface();
 
     let span = Span::new(40, 60);

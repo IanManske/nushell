@@ -35,7 +35,7 @@ macro_rules! generate_tests {
             let mut buffered = std::io::BufReader::new(ErrorProducer);
             match Encoder::<PluginInput>::decode(&encoder, &mut buffered) {
                 Ok(_) => panic!("decode: i/o error was not passed through"),
-                Err(ShellError::IOError { .. }) => (), // okay
+                Err(e) if matches!(*e, ShellError::IOError { .. }) => (), // okay
                 Err(other) => panic!(
                     "decode: got other error, should have been a \
                     ShellError::IOError: {other:?}"
@@ -43,7 +43,7 @@ macro_rules! generate_tests {
             }
             match Encoder::<PluginOutput>::decode(&encoder, &mut buffered) {
                 Ok(_) => panic!("decode: i/o error was not passed through"),
-                Err(ShellError::IOError { .. }) => (), // okay
+                Err(e) if matches!(*e, ShellError::IOError { .. }) => (), // okay
                 Err(other) => panic!(
                     "decode: got other error, should have been a \
                     ShellError::IOError: {other:?}"
@@ -63,7 +63,7 @@ macro_rules! generate_tests {
             let mut buffered = std::io::BufReader::new(&gibberish[..]);
             match Encoder::<PluginInput>::decode(&encoder, &mut buffered) {
                 Ok(value) => panic!("decode: parsed successfully => {value:?}"),
-                Err(ShellError::PluginFailedToDecode { .. }) => (), // okay
+                Err(e) if matches!(*e, ShellError::PluginFailedToDecode { .. }) => (), // okay
                 Err(other) => panic!(
                     "decode: got other error, should have been a \
                     ShellError::PluginFailedToDecode: {other:?}"
@@ -73,7 +73,7 @@ macro_rules! generate_tests {
             let mut buffered = std::io::BufReader::new(&gibberish[..]);
             match Encoder::<PluginOutput>::decode(&encoder, &mut buffered) {
                 Ok(value) => panic!("decode: parsed successfully => {value:?}"),
-                Err(ShellError::PluginFailedToDecode { .. }) => (), // okay
+                Err(e) if matches!(*e, ShellError::PluginFailedToDecode { .. }) => (), // okay
                 Err(other) => panic!(
                     "decode: got other error, should have been a \
                     ShellError::PluginFailedToDecode: {other:?}"

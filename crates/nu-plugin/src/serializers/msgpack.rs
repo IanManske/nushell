@@ -4,7 +4,7 @@ use crate::{
     plugin::{Encoder, PluginEncoder},
     protocol::{PluginInput, PluginOutput},
 };
-use nu_protocol::ShellError;
+use nu_protocol::{Error, ShellError, ShellResult};
 use serde::Deserialize;
 
 /// A `PluginEncoder` that enables the plugin to communicate with Nushell with MsgPack
@@ -25,14 +25,11 @@ impl Encoder<PluginInput> for MsgPackSerializer {
         &self,
         plugin_input: &PluginInput,
         writer: &mut impl std::io::Write,
-    ) -> Result<(), nu_protocol::ShellError> {
+    ) -> ShellResult<()> {
         rmp_serde::encode::write(writer, plugin_input).map_err(rmp_encode_err)
     }
 
-    fn decode(
-        &self,
-        reader: &mut impl std::io::BufRead,
-    ) -> Result<Option<PluginInput>, ShellError> {
+    fn decode(&self, reader: &mut impl std::io::BufRead) -> ShellResult<Option<PluginInput>> {
         let mut de = rmp_serde::Deserializer::new(reader);
         PluginInput::deserialize(&mut de)
             .map(Some)
@@ -45,14 +42,11 @@ impl Encoder<PluginOutput> for MsgPackSerializer {
         &self,
         plugin_output: &PluginOutput,
         writer: &mut impl std::io::Write,
-    ) -> Result<(), ShellError> {
+    ) -> ShellResult<()> {
         rmp_serde::encode::write(writer, plugin_output).map_err(rmp_encode_err)
     }
 
-    fn decode(
-        &self,
-        reader: &mut impl std::io::BufRead,
-    ) -> Result<Option<PluginOutput>, ShellError> {
+    fn decode(&self, reader: &mut impl std::io::BufRead) -> ShellResult<Option<PluginOutput>> {
         let mut de = rmp_serde::Deserializer::new(reader);
         PluginOutput::deserialize(&mut de)
             .map(Some)
@@ -61,7 +55,7 @@ impl Encoder<PluginOutput> for MsgPackSerializer {
 }
 
 /// Handle a msgpack encode error
-fn rmp_encode_err(err: rmp_serde::encode::Error) -> ShellError {
+fn rmp_encode_err(err: rmp_serde::encode::Error) -> Error {
     match err {
         rmp_serde::encode::Error::InvalidValueWrite(_) => {
             // I/O error
@@ -76,10 +70,11 @@ fn rmp_encode_err(err: rmp_serde::encode::Error) -> ShellError {
             }
         }
     }
+    .into()
 }
 
 /// Handle a msgpack decode error. Returns `Ok(None)` on eof
-fn rmp_decode_err<T>(err: rmp_serde::decode::Error) -> Result<Option<T>, ShellError> {
+fn rmp_decode_err<T>(err: rmp_serde::decode::Error) -> ShellResult<Option<T>> {
     match err {
         rmp_serde::decode::Error::InvalidMarkerRead(err)
         | rmp_serde::decode::Error::InvalidDataRead(err) => {
@@ -90,14 +85,14 @@ fn rmp_decode_err<T>(err: rmp_serde::decode::Error) -> Result<Option<T>, ShellEr
                 // I/O error
                 Err(ShellError::IOError {
                     msg: err.to_string(),
-                })
+                })?
             }
         }
         _ => {
             // Something else
             Err(ShellError::PluginFailedToDecode {
                 msg: err.to_string(),
-            })
+            })?
         }
     }
 }

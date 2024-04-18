@@ -1,7 +1,7 @@
 use nu_protocol::{
     ast::{Call, Expression},
     engine::{EngineState, Stack},
-    FromValue, ShellError, Span, Spanned, Value,
+    FromValue, ShellError, ShellResult, Span, Spanned, Value,
 };
 use serde::{Deserialize, Serialize};
 
@@ -31,8 +31,8 @@ impl EvaluatedCall {
         call: &Call,
         engine_state: &EngineState,
         stack: &mut Stack,
-        eval_expression_fn: fn(&EngineState, &mut Stack, &Expression) -> Result<Value, ShellError>,
-    ) -> Result<Self, ShellError> {
+        eval_expression_fn: fn(&EngineState, &mut Stack, &Expression) -> ShellResult<Value>,
+    ) -> ShellResult<Self> {
         let positional =
             call.rest_iter_flattened(0, |expr| eval_expression_fn(engine_state, stack, expr))?;
 
@@ -138,7 +138,7 @@ impl EvaluatedCall {
     /// # };
     /// assert!(call.has_flag("foo").is_err());
     /// ```
-    pub fn has_flag(&self, flag_name: &str) -> Result<bool, ShellError> {
+    pub fn has_flag(&self, flag_name: &str) -> ShellResult<bool> {
         for name in &self.named {
             if flag_name == name.0.item {
                 return match &name.1 {
@@ -149,7 +149,7 @@ impl EvaluatedCall {
                         from_type: result.get_type().to_string(),
                         span: result.span(),
                         help: Some("".into()),
-                    }),
+                    })?,
                 };
             }
         }
@@ -291,7 +291,7 @@ impl EvaluatedCall {
     /// let foo = call.get_flag::<i64>("foo");
     /// assert!(foo.is_err());
     /// ```
-    pub fn get_flag<T: FromValue>(&self, name: &str) -> Result<Option<T>, ShellError> {
+    pub fn get_flag<T: FromValue>(&self, name: &str) -> ShellResult<Option<T>> {
         if let Some(value) = self.get_flag_value(name) {
             FromValue::from_value(value).map(Some)
         } else {
@@ -323,7 +323,7 @@ impl EvaluatedCall {
     /// let args = call.rest::<String>(2);
     /// assert_eq!(args.unwrap(), vec!["two", "three"]);
     /// ```
-    pub fn rest<T: FromValue>(&self, starting_pos: usize) -> Result<Vec<T>, ShellError> {
+    pub fn rest<T: FromValue>(&self, starting_pos: usize) -> ShellResult<Vec<T>> {
         self.positional
             .iter()
             .skip(starting_pos)
@@ -336,7 +336,7 @@ impl EvaluatedCall {
     /// Returns the value of a (zero indexed) positional argument of type `T`.
     /// Alternatively returns [`None`] if the positional argument does not exist
     /// or an error that can be passed back to the shell on error.
-    pub fn opt<T: FromValue>(&self, pos: usize) -> Result<Option<T>, ShellError> {
+    pub fn opt<T: FromValue>(&self, pos: usize) -> ShellResult<Option<T>> {
         if let Some(value) = self.nth(pos) {
             FromValue::from_value(value).map(Some)
         } else {
@@ -349,16 +349,16 @@ impl EvaluatedCall {
     /// Expect a positional argument of type `T` and return its value or, if the
     /// argument does not exist or is of the wrong type, return an error that can
     /// be passed back to the shell.
-    pub fn req<T: FromValue>(&self, pos: usize) -> Result<T, ShellError> {
+    pub fn req<T: FromValue>(&self, pos: usize) -> ShellResult<T> {
         if let Some(value) = self.nth(pos) {
             FromValue::from_value(value)
         } else if self.positional.is_empty() {
-            Err(ShellError::AccessEmptyContent { span: self.head })
+            Err(ShellError::AccessEmptyContent { span: self.head })?
         } else {
             Err(ShellError::AccessBeyondEnd {
                 max_idx: self.positional.len() - 1,
                 span: self.head,
-            })
+            })?
         }
     }
 }

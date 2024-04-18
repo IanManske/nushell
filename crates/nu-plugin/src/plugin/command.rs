@@ -1,5 +1,5 @@
 use nu_protocol::{
-    Example, IntoSpanned, LabeledError, PipelineData, PluginExample, PluginSignature, ShellError,
+    Example, IntoSpanned, LabeledError, PipelineData, PluginExample, PluginSignature, ShellResult,
     Signature, Value,
 };
 
@@ -366,7 +366,7 @@ pub(crate) fn render_examples(
     plugin: &impl Plugin,
     engine: &EngineInterface,
     examples: &mut [PluginExample],
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     for example in examples {
         if let Some(ref mut value) = example.result {
             value.recurse_mut(&mut |value| {
@@ -379,7 +379,7 @@ pub(crate) fn render_examples(
                         };
                         *value =
                             plugin.custom_value_to_base_value(engine, val.into_spanned(span))?;
-                        Ok::<_, ShellError>(())
+                        ShellResult::Ok(())
                     }
                     // Collect LazyRecord before proceeding
                     Value::LazyRecord { ref val, .. } => {

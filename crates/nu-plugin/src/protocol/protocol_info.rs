@@ -1,4 +1,4 @@
-use nu_protocol::ShellError;
+use nu_protocol::{ShellError, ShellResult};
 use serde::{Deserialize, Serialize};
 
 /// Protocol information, sent as a `Hello` message on initialization. This determines the
@@ -29,7 +29,7 @@ impl Default for ProtocolInfo {
 
 impl ProtocolInfo {
     /// True if the version specified in `self` is compatible with the version specified in `other`.
-    pub fn is_compatible_with(&self, other: &ProtocolInfo) -> Result<bool, ShellError> {
+    pub fn is_compatible_with(&self, other: &ProtocolInfo) -> ShellResult<bool> {
         fn parse_failed(error: semver::Error) -> ShellError {
             ShellError::PluginFailedToLoad {
                 msg: format!("Failed to parse protocol version: {error}"),

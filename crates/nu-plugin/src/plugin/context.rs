@@ -3,7 +3,8 @@ use nu_engine::{get_eval_block_with_early_return, get_full_help};
 use nu_protocol::{
     ast::Call,
     engine::{Closure, EngineState, Redirection, Stack},
-    Config, IntoSpanned, OutDest, PipelineData, PluginIdentity, ShellError, Span, Spanned, Value,
+    Config, IntoSpanned, OutDest, PipelineData, PluginIdentity, ShellError, ShellResult, Span,
+    Spanned, Value,
 };
 use std::{
     borrow::Cow,
@@ -26,21 +27,21 @@ pub trait PluginExecutionContext: Send + Sync {
     /// The pipeline externals state, for tracking the foreground process group, if present
     fn pipeline_externals_state(&self) -> Option<&Arc<(AtomicU32, AtomicU32)>>;
     /// Get engine configuration
-    fn get_config(&self) -> Result<Config, ShellError>;
+    fn get_config(&self) -> ShellResult<Config>;
     /// Get plugin configuration
-    fn get_plugin_config(&self) -> Result<Option<Value>, ShellError>;
+    fn get_plugin_config(&self) -> ShellResult<Option<Value>>;
     /// Get an environment variable from `$env`
-    fn get_env_var(&self, name: &str) -> Result<Option<Value>, ShellError>;
+    fn get_env_var(&self, name: &str) -> ShellResult<Option<Value>>;
     /// Get all environment variables
-    fn get_env_vars(&self) -> Result<HashMap<String, Value>, ShellError>;
+    fn get_env_vars(&self) -> ShellResult<HashMap<String, Value>>;
     /// Get current working directory
-    fn get_current_dir(&self) -> Result<Spanned<String>, ShellError>;
+    fn get_current_dir(&self) -> ShellResult<Spanned<String>>;
     /// Set an environment variable
-    fn add_env_var(&mut self, name: String, value: Value) -> Result<(), ShellError>;
+    fn add_env_var(&mut self, name: String, value: Value) -> ShellResult<()>;
     /// Get help for the current command
-    fn get_help(&self) -> Result<Spanned<String>, ShellError>;
+    fn get_help(&self) -> ShellResult<Spanned<String>>;
     /// Get the contents of a [`Span`]
-    fn get_span_contents(&self, span: Span) -> Result<Spanned<Vec<u8>>, ShellError>;
+    fn get_span_contents(&self, span: Span) -> ShellResult<Spanned<Vec<u8>>>;
     /// Evaluate a closure passed to the plugin
     fn eval_closure(
         &self,
@@ -49,7 +50,7 @@ pub trait PluginExecutionContext: Send + Sync {
         input: PipelineData,
         redirect_stdout: bool,
         redirect_stderr: bool,
-    ) -> Result<PipelineData, ShellError>;
+    ) -> ShellResult<PipelineData>;
     /// Create an owned version of the context with `'static` lifetime
     fn boxed(&self) -> Box<dyn PluginExecutionContext>;
 }
@@ -94,11 +95,11 @@ impl<'a> PluginExecutionContext for PluginExecutionCommandContext<'a> {
         Some(&self.engine_state.pipeline_externals_state)
     }
 
-    fn get_config(&self) -> Result<Config, ShellError> {
+    fn get_config(&self) -> ShellResult<Config> {
         Ok(nu_engine::get_config(&self.engine_state, &self.stack))
     }
 
-    fn get_plugin_config(&self) -> Result<Option<Value>, ShellError> {
+    fn get_plugin_config(&self) -> ShellResult<Option<Value>> {
         // Fetch the configuration for a plugin
         //
         // The `plugin` must match the registered name of a plugin.  For
@@ -135,26 +136,26 @@ impl<'a> PluginExecutionContext for PluginExecutionCommandContext<'a> {
             }))
     }
 
-    fn get_env_var(&self, name: &str) -> Result<Option<Value>, ShellError> {
+    fn get_env_var(&self, name: &str) -> ShellResult<Option<Value>> {
         Ok(self.stack.get_env_var(&self.engine_state, name))
     }
 
-    fn get_env_vars(&self) -> Result<HashMap<String, Value>, ShellError> {
+    fn get_env_vars(&self) -> ShellResult<HashMap<String, Value>> {
         Ok(self.stack.get_env_vars(&self.engine_state))
     }
 
-    fn get_current_dir(&self) -> Result<Spanned<String>, ShellError> {
+    fn get_current_dir(&self) -> ShellResult<Spanned<String>> {
         let cwd = nu_engine::env::current_dir_str(&self.engine_state, &self.stack)?;
         // The span is not really used, so just give it call.head
         Ok(cwd.into_spanned(self.call.head))
     }
 
-    fn add_env_var(&mut self, name: String, value: Value) -> Result<(), ShellError> {
+    fn add_env_var(&mut self, name: String, value: Value) -> ShellResult<()> {
         self.stack.add_env_var(name, value);
         Ok(())
     }
 
-    fn get_help(&self) -> Result<Spanned<String>, ShellError> {
+    fn get_help(&self) -> ShellResult<Spanned<String>> {
         let decl = self.engine_state.get_decl(self.call.decl_id);
 
         Ok(get_full_help(
@@ -167,7 +168,7 @@ impl<'a> PluginExecutionContext for PluginExecutionCommandContext<'a> {
         .into_spanned(self.call.head))
     }
 
-    fn get_span_contents(&self, span: Span) -> Result<Spanned<Vec<u8>>, ShellError> {
+    fn get_span_contents(&self, span: Span) -> ShellResult<Spanned<Vec<u8>>> {
         Ok(self
             .engine_state
             .get_span_contents(span)
@@ -182,7 +183,7 @@ impl<'a> PluginExecutionContext for PluginExecutionCommandContext<'a> {
         input: PipelineData,
         redirect_stdout: bool,
         redirect_stderr: bool,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let block = self
             .engine_state
             .try_get_block(closure.item.block_id)
@@ -226,7 +227,7 @@ impl<'a> PluginExecutionContext for PluginExecutionCommandContext<'a> {
                         msg: "Error while evaluating closure from plugin".into(),
                         label: "closure argument missing var_id".into(),
                         span: closure.span,
-                    });
+                    })?;
                 }
             }
         }
@@ -264,50 +265,50 @@ impl PluginExecutionContext for PluginExecutionBogusContext {
         None
     }
 
-    fn get_config(&self) -> Result<Config, ShellError> {
+    fn get_config(&self) -> ShellResult<Config> {
         Err(ShellError::NushellFailed {
             msg: "get_config not implemented on bogus".into(),
-        })
+        })?
     }
 
-    fn get_plugin_config(&self) -> Result<Option<Value>, ShellError> {
+    fn get_plugin_config(&self) -> ShellResult<Option<Value>> {
         Ok(None)
     }
 
-    fn get_env_var(&self, _name: &str) -> Result<Option<Value>, ShellError> {
+    fn get_env_var(&self, _name: &str) -> ShellResult<Option<Value>> {
         Err(ShellError::NushellFailed {
             msg: "get_env_var not implemented on bogus".into(),
-        })
+        })?
     }
 
-    fn get_env_vars(&self) -> Result<HashMap<String, Value>, ShellError> {
+    fn get_env_vars(&self) -> ShellResult<HashMap<String, Value>> {
         Err(ShellError::NushellFailed {
             msg: "get_env_vars not implemented on bogus".into(),
-        })
+        })?
     }
 
-    fn get_current_dir(&self) -> Result<Spanned<String>, ShellError> {
+    fn get_current_dir(&self) -> ShellResult<Spanned<String>> {
         Err(ShellError::NushellFailed {
             msg: "get_current_dir not implemented on bogus".into(),
-        })
+        })?
     }
 
-    fn add_env_var(&mut self, _name: String, _value: Value) -> Result<(), ShellError> {
+    fn add_env_var(&mut self, _name: String, _value: Value) -> ShellResult<()> {
         Err(ShellError::NushellFailed {
             msg: "add_env_var not implemented on bogus".into(),
-        })
+        })?
     }
 
-    fn get_help(&self) -> Result<Spanned<String>, ShellError> {
+    fn get_help(&self) -> ShellResult<Spanned<String>> {
         Err(ShellError::NushellFailed {
             msg: "get_help not implemented on bogus".into(),
-        })
+        })?
     }
 
-    fn get_span_contents(&self, _span: Span) -> Result<Spanned<Vec<u8>>, ShellError> {
+    fn get_span_contents(&self, _span: Span) -> ShellResult<Spanned<Vec<u8>>> {
         Err(ShellError::NushellFailed {
             msg: "get_span_contents not implemented on bogus".into(),
-        })
+        })?
     }
 
     fn eval_closure(
@@ -317,10 +318,10 @@ impl PluginExecutionContext for PluginExecutionBogusContext {
         _input: PipelineData,
         _redirect_stdout: bool,
         _redirect_stderr: bool,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         Err(ShellError::NushellFailed {
             msg: "eval_closure not implemented on bogus".into(),
-        })
+        })?
     }
 
     fn boxed(&self) -> Box<dyn PluginExecutionContext + 'static> {

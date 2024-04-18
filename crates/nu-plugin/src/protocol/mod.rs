@@ -9,8 +9,8 @@ mod tests;
 pub(crate) mod test_util;
 
 use nu_protocol::{
-    ast::Operator, engine::Closure, Config, LabeledError, PipelineData, PluginSignature, RawStream,
-    ShellError, Span, Spanned, Value,
+    ast::Operator, engine::Closure, Config, Error, LabeledError, PipelineData, PluginSignature,
+    RawStream, ShellError, ShellResult, Span, Spanned, Value,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -46,8 +46,8 @@ impl<D> CallInfo<D> {
     /// Convert the type of `input` from `D` to `T`.
     pub(crate) fn map_data<T>(
         self,
-        f: impl FnOnce(D) -> Result<T, ShellError>,
-    ) -> Result<CallInfo<T>, ShellError> {
+        f: impl FnOnce(D) -> ShellResult<T>,
+    ) -> ShellResult<CallInfo<T>> {
         Ok(CallInfo {
             name: self.name,
             call: self.call,
@@ -146,8 +146,8 @@ impl<D> PluginCall<D> {
     /// not contain data.
     pub(crate) fn map_data<T>(
         self,
-        f: impl FnOnce(D) -> Result<T, ShellError>,
-    ) -> Result<PluginCall<T>, ShellError> {
+        f: impl FnOnce(D) -> ShellResult<T>,
+    ) -> ShellResult<PluginCall<T>> {
         Ok(match self {
             PluginCall::Signature => PluginCall::Signature,
             PluginCall::Run(call) => PluginCall::Run(call.map_data(f)?),
@@ -261,43 +261,43 @@ impl From<Result<Vec<u8>, LabeledError>> for StreamData {
     }
 }
 
-impl From<Result<Vec<u8>, ShellError>> for StreamData {
-    fn from(value: Result<Vec<u8>, ShellError>) -> Self {
+impl From<ShellResult<Vec<u8>>> for StreamData {
+    fn from(value: ShellResult<Vec<u8>>) -> Self {
         value.map_err(LabeledError::from).into()
     }
 }
 
 impl TryFrom<StreamData> for Value {
-    type Error = ShellError;
+    type Error = Error;
 
-    fn try_from(data: StreamData) -> Result<Value, ShellError> {
+    fn try_from(data: StreamData) -> ShellResult<Value> {
         match data {
             StreamData::List(value) => Ok(value),
             StreamData::Raw(_) => Err(ShellError::PluginFailedToDecode {
                 msg: "expected list stream data, found raw data".into(),
-            }),
+            })?,
         }
     }
 }
 
 impl TryFrom<StreamData> for Result<Vec<u8>, LabeledError> {
-    type Error = ShellError;
+    type Error = Error;
 
-    fn try_from(data: StreamData) -> Result<Result<Vec<u8>, LabeledError>, ShellError> {
+    fn try_from(data: StreamData) -> ShellResult<Result<Vec<u8>, LabeledError>> {
         match data {
             StreamData::Raw(value) => Ok(value),
             StreamData::List(_) => Err(ShellError::PluginFailedToDecode {
                 msg: "expected raw stream data, found list data".into(),
-            }),
+            })?,
         }
     }
 }
 
-impl TryFrom<StreamData> for Result<Vec<u8>, ShellError> {
-    type Error = ShellError;
+impl TryFrom<StreamData> for ShellResult<Vec<u8>> {
+    type Error = Error;
 
-    fn try_from(value: StreamData) -> Result<Result<Vec<u8>, ShellError>, ShellError> {
-        Result::<Vec<u8>, LabeledError>::try_from(value).map(|res| res.map_err(ShellError::from))
+    fn try_from(value: StreamData) -> ShellResult<ShellResult<Vec<u8>>> {
+        Result::<Vec<u8>, LabeledError>::try_from(value).map(|res| res.map_err(Error::from))
     }
 }
 
@@ -333,8 +333,8 @@ impl<D> PluginCallResponse<D> {
     /// not contain data.
     pub(crate) fn map_data<T>(
         self,
-        f: impl FnOnce(D) -> Result<T, ShellError>,
-    ) -> Result<PluginCallResponse<T>, ShellError> {
+        f: impl FnOnce(D) -> ShellResult<T>,
+    ) -> ShellResult<PluginCallResponse<T>> {
         Ok(match self {
             PluginCallResponse::Error(err) => PluginCallResponse::Error(err),
             PluginCallResponse::Signature(sigs) => PluginCallResponse::Signature(sigs),
@@ -529,8 +529,8 @@ impl<D> EngineCall<D> {
     /// not contain data.
     pub(crate) fn map_data<T>(
         self,
-        f: impl FnOnce(D) -> Result<T, ShellError>,
-    ) -> Result<EngineCall<T>, ShellError> {
+        f: impl FnOnce(D) -> ShellResult<T>,
+    ) -> ShellResult<EngineCall<T>> {
         Ok(match self {
             EngineCall::GetConfig => EngineCall::GetConfig,
             EngineCall::GetPluginConfig => EngineCall::GetPluginConfig,
@@ -563,7 +563,7 @@ impl<D> EngineCall<D> {
 /// data.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum EngineCallResponse<D> {
-    Error(ShellError),
+    Error(Error),
     PipelineData(D),
     Config(Box<Config>),
     ValueMap(HashMap<String, Value>),
@@ -574,8 +574,8 @@ impl<D> EngineCallResponse<D> {
     /// not contain data.
     pub(crate) fn map_data<T>(
         self,
-        f: impl FnOnce(D) -> Result<T, ShellError>,
-    ) -> Result<EngineCallResponse<T>, ShellError> {
+        f: impl FnOnce(D) -> ShellResult<T>,
+    ) -> ShellResult<EngineCallResponse<T>> {
         Ok(match self {
             EngineCallResponse::Error(err) => EngineCallResponse::Error(err),
             EngineCallResponse::PipelineData(data) => EngineCallResponse::PipelineData(f(data)?),
