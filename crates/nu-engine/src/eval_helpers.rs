@@ -6,31 +6,27 @@ use nu_protocol::{
     ast::{Block, Expression},
     debugger::{WithDebug, WithoutDebug},
     engine::{EngineState, Stack},
-    PipelineData, ShellError, Value,
+    PipelineData, ShellResult, Value,
 };
 
 /// Type of eval_block() function
 pub type EvalBlockFn =
-    fn(&EngineState, &mut Stack, &Block, PipelineData) -> Result<PipelineData, ShellError>;
+    fn(&EngineState, &mut Stack, &Block, PipelineData) -> ShellResult<PipelineData>;
 
 /// Type of eval_block_with_early_return() function
 pub type EvalBlockWithEarlyReturnFn =
-    fn(&EngineState, &mut Stack, &Block, PipelineData) -> Result<PipelineData, ShellError>;
+    fn(&EngineState, &mut Stack, &Block, PipelineData) -> ShellResult<PipelineData>;
 
 /// Type of eval_expression() function
-pub type EvalExpressionFn = fn(&EngineState, &mut Stack, &Expression) -> Result<Value, ShellError>;
+pub type EvalExpressionFn = fn(&EngineState, &mut Stack, &Expression) -> ShellResult<Value>;
 
 /// Type of eval_expression_with_input() function
-pub type EvalExpressionWithInputFn = fn(
-    &EngineState,
-    &mut Stack,
-    &Expression,
-    PipelineData,
-) -> Result<(PipelineData, bool), ShellError>;
+pub type EvalExpressionWithInputFn =
+    fn(&EngineState, &mut Stack, &Expression, PipelineData) -> ShellResult<(PipelineData, bool)>;
 
 /// Type of eval_subexpression() function
 pub type EvalSubexpressionFn =
-    fn(&EngineState, &mut Stack, &Block, PipelineData) -> Result<PipelineData, ShellError>;
+    fn(&EngineState, &mut Stack, &Block, PipelineData) -> ShellResult<PipelineData>;
 
 /// Helper function to fetch `eval_block()` with the correct type parameter based on whether
 /// engine_state is configured with or without a debugger.

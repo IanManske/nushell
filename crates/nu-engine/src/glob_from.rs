@@ -1,6 +1,6 @@
 use nu_glob::MatchOptions;
 use nu_path::{canonicalize_with, expand_path_with};
-use nu_protocol::{NuGlob, ShellError, Span, Spanned};
+use nu_protocol::{NuGlob, ShellError, ShellResult, Span, Spanned};
 use std::{
     fs,
     path::{Component, Path, PathBuf},
@@ -21,13 +21,10 @@ pub fn glob_from(
     cwd: &Path,
     span: Span,
     options: Option<MatchOptions>,
-) -> Result<
-    (
-        Option<PathBuf>,
-        Box<dyn Iterator<Item = Result<PathBuf, ShellError>> + Send>,
-    ),
-    ShellError,
-> {
+) -> ShellResult<(
+    Option<PathBuf>,
+    Box<dyn Iterator<Item = ShellResult<PathBuf>> + Send>,
+)> {
     let no_glob_for_pattern = matches!(pattern.item, NuGlob::DoNotExpand(_));
     let (prefix, pattern) = if pattern.item.as_ref().contains(GLOB_CHARS) {
         // Pattern contains glob, split it
@@ -85,7 +82,7 @@ pub fn glob_from(
                 return Err(ShellError::DirectoryNotFound {
                     dir: path.to_string_lossy().to_string(),
                     span: pattern.span,
-                });
+                })?;
             };
             (path.parent().map(|parent| parent.to_path_buf()), path)
         }
@@ -114,7 +111,7 @@ pub fn glob_from(
                 span: Some(span),
                 help: None,
                 inner: vec![],
-            }),
+            })?,
         })),
     ))
 }

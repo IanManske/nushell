@@ -4,7 +4,7 @@ use nu_protocol::{
     ast::{Call, Expr},
     debugger::WithoutDebug,
     engine::{EngineState, Stack, StateWorkingSet, PWD_ENV},
-    Config, PipelineData, ShellError, Span, Value, VarId,
+    Config, Error, PipelineData, ShellError, ShellResult, Span, Value, VarId,
 };
 use std::{
     collections::HashMap,
@@ -23,7 +23,7 @@ const ENV_CONVERSIONS: &str = "ENV_CONVERSIONS";
 
 enum ConversionResult {
     Ok(Value),
-    ConversionError(ShellError), // Failure during the conversion itself
+    ConversionError(Error), // Failure during the conversion itself
     CellPathError, // Error looking up the ENV_VAR.to_/from_string fields in $env.ENV_CONVERSIONS
 }
 
@@ -33,7 +33,7 @@ enum ConversionResult {
 /// It returns Option instead of Result since we do want to translate all the values we can and
 /// skip errors. This function is called in the main() so we want to keep running, we cannot just
 /// exit.
-pub fn convert_env_values(engine_state: &mut EngineState, stack: &Stack) -> Option<ShellError> {
+pub fn convert_env_values(engine_state: &mut EngineState, stack: &Stack) -> Option<Error> {
     let mut error = None;
 
     let mut new_scope = HashMap::new();
@@ -77,12 +77,18 @@ pub fn convert_env_values(engine_state: &mut EngineState, stack: &Stack) -> Opti
             }
         } else {
             error = error.or_else(|| {
-                Some(ShellError::NushellFailedHelp { msg: "Last active overlay not found in permanent state.".into(), help: "This error happened during the conversion of environment variables from strings to Nushell values.".into() })
+                Some(ShellError::NushellFailedHelp {
+                    msg: "Last active overlay not found in permanent state.".into(),
+                    help: "This error happened during the conversion of environment variables from strings to Nushell values.".into(),
+                }.into())
             });
         }
     } else {
         error = error.or_else(|| {
-            Some(ShellError::NushellFailedHelp { msg: "Last active overlay not found in stack.".into(), help: "This error happened during the conversion of environment variables from strings to Nushell values.".into() })
+            Some(ShellError::NushellFailedHelp {
+                msg: "Last active overlay not found in stack.".into(),
+                help: "This error happened during the conversion of environment variables from strings to Nushell values.".into(),
+            }.into())
         });
     }
 
@@ -97,7 +103,7 @@ pub fn env_to_string(
     value: &Value,
     engine_state: &EngineState,
     stack: &Stack,
-) -> Result<String, ShellError> {
+) -> ShellResult<String> {
     match get_converted_value(engine_state, stack, env_name, value, "to_string") {
         ConversionResult::Ok(v) => Ok(v.coerce_into_string()?),
         ConversionResult::ConversionError(e) => Err(e),
@@ -118,19 +124,19 @@ pub fn env_to_string(
                                 Err(_) => Err(ShellError::EnvVarNotAString {
                                     envvar_name: env_name.to_string(),
                                     span: value.span(),
-                                }),
+                                })?,
                             }
                         }
                         _ => Err(ShellError::EnvVarNotAString {
                             envvar_name: env_name.to_string(),
                             span: value.span(),
-                        }),
+                        })?,
                     }
                 } else {
                     Err(ShellError::EnvVarNotAString {
                         envvar_name: env_name.to_string(),
                         span: value.span(),
-                    })
+                    })?
                 }
             }
         },
@@ -141,7 +147,7 @@ pub fn env_to_string(
 pub fn env_to_strings(
     engine_state: &EngineState,
     stack: &Stack,
-) -> Result<HashMap<String, String>, ShellError> {
+) -> ShellResult<HashMap<String, String>> {
     let env_vars = stack.get_env_vars(engine_state);
     let mut env_vars_str = HashMap::new();
     for (env_name, val) in env_vars {
@@ -149,7 +155,7 @@ pub fn env_to_strings(
             Ok(val_str) => {
                 env_vars_str.insert(env_name, val_str);
             }
-            Err(ShellError::EnvVarNotAString { .. }) => {} // ignore non-string values
+            Err(e) if matches!(*e, ShellError::EnvVarNotAString { .. }) => {} // ignore non-string values
             Err(e) => return Err(e),
         }
     }
@@ -158,7 +164,7 @@ pub fn env_to_strings(
 }
 
 /// Shorthand for env_to_string() for PWD with custom error
-pub fn current_dir_str(engine_state: &EngineState, stack: &Stack) -> Result<String, ShellError> {
+pub fn current_dir_str(engine_state: &EngineState, stack: &Stack) -> ShellResult<String> {
     if let Some(pwd) = stack.get_env_var(engine_state, PWD_ENV) {
         // TODO: PWD should be string by default, we don't need to run ENV_CONVERSIONS on it
         match env_to_string(PWD_ENV, &pwd, engine_state, stack) {
@@ -167,29 +173,29 @@ pub fn current_dir_str(engine_state: &EngineState, stack: &Stack) -> Result<Stri
                     Ok(cwd)
                 } else {
                     Err(ShellError::GenericError {
-                            error: "Invalid current directory".into(),
-                            msg: format!("The 'PWD' environment variable must be set to an absolute path. Found: '{cwd}'"),
-                            span: Some(pwd.span()),
-                            help: None,
-                            inner: vec![]
-                    })
+                        error: "Invalid current directory".into(),
+                        msg: format!("The 'PWD' environment variable must be set to an absolute path. Found: '{cwd}'"),
+                        span: Some(pwd.span()),
+                        help: None,
+                        inner: vec![]
+                    })?
                 }
             }
             Err(e) => Err(e),
         }
     } else {
         Err(ShellError::GenericError {
-                error: "Current directory not found".into(),
-                msg: "".into(),
-                span: None,
-                help: Some("The environment variable 'PWD' was not found. It is required to define the current directory.".into()),
-                inner: vec![],
-        })
+            error: "Current directory not found".into(),
+            msg: "".into(),
+            span: None,
+            help: Some("The environment variable 'PWD' was not found. It is required to define the current directory.".into()),
+            inner: vec![],
+        })?
     }
 }
 
 /// Simplified version of current_dir_str() for constant evaluation
-pub fn current_dir_str_const(working_set: &StateWorkingSet) -> Result<String, ShellError> {
+pub fn current_dir_str_const(working_set: &StateWorkingSet) -> ShellResult<String> {
     if let Some(pwd) = working_set.get_env_var(PWD_ENV) {
         let span = pwd.span();
         match pwd {
@@ -198,12 +204,12 @@ pub fn current_dir_str_const(working_set: &StateWorkingSet) -> Result<String, Sh
                     Ok(val.clone())
                 } else {
                     Err(ShellError::GenericError {
-                            error: "Invalid current directory".into(),
-                            msg: format!("The 'PWD' environment variable must be set to an absolute path. Found: '{val}'"),
-                            span: Some(span),
-                            help: None,
-                            inner: vec![]
-                    })
+                        error: "Invalid current directory".into(),
+                        msg: format!("The 'PWD' environment variable must be set to an absolute path. Found: '{val}'"),
+                        span: Some(span),
+                        help: None,
+                        inner: vec![],
+                    })?
                 }
             }
             _ => Err(ShellError::GenericError {
@@ -215,26 +221,26 @@ pub fn current_dir_str_const(working_set: &StateWorkingSet) -> Result<String, Sh
                         .into(),
                 ),
                 inner: vec![],
-            }),
+            })?,
         }
     } else {
         Err(ShellError::GenericError{
-                error: "Current directory not found".into(),
-                msg: "".into(),
-                span: None,
-                help: Some("The environment variable 'PWD' was not found. It is required to define the current directory.".into()),
-                inner: vec![],
-        })
+            error: "Current directory not found".into(),
+            msg: "".into(),
+            span: None,
+            help: Some("The environment variable 'PWD' was not found. It is required to define the current directory.".into()),
+            inner: vec![],
+        })?
     }
 }
 
 /// Calls current_dir_str() and returns the current directory as a PathBuf
-pub fn current_dir(engine_state: &EngineState, stack: &Stack) -> Result<PathBuf, ShellError> {
+pub fn current_dir(engine_state: &EngineState, stack: &Stack) -> ShellResult<PathBuf> {
     current_dir_str(engine_state, stack).map(PathBuf::from)
 }
 
 /// Version of current_dir() for constant evaluation
-pub fn current_dir_const(working_set: &StateWorkingSet) -> Result<PathBuf, ShellError> {
+pub fn current_dir_const(working_set: &StateWorkingSet) -> ShellResult<PathBuf> {
     current_dir_str_const(working_set).map(PathBuf::from)
 }
 
@@ -242,11 +248,7 @@ pub fn current_dir_const(working_set: &StateWorkingSet) -> Result<PathBuf, Shell
 ///
 /// On non-Windows: It will fetch PATH
 /// On Windows: It will try to fetch Path first but if not present, try PATH
-pub fn path_str(
-    engine_state: &EngineState,
-    stack: &Stack,
-    span: Span,
-) -> Result<String, ShellError> {
+pub fn path_str(engine_state: &EngineState, stack: &Stack, span: Span) -> ShellResult<String> {
     let (pathname, pathval) = match stack.get_env_var(engine_state, ENV_PATH_NAME) {
         Some(v) => Ok((ENV_PATH_NAME, v)),
         None => {
@@ -296,7 +298,7 @@ pub fn find_in_dirs_env(
     engine_state: &EngineState,
     stack: &Stack,
     dirs_var: Option<VarId>,
-) -> Result<Option<PathBuf>, ShellError> {
+) -> ShellResult<Option<PathBuf>> {
     // Choose whether to use file-relative or PWD-relative path
     let cwd = if let Some(pwd) = stack.get_env_var(engine_state, "FILE_PWD") {
         match env_to_string("FILE_PWD", &pwd, engine_state, stack) {
@@ -305,15 +307,15 @@ pub fn find_in_dirs_env(
                     cwd
                 } else {
                     return Err(ShellError::GenericError {
-                            error: "Invalid current directory".into(),
-                            msg: format!("The 'FILE_PWD' environment variable must be set to an absolute path. Found: '{cwd}'"),
-                            span: Some(pwd.span()),
-                            help: None,
-                            inner: vec![]
-                    });
+                        error: "Invalid current directory".into(),
+                        msg: format!("The 'FILE_PWD' environment variable must be set to an absolute path. Found: '{cwd}'"),
+                        span: Some(pwd.span()),
+                        help: None,
+                        inner: vec![],
+                    })?;
                 }
             }
-            Err(e) => return Err(e),
+            Err(e) => return Err(e)?,
         }
     } else {
         current_dir_str(engine_state, stack)?
@@ -401,10 +403,13 @@ fn get_converted_value(
                         Err(e) => ConversionResult::ConversionError(e),
                     }
                 } else {
-                    ConversionResult::ConversionError(ShellError::MissingParameter {
-                        param_name: "block input".into(),
-                        span: from_span,
-                    })
+                    ConversionResult::ConversionError(
+                        ShellError::MissingParameter {
+                            param_name: "block input".into(),
+                            span: from_span,
+                        }
+                        .into(),
+                    )
                 }
             }
             Err(e) => ConversionResult::ConversionError(e),
@@ -414,7 +419,7 @@ fn get_converted_value(
     }
 }
 
-fn ensure_path(scope: &mut HashMap<String, Value>, env_path_name: &str) -> Option<ShellError> {
+fn ensure_path(scope: &mut HashMap<String, Value>, env_path_name: &str) -> Option<Error> {
     let mut error = None;
 
     // If PATH/Path is still a string, force-convert it to a list
@@ -433,13 +438,16 @@ fn ensure_path(scope: &mut HashMap<String, Value>, env_path_name: &str) -> Optio
                 // Must be a list of strings
                 if !vals.iter().all(|v| matches!(v, Value::String { .. })) {
                     error = error.or_else(|| {
-                        Some(ShellError::GenericError {
-                            error: format!("Wrong {env_path_name} environment variable value"),
-                            msg: format!("{env_path_name} must be a list of strings"),
-                            span: Some(span),
-                            help: None,
-                            inner: vec![],
-                        })
+                        Some(
+                            ShellError::GenericError {
+                                error: format!("Wrong {env_path_name} environment variable value"),
+                                msg: format!("{env_path_name} must be a list of strings"),
+                                span: Some(span),
+                                help: None,
+                                inner: vec![],
+                            }
+                            .into(),
+                        )
                     });
                 }
             }
@@ -449,13 +457,16 @@ fn ensure_path(scope: &mut HashMap<String, Value>, env_path_name: &str) -> Optio
                 let span = val.span();
 
                 error = error.or_else(|| {
-                    Some(ShellError::GenericError {
-                        error: format!("Wrong {env_path_name} environment variable value"),
-                        msg: format!("{env_path_name} must be a list of strings"),
-                        span: Some(span),
-                        help: None,
-                        inner: vec![],
-                    })
+                    Some(
+                        ShellError::GenericError {
+                            error: format!("Wrong {env_path_name} environment variable value"),
+                            msg: format!("{env_path_name} must be a list of strings"),
+                            span: Some(span),
+                            help: None,
+                            inner: vec![],
+                        }
+                        .into(),
+                    )
                 });
             }
         }

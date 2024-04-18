@@ -8,8 +8,8 @@ use nu_protocol::{
     debugger::DebugContext,
     engine::{Closure, EngineState, Redirection, Stack},
     eval_base::Eval,
-    Config, FromValue, IntoPipelineData, OutDest, PipelineData, ShellError, Span, Spanned, Type,
-    Value, VarId, ENV_VARIABLE_ID,
+    Config, FromValue, IntoPipelineData, IntoSpanned, OutDest, PipelineData, ShellError,
+    ShellResult, Span, Spanned, Type, Value, VarId, ENV_VARIABLE_ID,
 };
 use std::{borrow::Cow, fs::OpenOptions, path::PathBuf};
 
@@ -18,7 +18,7 @@ pub fn eval_call<D: DebugContext>(
     caller_stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     if nu_utils::ctrl_c::was_pressed(&engine_state.ctrlc) {
         return Ok(Value::nothing(call.head).into_pipeline_data());
     }
@@ -51,10 +51,10 @@ pub fn eval_call<D: DebugContext>(
         callee_stack.recursion_count += 1;
         if callee_stack.recursion_count > maximum_call_stack_depth {
             callee_stack.recursion_count = 0;
-            return Err(ShellError::RecursionLimitReached {
+            Err(ShellError::RecursionLimitReached {
                 recursion_limit: maximum_call_stack_depth,
                 span: block.span,
-            });
+            })?;
         }
 
         for (param_idx, (param, required)) in decl
@@ -88,12 +88,12 @@ pub fn eval_call<D: DebugContext>(
                         .unwrap_or(false);
 
                     if !empty_list_matches {
-                        return Err(ShellError::CantConvert {
+                        Err(ShellError::CantConvert {
                             to_type: param.shape.to_type().to_string(),
                             from_type: result.get_type().to_string(),
                             span: result.span(),
                             help: None,
-                        });
+                        })?;
                     }
                 }
                 callee_stack.add_var(var_id, result);
@@ -214,7 +214,7 @@ fn eval_external(
     head: &Expression,
     args: &[ExternalArgument],
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let decl_id = engine_state
         .find_decl("run-external".as_bytes(), &[])
         .ok_or(ShellError::ExternalNotSupported { span: head.span })?;
@@ -239,7 +239,7 @@ pub fn eval_expression<D: DebugContext>(
     engine_state: &EngineState,
     stack: &mut Stack,
     expr: &Expression,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     let stack = &mut stack.start_capture();
     <EvalRuntime as Eval>::eval::<D>(engine_state, stack, expr)
 }
@@ -255,7 +255,7 @@ pub fn eval_expression_with_input<D: DebugContext>(
     stack: &mut Stack,
     expr: &Expression,
     mut input: PipelineData,
-) -> Result<(PipelineData, bool), ShellError> {
+) -> ShellResult<(PipelineData, bool)> {
     match &expr.expr {
         Expr::Call(call) => {
             input = eval_call::<D>(engine_state, stack, call, input)?;
@@ -321,7 +321,7 @@ fn eval_redirection<D: DebugContext>(
     stack: &mut Stack,
     target: &RedirectionTarget,
     next_out: Option<OutDest>,
-) -> Result<Redirection, ShellError> {
+) -> ShellResult<Redirection> {
     match target {
         RedirectionTarget::File { expr, append, .. } => {
             let cwd = current_dir(engine_state, stack)?;
@@ -335,7 +335,12 @@ fn eval_redirection<D: DebugContext>(
             } else {
                 options.write(true).truncate(true);
             }
-            Ok(Redirection::file(options.create(true).open(path)?))
+            Ok(Redirection::file(
+                options
+                    .create(true)
+                    .open(path)
+                    .map_err(|e| e.into_spanned(expr.span))?,
+            ))
         }
         RedirectionTarget::Pipe { .. } => Ok(Redirection::Pipe(next_out.unwrap_or(OutDest::Pipe))),
     }
@@ -346,7 +351,7 @@ fn eval_element_redirection<D: DebugContext>(
     stack: &mut Stack,
     element_redirection: Option<&PipelineRedirection>,
     pipe_redirection: (Option<OutDest>, Option<OutDest>),
-) -> Result<(Option<Redirection>, Option<Redirection>), ShellError> {
+) -> ShellResult<(Option<Redirection>, Option<Redirection>)> {
     let (next_out, next_err) = pipe_redirection;
 
     if let Some(redirection) = element_redirection {
@@ -399,7 +404,7 @@ fn eval_element_with_input_inner<D: DebugContext>(
     stack: &mut Stack,
     element: &PipelineElement,
     input: PipelineData,
-) -> Result<(PipelineData, bool), ShellError> {
+) -> ShellResult<(PipelineData, bool)> {
     let (data, ok) = eval_expression_with_input::<D>(engine_state, stack, &element.expr, input)?;
 
     if !matches!(data, PipelineData::ExternalStream { .. }) {
@@ -413,25 +418,25 @@ fn eval_element_with_input_inner<D: DebugContext>(
                     err: RedirectionTarget::Pipe { span },
                     ..
                 } => {
-                    return Err(ShellError::GenericError {
+                    Err(ShellError::GenericError {
                         error: "`e>|` only works with external streams".into(),
                         msg: "`e>|` only works on external streams".into(),
                         span: Some(span),
                         help: None,
                         inner: vec![],
-                    });
+                    })?;
                 }
                 &PipelineRedirection::Single {
                     source: RedirectionSource::StdoutAndStderr,
                     target: RedirectionTarget::Pipe { span },
                 } => {
-                    return Err(ShellError::GenericError {
+                    Err(ShellError::GenericError {
                         error: "`o+e>|` only works with external streams".into(),
                         msg: "`o+e>|` only works on external streams".into(),
                         span: Some(span),
                         help: None,
                         inner: vec![],
-                    });
+                    })?;
                 }
                 _ => {}
             }
@@ -454,7 +459,7 @@ fn eval_element_with_input<D: DebugContext>(
     stack: &mut Stack,
     element: &PipelineElement,
     input: PipelineData,
-) -> Result<(PipelineData, bool), ShellError> {
+) -> ShellResult<(PipelineData, bool)> {
     D::enter_element(engine_state, element);
 
     let result = eval_element_with_input_inner::<D>(engine_state, stack, element, input);
@@ -469,9 +474,14 @@ pub fn eval_block_with_early_return<D: DebugContext>(
     stack: &mut Stack,
     block: &Block,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     match eval_block::<D>(engine_state, stack, block, input) {
-        Err(ShellError::Return { span: _, value }) => Ok(PipelineData::Value(*value, None)),
+        Err(mut err) => match &mut *err {
+            ShellError::Return { span: _, value } => {
+                Ok(PipelineData::Value(std::mem::take(value), None))
+            }
+            _ => Err(err),
+        },
         x => x,
     }
 }
@@ -481,7 +491,7 @@ pub fn eval_block<D: DebugContext>(
     stack: &mut Stack,
     block: &Block,
     mut input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     D::enter_block(engine_state, block);
 
     let num_pipelines = block.len();
@@ -508,7 +518,7 @@ pub fn eval_block<D: DebugContext>(
                 eval_element_with_input::<D>(engine_state, stack, element, input)?;
             if failed {
                 // External command failed.
-                // Don't return `Err(ShellError)`, so nushell won't show an extra error message.
+                // Don't return `Err`, so nushell won't show an extra error message.
                 return Ok(output);
             }
             input = output;
@@ -525,7 +535,7 @@ pub fn eval_block<D: DebugContext>(
             let (output, failed) = eval_element_with_input::<D>(engine_state, stack, last, input)?;
             if failed {
                 // External command failed.
-                // Don't return `Err(ShellError)`, so nushell won't show an extra error message.
+                // Don't return `Err`, so nushell won't show an extra error message.
                 return Ok(output);
             }
             input = output;
@@ -540,7 +550,7 @@ pub fn eval_block<D: DebugContext>(
             let (output, failed) = eval_element_with_input::<D>(engine_state, stack, last, input)?;
             if failed {
                 // External command failed.
-                // Don't return `Err(ShellError)`, so nushell won't show an extra error message.
+                // Don't return `Err`, so nushell won't show an extra error message.
                 return Ok(output);
             }
             input = PipelineData::Empty;
@@ -573,7 +583,7 @@ pub fn eval_subexpression<D: DebugContext>(
     stack: &mut Stack,
     block: &Block,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     eval_block::<D>(engine_state, stack, block, input)
 }
 
@@ -582,14 +592,14 @@ pub fn eval_variable(
     stack: &Stack,
     var_id: VarId,
     span: Span,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     match var_id {
         // $nu
         nu_protocol::NU_VARIABLE_ID => {
             if let Some(val) = engine_state.get_constant(var_id) {
                 Ok(val.clone())
             } else {
-                Err(ShellError::VariableNotFoundAtRuntime { span })
+                Err(ShellError::VariableNotFoundAtRuntime { span })?
             }
         }
         // $env
@@ -628,7 +638,7 @@ impl Eval for EvalRuntime {
         path: String,
         quoted: bool,
         span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         if quoted {
             Ok(Value::string(path, span))
         } else {
@@ -645,7 +655,7 @@ impl Eval for EvalRuntime {
         path: String,
         quoted: bool,
         span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         if path == "-" {
             Ok(Value::string("-", span))
         } else if quoted {
@@ -663,7 +673,7 @@ impl Eval for EvalRuntime {
         stack: &mut Stack,
         var_id: VarId,
         span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         eval_variable(engine_state, stack, var_id, span)
     }
 
@@ -672,7 +682,7 @@ impl Eval for EvalRuntime {
         stack: &mut Stack,
         call: &Call,
         _: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         // FIXME: protect this collect with ctrl-c
         Ok(eval_call::<D>(engine_state, stack, call, PipelineData::empty())?.into_value(call.head))
     }
@@ -683,7 +693,7 @@ impl Eval for EvalRuntime {
         head: &Expression,
         args: &[ExternalArgument],
         _: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         let span = head.span;
         // FIXME: protect this collect with ctrl-c
         Ok(eval_external(engine_state, stack, head, args, PipelineData::empty())?.into_value(span))
@@ -694,7 +704,7 @@ impl Eval for EvalRuntime {
         stack: &mut Stack,
         block_id: usize,
         span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         let block = engine_state.get_block(block_id);
 
         // FIXME: protect this collect with ctrl-c
@@ -711,7 +721,7 @@ impl Eval for EvalRuntime {
         rhs: &Value,
         invert: bool,
         expr_span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         lhs.regex_match(engine_state, op_span, rhs, invert, expr_span)
     }
 
@@ -723,7 +733,7 @@ impl Eval for EvalRuntime {
         assignment: Assignment,
         op_span: Span,
         _expr_span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         let rhs = eval_expression::<D>(engine_state, stack, rhs)?;
 
         let rhs = match assignment {
@@ -757,7 +767,7 @@ impl Eval for EvalRuntime {
                     stack.add_var(*var_id, rhs);
                     Ok(Value::nothing(lhs.span))
                 } else {
-                    Err(ShellError::AssignmentRequiresMutableVar { lhs_span: lhs.span })
+                    Err(ShellError::AssignmentRequiresMutableVar { lhs_span: lhs.span })?
                 }
             }
             Expr::FullCellPath(cell_path) => {
@@ -775,7 +785,7 @@ impl Eval for EvalRuntime {
                                 if cell_path.tail.is_empty() {
                                     return Err(ShellError::CannotReplaceEnv {
                                         span: cell_path.head.span,
-                                    });
+                                    })?;
                                 }
 
                                 // The special $env treatment: for something like $env.config.history.max_size = 2000,
@@ -792,7 +802,7 @@ impl Eval for EvalRuntime {
                                             return Err(ShellError::AutomaticEnvVarSetManually {
                                                 envvar_name: val.to_string(),
                                                 span: *span,
-                                            });
+                                            })?;
                                         } else {
                                             stack.add_env_var(val.to_string(), vardata);
                                         }
@@ -807,13 +817,13 @@ impl Eval for EvalRuntime {
                             }
                             Ok(Value::nothing(cell_path.head.span))
                         } else {
-                            Err(ShellError::AssignmentRequiresMutableVar { lhs_span: lhs.span })
+                            Err(ShellError::AssignmentRequiresMutableVar { lhs_span: lhs.span })?
                         }
                     }
-                    _ => Err(ShellError::AssignmentRequiresVar { lhs_span: lhs.span }),
+                    _ => Err(ShellError::AssignmentRequiresVar { lhs_span: lhs.span })?,
                 }
             }
-            _ => Err(ShellError::AssignmentRequiresVar { lhs_span: lhs.span }),
+            _ => Err(ShellError::AssignmentRequiresVar { lhs_span: lhs.span })?,
         }
     }
 
@@ -822,7 +832,7 @@ impl Eval for EvalRuntime {
         stack: &mut Stack,
         block_id: usize,
         span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         let captures = engine_state
             .get_block(block_id)
             .captures
@@ -844,13 +854,13 @@ impl Eval for EvalRuntime {
         Ok(Value::closure(Closure { block_id, captures }, span))
     }
 
-    fn eval_overlay(engine_state: &EngineState, span: Span) -> Result<Value, ShellError> {
+    fn eval_overlay(engine_state: &EngineState, span: Span) -> ShellResult<Value> {
         let name = String::from_utf8_lossy(engine_state.get_span_contents(span)).to_string();
 
         Ok(Value::string(name, span))
     }
 
-    fn unreachable(expr: &Expression) -> Result<Value, ShellError> {
+    fn unreachable(expr: &Expression) -> ShellResult<Value> {
         Ok(Value::nothing(expr.span))
     }
 }

@@ -4,7 +4,7 @@ use nu_protocol::{
     debugger::WithoutDebug,
     engine::{EngineState, Stack, StateWorkingSet},
     eval_const::eval_constant,
-    FromValue, ShellError, Value,
+    FromValue, ShellError, ShellResult, Value,
 };
 
 pub trait CallExt {
@@ -14,48 +14,48 @@ pub trait CallExt {
         engine_state: &EngineState,
         stack: &mut Stack,
         flag_name: &str,
-    ) -> Result<bool, ShellError>;
+    ) -> ShellResult<bool>;
 
     fn get_flag<T: FromValue>(
         &self,
         engine_state: &EngineState,
         stack: &mut Stack,
         name: &str,
-    ) -> Result<Option<T>, ShellError>;
+    ) -> ShellResult<Option<T>>;
 
     fn rest<T: FromValue>(
         &self,
         engine_state: &EngineState,
         stack: &mut Stack,
         starting_pos: usize,
-    ) -> Result<Vec<T>, ShellError>;
+    ) -> ShellResult<Vec<T>>;
 
     fn opt<T: FromValue>(
         &self,
         engine_state: &EngineState,
         stack: &mut Stack,
         pos: usize,
-    ) -> Result<Option<T>, ShellError>;
+    ) -> ShellResult<Option<T>>;
 
     fn opt_const<T: FromValue>(
         &self,
         working_set: &StateWorkingSet,
         pos: usize,
-    ) -> Result<Option<T>, ShellError>;
+    ) -> ShellResult<Option<T>>;
 
     fn req<T: FromValue>(
         &self,
         engine_state: &EngineState,
         stack: &mut Stack,
         pos: usize,
-    ) -> Result<T, ShellError>;
+    ) -> ShellResult<T>;
 
     fn req_parser_info<T: FromValue>(
         &self,
         engine_state: &EngineState,
         stack: &mut Stack,
         name: &str,
-    ) -> Result<T, ShellError>;
+    ) -> ShellResult<T>;
 }
 
 impl CallExt for Call {
@@ -64,7 +64,7 @@ impl CallExt for Call {
         engine_state: &EngineState,
         stack: &mut Stack,
         flag_name: &str,
-    ) -> Result<bool, ShellError> {
+    ) -> ShellResult<bool> {
         for name in self.named_iter() {
             if flag_name == name.0.item {
                 return if let Some(expr) = &name.2 {
@@ -78,7 +78,7 @@ impl CallExt for Call {
                             from_type: result.get_type().to_string(),
                             span: result.span(),
                             help: Some("".into()),
-                        }),
+                        })?,
                     }
                 } else {
                     Ok(true)
@@ -94,7 +94,7 @@ impl CallExt for Call {
         engine_state: &EngineState,
         stack: &mut Stack,
         name: &str,
-    ) -> Result<Option<T>, ShellError> {
+    ) -> ShellResult<Option<T>> {
         if let Some(expr) = self.get_flag_expr(name) {
             let stack = &mut stack.use_call_arg_out_dest();
             let result = eval_expression::<WithoutDebug>(engine_state, stack, expr)?;
@@ -109,7 +109,7 @@ impl CallExt for Call {
         engine_state: &EngineState,
         stack: &mut Stack,
         starting_pos: usize,
-    ) -> Result<Vec<T>, ShellError> {
+    ) -> ShellResult<Vec<T>> {
         let stack = &mut stack.use_call_arg_out_dest();
         let mut output = vec![];
 
@@ -127,7 +127,7 @@ impl CallExt for Call {
         engine_state: &EngineState,
         stack: &mut Stack,
         pos: usize,
-    ) -> Result<Option<T>, ShellError> {
+    ) -> ShellResult<Option<T>> {
         if let Some(expr) = self.positional_nth(pos) {
             let stack = &mut stack.use_call_arg_out_dest();
             let result = eval_expression::<WithoutDebug>(engine_state, stack, expr)?;
@@ -141,7 +141,7 @@ impl CallExt for Call {
         &self,
         working_set: &StateWorkingSet,
         pos: usize,
-    ) -> Result<Option<T>, ShellError> {
+    ) -> ShellResult<Option<T>> {
         if let Some(expr) = self.positional_nth(pos) {
             let result = eval_constant(working_set, expr)?;
             FromValue::from_value(result).map(Some)
@@ -155,18 +155,18 @@ impl CallExt for Call {
         engine_state: &EngineState,
         stack: &mut Stack,
         pos: usize,
-    ) -> Result<T, ShellError> {
+    ) -> ShellResult<T> {
         if let Some(expr) = self.positional_nth(pos) {
             let stack = &mut stack.use_call_arg_out_dest();
             let result = eval_expression::<WithoutDebug>(engine_state, stack, expr)?;
             FromValue::from_value(result)
         } else if self.positional_len() == 0 {
-            Err(ShellError::AccessEmptyContent { span: self.head })
+            Err(ShellError::AccessEmptyContent { span: self.head })?
         } else {
             Err(ShellError::AccessBeyondEnd {
                 max_idx: self.positional_len() - 1,
                 span: self.head,
-            })
+            })?
         }
     }
 
@@ -175,18 +175,18 @@ impl CallExt for Call {
         engine_state: &EngineState,
         stack: &mut Stack,
         name: &str,
-    ) -> Result<T, ShellError> {
+    ) -> ShellResult<T> {
         if let Some(expr) = self.get_parser_info(name) {
             let stack = &mut stack.use_call_arg_out_dest();
             let result = eval_expression::<WithoutDebug>(engine_state, stack, expr)?;
             FromValue::from_value(result)
         } else if self.parser_info.is_empty() {
-            Err(ShellError::AccessEmptyContent { span: self.head })
+            Err(ShellError::AccessEmptyContent { span: self.head })?
         } else {
             Err(ShellError::AccessBeyondEnd {
                 max_idx: self.parser_info.len() - 1,
                 span: self.head,
-            })
+            })?
         }
     }
 }
