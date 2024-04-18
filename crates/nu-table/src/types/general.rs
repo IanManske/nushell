@@ -9,7 +9,7 @@ use crate::{
 };
 use nu_color_config::TextStyle;
 use nu_engine::column::get_columns;
-use nu_protocol::{Config, Record, ShellError, Value};
+use nu_protocol::{Config, Record, ShellResult, Value};
 
 pub struct JustTable;
 
@@ -23,7 +23,7 @@ impl JustTable {
     }
 }
 
-fn create_table(input: &[Value], opts: TableOpts<'_>) -> Result<Option<String>, ShellError> {
+fn create_table(input: &[Value], opts: TableOpts<'_>) -> ShellResult<Option<String>> {
     match table(input, &opts)? {
         Some(mut out) => {
             let left = opts.config.table_indent.left;
@@ -111,7 +111,7 @@ fn to_table_with_header(
     with_index: bool,
     row_offset: usize,
     opts: &TableOpts<'_>,
-) -> Result<Option<NuTable>, ShellError> {
+) -> ShellResult<Option<NuTable>> {
     let count_rows = input.len() + 1;
     let count_columns = headers.len();
     let mut table = NuTable::new(count_rows, count_columns);
@@ -128,7 +128,7 @@ fn to_table_with_header(
         }
 
         if let Value::Error { error, .. } = item {
-            return Err(*error.clone());
+            return Err(error.clone());
         }
 
         if with_index {
@@ -153,7 +153,7 @@ fn to_table_with_no_header(
     with_index: bool,
     row_offset: usize,
     opts: &TableOpts<'_>,
-) -> Result<Option<NuTable>, ShellError> {
+) -> ShellResult<Option<NuTable>> {
     let mut table = NuTable::new(input.len(), with_index as usize + 1);
     table.set_index_style(get_index_style(opts.style_computer));
 
@@ -163,7 +163,7 @@ fn to_table_with_no_header(
         }
 
         if let Value::Error { error, .. } = item {
-            return Err(*error.clone());
+            return Err(error.clone());
         }
 
         if with_index {

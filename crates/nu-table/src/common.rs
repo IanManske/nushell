@@ -2,11 +2,13 @@ use crate::{
     clean_charset, colorize_space_str, string_wrap, NuTableConfig, TableOutput, TableTheme,
 };
 use nu_color_config::{Alignment, StyleComputer, TextStyle};
-use nu_protocol::{Config, FooterMode, ShellError, Span, TableMode, TrimStrategy, Value};
+use nu_protocol::{
+    Config, FooterMode, ShellError, ShellResult, Span, TableMode, TrimStrategy, Value,
+};
 
 pub type NuText = (String, TextStyle);
-pub type TableResult = Result<Option<TableOutput>, ShellError>;
-pub type StringResult = Result<Option<String>, ShellError>;
+pub type TableResult = ShellResult<Option<TableOutput>>;
+pub type StringResult = ShellResult<Option<String>>;
 
 pub const INDEX_COLUMN_NAME: &str = "index";
 
@@ -146,7 +148,7 @@ fn make_styled_string(
     }
 }
 
-fn convert_with_precision(val: &str, precision: usize) -> Result<String, ShellError> {
+fn convert_with_precision(val: &str, precision: usize) -> ShellResult<String> {
     // vall will always be a f64 so convert it with precision formatting
     let val_float = match val.trim().parse::<f64>() {
         Ok(f) => f,
@@ -157,7 +159,7 @@ fn convert_with_precision(val: &str, precision: usize) -> Result<String, ShellEr
                 span: None,
                 help: Some(e.to_string()),
                 inner: vec![],
-            });
+            })?;
         }
     };
     Ok(format!("{val_float:.precision$}"))

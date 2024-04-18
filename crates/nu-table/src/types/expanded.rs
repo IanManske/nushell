@@ -10,7 +10,7 @@ use crate::{
 };
 use nu_color_config::{Alignment, StyleComputer, TextStyle};
 use nu_engine::column::get_columns;
-use nu_protocol::{Config, Record, ShellError, Span, Value};
+use nu_protocol::{Config, Record, ShellResult, Span, Value};
 use std::{cmp::max, collections::HashMap};
 use tabled::grid::config::Position;
 
@@ -107,7 +107,7 @@ fn expanded_table_list(input: &[Value], cfg: Cfg<'_>) -> TableResult {
             }
 
             if let Value::Error { error, .. } = item {
-                return Err(*error.clone());
+                return Err(error.clone());
             }
 
             let index = row + row_offset;
@@ -148,7 +148,7 @@ fn expanded_table_list(input: &[Value], cfg: Cfg<'_>) -> TableResult {
             }
 
             if let Value::Error { error, .. } = item {
-                return Err(*error.clone());
+                return Err(error.clone());
             }
 
             let inner_cfg = update_config(cfg.clone(), available_width);
@@ -235,7 +235,7 @@ fn expanded_table_list(input: &[Value], cfg: Cfg<'_>) -> TableResult {
             }
 
             if let Value::Error { error, .. } = item {
-                return Err(*error.clone());
+                return Err(error.clone());
             }
 
             let inner_cfg = update_config(cfg.clone(), available);
@@ -391,7 +391,7 @@ fn expand_table_value(
     value: &Value,
     value_width: usize,
     cfg: &Cfg<'_>,
-) -> Result<Option<(String, bool)>, ShellError> {
+) -> ShellResult<Option<(String, bool)>> {
     let is_limited = matches!(cfg.format.expand_limit, Some(0));
     if is_limited {
         return Ok(Some((value_to_string_clean(value, cfg), false)));
