@@ -1,6 +1,6 @@
 use crate::nu_common::{truncate_str, NuColor, NuStyle, NuText};
 use nu_color_config::{Alignment, StyleComputer};
-use nu_protocol::{ShellError, Value};
+use nu_protocol::{ShellError, ShellResult, Value};
 use nu_table::{string_width, TextStyle};
 use ratatui::{
     buffer::Buffer,
@@ -150,7 +150,7 @@ pub fn make_styled_string(
     }
 }
 
-fn convert_with_precision(val: &str, precision: usize) -> Result<String, ShellError> {
+fn convert_with_precision(val: &str, precision: usize) -> ShellResult<String> {
     // val will always be a f64 so convert it with precision formatting
     let val_float = match val.trim().parse::<f64>() {
         Ok(f) => f,
@@ -161,7 +161,7 @@ fn convert_with_precision(val: &str, precision: usize) -> Result<String, ShellEr
                 span: None,
                 help: Some(e.to_string()),
                 inner: vec![],
-            });
+            })?;
         }
     };
     Ok(format!("{val_float:.precision$}"))

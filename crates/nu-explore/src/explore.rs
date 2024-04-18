@@ -58,7 +58,7 @@ impl Command for Explore {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let show_head: bool = call.get_flag(engine_state, stack, "head")?.unwrap_or(true);
         let show_index: bool = call.has_flag(engine_state, stack, "index")?;
         let is_reverse: bool = call.has_flag(engine_state, stack, "reverse")?;
@@ -89,7 +89,7 @@ impl Command for Explore {
             Ok(Some(value)) => Ok(PipelineData::Value(value, None)),
             Ok(None) => Ok(PipelineData::Value(Value::default(), None)),
             Err(err) => Ok(PipelineData::Value(
-                Value::error(err.into(), call.head),
+                Value::error(err.into_spanned(call.head), call.head),
                 None,
             )),
         }

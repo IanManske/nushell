@@ -3,7 +3,7 @@ use nu_parser::parse;
 use nu_protocol::{
     debugger::WithoutDebug,
     engine::{EngineState, Redirection, Stack, StateWorkingSet},
-    OutDest, PipelineData, ShellError, Value,
+    OutDest, PipelineData, ShellError, ShellResult, Value,
 };
 use std::sync::Arc;
 
@@ -12,11 +12,11 @@ pub fn run_command_with_value(
     input: &Value,
     engine_state: &EngineState,
     stack: &mut Stack,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     if is_ignored_command(command) {
-        return Err(ShellError::IOError {
+        Err(ShellError::IOError {
             msg: String::from("the command is ignored"),
-        });
+        })?;
     }
 
     let pipeline = PipelineData::Value(input.clone(), None);
@@ -24,7 +24,7 @@ pub fn run_command_with_value(
     if let PipelineData::Value(Value::Error { error, .. }, ..) = pipeline {
         Err(ShellError::IOError {
             msg: error.to_string(),
-        })
+        })?
     } else {
         Ok(pipeline)
     }
@@ -35,7 +35,7 @@ pub fn run_nu_command(
     stack: &mut Stack,
     cmd: &str,
     current: PipelineData,
-) -> std::result::Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let mut engine_state = engine_state.clone();
     eval_source2(&mut engine_state, stack, cmd.as_bytes(), "", current)
 }
@@ -58,7 +58,7 @@ fn eval_source2(
     source: &[u8],
     fname: &str,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let (mut block, delta) = {
         let mut working_set = StateWorkingSet::new(engine_state);
         let output = parse(
@@ -69,9 +69,9 @@ fn eval_source2(
         );
 
         if let Some(err) = working_set.parse_errors.first() {
-            return Err(ShellError::IOError {
+            Err(ShellError::IOError {
                 msg: err.to_string(),
-            });
+            })?;
         }
 
         (output, working_set.render())
@@ -79,9 +79,9 @@ fn eval_source2(
 
     // We need to merge different info other wise things like PIPEs etc will not work.
     if let Err(err) = engine_state.merge_delta(delta) {
-        return Err(ShellError::IOError {
+        Err(ShellError::IOError {
             msg: err.to_string(),
-        });
+        })?;
     }
 
     // eval_block outputs all expressions except the last to STDOUT;
