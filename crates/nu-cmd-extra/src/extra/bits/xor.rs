@@ -52,7 +52,7 @@ impl Command for BitsXor {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         let target: Value = call.req(engine_state, stack, 0)?;
         let endian = call.get_flag::<Spanned<String>>(engine_state, stack, "endian")?;
@@ -66,7 +66,7 @@ impl Command for BitsXor {
                     return Err(ShellError::TypeMismatch {
                         err_message: "Endian must be one of native, little, big".to_string(),
                         span: endian.span,
-                    })
+                    })?
                 }
             }
         } else {
@@ -75,7 +75,7 @@ impl Command for BitsXor {
 
         // This doesn't match explicit nulls
         if matches!(input, PipelineData::Empty) {
-            return Err(ShellError::PipelineEmpty { dst_span: head });
+            return Err(ShellError::PipelineEmpty { dst_span: head })?;
         }
 
         input.map(

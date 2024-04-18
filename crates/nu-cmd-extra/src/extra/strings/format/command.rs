@@ -35,10 +35,10 @@ impl Command for FormatPattern {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let mut working_set = StateWorkingSet::new(engine_state);
 
-        let specified_pattern: Result<Value, ShellError> = call.req(engine_state, stack, 0);
+        let specified_pattern: ShellResult<Value> = call.req(engine_state, stack, 0);
         let input_val = input.into_value(call.head);
         // add '$it' variable to support format like this: $it.column1.column2.
         let it_id = working_set.add_variable(b"$it".to_vec(), call.head, Type::Any, false);
@@ -116,7 +116,7 @@ fn extract_formatting_operations(
     input: String,
     error_span: Span,
     span_start: usize,
-) -> Result<Vec<FormatOperation>, ShellError> {
+) -> ShellResult<Vec<FormatOperation>> {
     let mut output = vec![];
 
     let mut characters = input.char_indices();
@@ -153,10 +153,10 @@ fn extract_formatting_operations(
         }
 
         if column_span_end < column_span_start {
-            return Err(ShellError::DelimiterError {
+            Err(ShellError::DelimiterError {
                 msg: "there are unmatched curly braces".to_string(),
                 span: error_span,
-            });
+            })?;
         }
 
         if !column_name.is_empty() {
@@ -188,7 +188,7 @@ fn format(
     working_set: &mut StateWorkingSet,
     stack: &mut Stack,
     head_span: Span,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let data_as_value = input_data;
 
     //  We can only handle a Record or a List of Records
@@ -226,14 +226,14 @@ fn format(
                             }
                         }
                     }
-                    Value::Error { error, .. } => return Err(*error.clone()),
+                    Value::Error { error, .. } => return Err(error.clone()),
                     _ => {
                         return Err(ShellError::OnlySupportsThisInputType {
                             exp_input_type: "record".to_string(),
                             wrong_type: val.get_type().to_string(),
                             dst_span: head_span,
                             src_span: val.span(),
-                        })
+                        })?
                     }
                 }
             }
@@ -245,13 +245,13 @@ fn format(
         }
         // Unwrapping this ShellError is a bit unfortunate.
         // Ideally, its Span would be preserved.
-        Value::Error { error, .. } => Err(*error),
+        Value::Error { error, .. } => Err(error),
         _ => Err(ShellError::OnlySupportsThisInputType {
             exp_input_type: "record".to_string(),
             wrong_type: data_as_value.get_type().to_string(),
             dst_span: head_span,
             src_span: data_as_value.span(),
-        }),
+        })?,
     }
 }
 
@@ -261,7 +261,7 @@ fn format_record(
     engine_state: &EngineState,
     working_set: &mut StateWorkingSet,
     stack: &mut Stack,
-) -> Result<String, ShellError> {
+) -> ShellResult<String> {
     let config = engine_state.get_config();
     let mut output = String::new();
     let eval_expression = get_eval_expression(engine_state);
@@ -299,7 +299,7 @@ fn format_record(
                         return Err(ShellError::TypeMismatch {
                             err_message: format!("expression is invalid, detail message: {err:?}"),
                             span: *span,
-                        })
+                        })?
                     }
                 }
             }

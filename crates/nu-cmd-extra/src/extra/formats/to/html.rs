@@ -152,7 +152,7 @@ impl Command for ToHtml {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         to_html(input, call, engine_state, stack)
     }
 }
@@ -160,7 +160,7 @@ impl Command for ToHtml {
 fn get_theme_from_asset_file(
     is_dark: bool,
     theme: Option<&Spanned<String>>,
-) -> Result<HashMap<&'static str, String>, ShellError> {
+) -> ShellResult<HashMap<&'static str, String>> {
     let theme_name = match theme {
         Some(s) => &s.item,
         None => "default", // There is no theme named "default" so this will be HtmlTheme::default(), which is "nu_default".
@@ -231,7 +231,7 @@ fn to_html(
     call: &Call,
     engine_state: &EngineState,
     stack: &mut Stack,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let head = call.head;
     let html_color = call.has_flag(engine_state, stack, "html-color")?;
     let no_color = call.has_flag(engine_state, stack, "no-color")?;
@@ -267,7 +267,7 @@ fn to_html(
                 span: Some(theme_span),
                 help: None,
                 inner: vec![],
-            })
+            })?
         }
     };
 

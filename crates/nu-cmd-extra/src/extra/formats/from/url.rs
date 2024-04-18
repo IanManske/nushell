@@ -24,7 +24,7 @@ impl Command for FromUrl {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let head = call.head;
         from_url(input, head)
     }
@@ -43,7 +43,7 @@ impl Command for FromUrl {
     }
 }
 
-fn from_url(input: PipelineData, head: Span) -> Result<PipelineData, ShellError> {
+fn from_url(input: PipelineData, head: Span) -> ShellResult<PipelineData> {
     let (concat_string, span, metadata) = input.collect_string_strict(head)?;
 
     let result = serde_urlencoded::from_str::<Vec<(String, String)>>(&concat_string);
@@ -62,7 +62,7 @@ fn from_url(input: PipelineData, head: Span) -> Result<PipelineData, ShellError>
             input: "value originates from here".into(),
             msg_span: head,
             input_span: span,
-        }),
+        })?,
     }
 }
 

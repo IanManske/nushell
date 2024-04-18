@@ -20,7 +20,7 @@ pub use shift_left::BitsShl;
 pub use shift_right::BitsShr;
 pub use xor::BitsXor;
 
-use nu_protocol::{ShellError, Span, Spanned, Value};
+use nu_protocol::{ShellError, ShellResult, Span, Spanned, Value};
 use std::iter;
 
 #[derive(Clone, Copy)]
@@ -44,10 +44,7 @@ enum InputNumType {
     SignedEight,
 }
 
-fn get_number_bytes(
-    number_bytes: Option<Spanned<usize>>,
-    head: Span,
-) -> Result<NumberBytes, ShellError> {
+fn get_number_bytes(number_bytes: Option<Spanned<usize>>, head: Span) -> ShellResult<NumberBytes> {
     match number_bytes {
         None => Ok(NumberBytes::Auto),
         Some(Spanned { item: 1, .. }) => Ok(NumberBytes::One),
@@ -59,7 +56,7 @@ fn get_number_bytes(
             input: "value originates from here".to_string(),
             msg_span: head,
             input_span: span,
-        }),
+        })?,
     }
 }
 

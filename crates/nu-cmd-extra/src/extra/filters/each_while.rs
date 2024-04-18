@@ -66,7 +66,7 @@ impl Command for EachWhile {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let capture_block: Closure = call.req(engine_state, stack, 0)?;
 
         let metadata = input.metadata();

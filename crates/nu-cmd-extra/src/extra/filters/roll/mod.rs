@@ -4,7 +4,7 @@ mod roll_left;
 mod roll_right;
 mod roll_up;
 
-use nu_protocol::{ShellError, Value};
+use nu_protocol::{ShellError, ShellResult, Value};
 
 pub use roll_::Roll;
 pub use roll_down::RollDown;
@@ -21,7 +21,7 @@ fn vertical_rotate_value(
     value: Value,
     by: Option<usize>,
     direction: VerticalDirection,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     let span = value.span();
     match value {
         Value::List { mut vals, .. } => {
@@ -38,7 +38,7 @@ fn vertical_rotate_value(
         _ => Err(ShellError::TypeMismatch {
             err_message: "list".to_string(),
             span: value.span(),
-        }),
+        })?,
     }
 }
 
@@ -52,7 +52,7 @@ fn horizontal_rotate_value(
     by: Option<usize>,
     cells_only: bool,
     direction: &HorizontalDirection,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     let span = value.span();
     match value {
         Value::Record { val: record, .. } => {
@@ -78,13 +78,13 @@ fn horizontal_rotate_value(
             let values = vals
                 .into_iter()
                 .map(|value| horizontal_rotate_value(value, by, cells_only, direction))
-                .collect::<Result<Vec<Value>, ShellError>>()?;
+                .collect::<ShellResult<_>>()?;
 
             Ok(Value::list(values, span))
         }
         _ => Err(ShellError::TypeMismatch {
             err_message: "record".to_string(),
             span: value.span(),
-        }),
+        })?,
     }
 }

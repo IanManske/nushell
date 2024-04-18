@@ -86,7 +86,7 @@ impl Command for UpdateCells {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         // the block to run on each cell
         let engine_state = engine_state.clone();
         let block: Closure = call.req(&engine_state, stack, 0)?;
@@ -110,7 +110,7 @@ impl Command for UpdateCells {
                 val.into_list()?
                     .into_iter()
                     .map(Value::coerce_into_string)
-                    .collect::<Result<HashSet<String>, ShellError>>()?,
+                    .collect::<ShellResult<HashSet<String>>>()?,
             ),
             None => None,
         };

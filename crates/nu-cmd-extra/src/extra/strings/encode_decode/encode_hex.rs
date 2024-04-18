@@ -47,7 +47,7 @@ impl Command for EncodeHex {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         operate(ActionType::Encode, engine_state, stack, call, input)
     }
 }

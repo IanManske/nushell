@@ -63,7 +63,7 @@ impl Command for SubCommand {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         operate(engine_state, stack, call, input)
     }
 
@@ -97,7 +97,7 @@ impl Command for SubCommand {
     }
 }
 
-fn value_to_color(v: Option<Value>) -> Result<Option<Rgb>, ShellError> {
+fn value_to_color(v: Option<Value>) -> ShellResult<Option<Rgb>> {
     let s = match v {
         None => return Ok(None),
         Some(x) => x.coerce_into_string()?,
@@ -110,7 +110,7 @@ fn operate(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let fgstart: Option<Value> = call.get_flag(engine_state, stack, "fgstart")?;
     let fgend: Option<Value> = call.get_flag(engine_state, stack, "fgend")?;
     let bgstart: Option<Value> = call.get_flag(engine_state, stack, "bgstart")?;
