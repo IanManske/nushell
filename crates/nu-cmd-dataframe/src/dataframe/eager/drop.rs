@@ -47,7 +47,7 @@ impl Command for DropDF {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         command(engine_state, stack, call, input)
     }
 }
@@ -57,7 +57,7 @@ fn command(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let columns: Vec<Value> = call.rest(engine_state, stack, 0)?;
     let (col_string, col_span) = convert_columns(columns, call.head)?;
 
@@ -90,15 +90,16 @@ fn command(
         .iter()
         .skip(1)
         .try_fold(new_df, |new_df, col| {
-            new_df
-                .drop(&col.item)
-                .map_err(|e| ShellError::GenericError {
+            new_df.drop(&col.item).map_err(|e| {
+                ShellError::GenericError {
                     error: "Error dropping column".into(),
                     msg: e.to_string(),
                     span: Some(col.span),
                     help: None,
                     inner: vec![],
-                })
+                }
+                .into()
+            })
         })
         .map(|df| PipelineData::Value(NuDataFrame::dataframe_into_value(df, call.head), None))
 }

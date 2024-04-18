@@ -71,7 +71,7 @@ impl Command for Unique {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let value = input.into_value(call.head);
 
         if NuLazyFrame::can_downcast(&value) {
@@ -89,7 +89,7 @@ fn command_eager(
     _stack: &mut Stack,
     call: &Call,
     df: NuDataFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let series = df.as_series(call.head)?;
 
     let res = series.unique().map_err(|e| ShellError::GenericError {
@@ -109,7 +109,7 @@ fn command_lazy(
     stack: &mut Stack,
     call: &Call,
     lazy: NuLazyFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let last = call.has_flag(engine_state, stack, "last")?;
     let maintain = call.has_flag(engine_state, stack, "maintain-order")?;
 

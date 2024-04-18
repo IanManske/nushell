@@ -43,7 +43,7 @@ impl Command for SchemaDF {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         if call.has_flag(engine_state, stack, "datatype-list")? {
             Ok(PipelineData::Value(datatype_list(Span::unknown()), None))
         } else {
@@ -57,7 +57,7 @@ fn command(
     _stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let df = NuDataFrame::try_from_pipeline(input, call.head)?;
     let schema = df.schema();
     let value: Value = schema.into();

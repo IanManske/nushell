@@ -57,7 +57,7 @@ impl Command for LazyFilter {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let value: Value = call.req(engine_state, stack, 0)?;
         let expression = NuExpression::try_from_value(value)?;
 

@@ -66,7 +66,7 @@ impl Command for SampleDF {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         command(engine_state, stack, call, input)
     }
 }
@@ -76,7 +76,7 @@ fn command(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let rows: Option<Spanned<i64>> = call.get_flag(engine_state, stack, "n-rows")?;
     let fraction: Option<Spanned<f64>> = call.get_flag(engine_state, stack, "fraction")?;
     let seed: Option<u64> = call
@@ -91,22 +91,28 @@ fn command(
         (Some(rows), None) => df
             .as_ref()
             .sample_n(&Series::new("s", &[rows.item]), replace, shuffle, seed)
-            .map_err(|e| ShellError::GenericError {
-                error: "Error creating sample".into(),
-                msg: e.to_string(),
-                span: Some(rows.span),
-                help: None,
-                inner: vec![],
+            .map_err(|e| {
+                ShellError::GenericError {
+                    error: "Error creating sample".into(),
+                    msg: e.to_string(),
+                    span: Some(rows.span),
+                    help: None,
+                    inner: vec![],
+                }
+                .into()
             }),
         (None, Some(frac)) => df
             .as_ref()
             .sample_frac(&Series::new("frac", &[frac.item]), replace, shuffle, seed)
-            .map_err(|e| ShellError::GenericError {
-                error: "Error creating sample".into(),
-                msg: e.to_string(),
-                span: Some(frac.span),
-                help: None,
-                inner: vec![],
+            .map_err(|e| {
+                ShellError::GenericError {
+                    error: "Error creating sample".into(),
+                    msg: e.to_string(),
+                    span: Some(frac.span),
+                    help: None,
+                    inner: vec![],
+                }
+                .into()
             }),
         (Some(_), Some(_)) => Err(ShellError::GenericError {
             error: "Incompatible flags".into(),
@@ -114,14 +120,14 @@ fn command(
             span: Some(call.head),
             help: None,
             inner: vec![],
-        }),
+        })?,
         (None, None) => Err(ShellError::GenericError {
             error: "No selection".into(),
             msg: "No selection criterion was found".into(),
             span: Some(call.head),
             help: Some("Perhaps you want to use the flag -n or -f".into()),
             inner: vec![],
-        }),
+        })?,
     }
     .map(|df| PipelineData::Value(NuDataFrame::dataframe_into_value(df, call.head), None))
 }

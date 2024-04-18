@@ -172,7 +172,7 @@ impl Command for LazyJoin {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let left = call.has_flag(engine_state, stack, "left")?;
         let outer = call.has_flag(engine_state, stack, "outer")?;
         let cross = call.has_flag(engine_state, stack, "cross")?;
@@ -202,7 +202,7 @@ impl Command for LazyJoin {
             return Err(ShellError::IncompatibleParametersSingle {
                 msg: "The right column list has a different size to the left column list".into(),
                 span: right_on.span(),
-            });
+            })?;
         }
 
         // Checking that both list of expressions are made out of col expressions or strings
@@ -212,7 +212,7 @@ impl Command for LazyJoin {
                 return Err(ShellError::IncompatibleParametersSingle {
                     msg: "Expected only a string, col expressions or list of strings".into(),
                     span: value.span(),
-                });
+                })?;
             }
         }
 

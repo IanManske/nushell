@@ -2,7 +2,7 @@ use super::{DataFrameValue, NuDataFrame, NuSchema};
 use chrono::{DateTime, Duration, FixedOffset, NaiveTime, TimeZone, Utc};
 use chrono_tz::Tz;
 use indexmap::map::{Entry, IndexMap};
-use nu_protocol::{Record, ShellError, Span, Value};
+use nu_protocol::{Record, ShellError, ShellResult, Span, Value};
 use polars::{
     chunked_array::{
         builder::AnonymousOwnedListBuilder, object::builder::ObjectChunkedBuilder, ChunkedArray,
@@ -143,7 +143,7 @@ pub fn create_column(
     from_row: usize,
     to_row: usize,
     span: Span,
-) -> Result<Column, ShellError> {
+) -> ShellResult<Column> {
     let size = to_row - from_row;
     let values = series_to_values(series, Some(from_row), Some(size), span)?;
     Ok(Column::new(series.name().into(), values))
@@ -168,7 +168,7 @@ pub fn insert_record(
     column_values: &mut ColumnMap,
     record: Record,
     maybe_schema: &Option<NuSchema>,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     for (col, value) in record {
         insert_value(value, col, column_values, maybe_schema)?;
     }
@@ -181,7 +181,7 @@ pub fn insert_value(
     key: String,
     column_values: &mut ColumnMap,
     maybe_schema: &Option<NuSchema>,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     let col_val = match column_values.entry(key.clone()) {
         Entry::Vacant(entry) => entry.insert(TypedColumn::new_empty(key.clone())),
         Entry::Occupied(entry) => entry.into_mut(),
@@ -255,7 +255,7 @@ fn value_to_data_type(value: &Value) -> DataType {
     }
 }
 
-fn typed_column_to_series(name: &str, column: TypedColumn) -> Result<Series, ShellError> {
+fn typed_column_to_series(name: &str, column: TypedColumn) -> ShellResult<Series> {
     if let Some(column_type) = &column.column_type {
         match column_type {
             DataType::Float32 => {
@@ -405,7 +405,7 @@ fn typed_column_to_series(name: &str, column: TypedColumn) -> Result<Series, She
                             Ok(None)
                         }
                     })
-                    .collect::<Result<Vec<Option<i64>>, ShellError>>()?;
+                    .collect::<ShellResult<Vec<Option<i64>>>>()?;
 
                 let res: DatetimeChunked =
                     ChunkedArray::<Int64Type>::from_iter_options(name, dates.into_iter())
@@ -442,7 +442,7 @@ fn typed_column_to_series(name: &str, column: TypedColumn) -> Result<Series, She
                 span: None,
                 help: None,
                 inner: vec![],
-            }),
+            })?,
         }
     } else {
         Err(ShellError::GenericError {
@@ -451,14 +451,14 @@ fn typed_column_to_series(name: &str, column: TypedColumn) -> Result<Series, She
             span: None,
             help: None,
             inner: vec![],
-        })
+        })?
     }
 }
 
 // The ColumnMap has the parsed data from the StreamInput
 // This data can be used to create a Series object that can initialize
 // the dataframe based on the type of data that is found
-pub fn from_parsed_columns(column_values: ColumnMap) -> Result<NuDataFrame, ShellError> {
+pub fn from_parsed_columns(column_values: ColumnMap) -> ShellResult<NuDataFrame> {
     let mut df_series: Vec<Series> = Vec::new();
     for (name, column) in column_values {
         let series = typed_column_to_series(&name, column)?;
@@ -467,16 +467,19 @@ pub fn from_parsed_columns(column_values: ColumnMap) -> Result<NuDataFrame, Shel
 
     DataFrame::new(df_series)
         .map(|df| NuDataFrame::new(false, df))
-        .map_err(|e| ShellError::GenericError {
-            error: "Error creating dataframe".into(),
-            msg: e.to_string(),
-            span: None,
-            help: None,
-            inner: vec![],
+        .map_err(|e| {
+            ShellError::GenericError {
+                error: "Error creating dataframe".into(),
+                msg: e.to_string(),
+                span: None,
+                help: None,
+                inner: vec![],
+            }
+            .into()
         })
 }
 
-fn value_to_series(name: &str, values: &[Value]) -> Result<Series, ShellError> {
+fn value_to_series(name: &str, values: &[Value]) -> ShellResult<Series> {
     let mut builder = ObjectChunkedBuilder::<DataFrameValue>::new(name, values.len());
 
     for v in values {
@@ -491,7 +494,7 @@ fn input_type_list_to_series(
     name: &str,
     data_type: &DataType,
     values: &[Value],
-) -> Result<Series, ShellError> {
+) -> ShellResult<Series> {
     let inconsistent_error = |_| ShellError::GenericError {
         error: format!(
             "column {name} contains a list with inconsistent types: Expecting: {data_type:?}"
@@ -611,7 +614,7 @@ fn series_to_values(
     maybe_from_row: Option<usize>,
     maybe_size: Option<usize>,
     span: Span,
-) -> Result<Vec<Value>, ShellError> {
+) -> ShellResult<Vec<Value>> {
     match series.dtype() {
         DataType::Null => {
             let it = std::iter::repeat(Value::nothing(span));
@@ -912,7 +915,7 @@ fn series_to_values(
                     span: None,
                     help: Some(format!("Object not supported for conversion: {x}")),
                     inner: vec![],
-                }),
+                })?,
                 Some(ca) => {
                     let it = ca.into_iter();
                     let values = if let (Some(size), Some(from_row)) = (maybe_size, maybe_from_row)
@@ -940,7 +943,7 @@ fn series_to_values(
                     span: None,
                     help: Some(format!("List not supported for conversion: {x}")),
                     inner: vec![],
-                }),
+                })?,
                 Some(ca) => {
                     let it = ca.into_iter();
                     if let (Some(size), Some(from_row)) = (maybe_size, maybe_from_row) {
@@ -957,7 +960,7 @@ fn series_to_values(
                         };
                         Ok(Value::list(sublist, span))
                     })
-                    .collect::<Result<Vec<Value>, ShellError>>()
+                    .collect::<ShellResult<Vec<Value>>>()
                 }
             }
         }
@@ -984,7 +987,7 @@ fn series_to_values(
                 }
                 None => Ok(Value::nothing(span)),
             })
-            .collect::<Result<Vec<Value>, ShellError>>()?;
+            .collect::<ShellResult<Vec<Value>>>()?;
             Ok(values)
         }
         DataType::Datetime(time_unit, tz) => {
@@ -1011,7 +1014,7 @@ fn series_to_values(
                 }
                 None => Ok(Value::nothing(span)),
             })
-            .collect::<Result<Vec<Value>, ShellError>>()?;
+            .collect::<ShellResult<Vec<Value>>>()?;
             Ok(values)
         }
         DataType::Struct(polar_fields) => {
@@ -1023,7 +1026,7 @@ fn series_to_values(
                 inner: Vec::new(),
             })?;
             let it = casted.into_iter();
-            let values: Result<Vec<Value>, ShellError> =
+            let values: ShellResult<Vec<Value>> =
                 if let (Some(size), Some(from_row)) = (maybe_size, maybe_from_row) {
                     Either::Left(it.skip(from_row).take(size))
                 } else {
@@ -1075,11 +1078,11 @@ fn series_to_values(
             span: None,
             help: Some(format!("Value not supported in nushell: {e}")),
             inner: vec![],
-        }),
+        })?,
     }
 }
 
-fn any_value_to_value(any_value: &AnyValue, span: Span) -> Result<Value, ShellError> {
+fn any_value_to_value(any_value: &AnyValue, span: Span) -> ShellResult<Value> {
     match any_value {
         AnyValue::Null => Ok(Value::nothing(span)),
         AnyValue::Boolean(b) => Ok(Value::bool(*b, span)),
@@ -1154,7 +1157,7 @@ fn any_value_to_value(any_value: &AnyValue, span: Span) -> Result<Value, ShellEr
             span: None,
             help: Some(format!("Value not supported in nushell: {e}")),
             inner: Vec::new(),
-        }),
+        })?,
     }
 }
 
@@ -1174,7 +1177,7 @@ fn datetime_from_epoch_nanos(
     nanos: i64,
     timezone: &Option<String>,
     span: Span,
-) -> Result<DateTime<FixedOffset>, ShellError> {
+) -> ShellResult<DateTime<FixedOffset>> {
     let tz: Tz = if let Some(polars_tz) = timezone {
         polars_tz
             .parse::<Tz>()
@@ -1192,7 +1195,7 @@ fn datetime_from_epoch_nanos(
     Ok(tz.timestamp_nanos(nanos).fixed_offset())
 }
 
-fn time_from_midnight(nanos: i64, span: Span) -> Result<Value, ShellError> {
+fn time_from_midnight(nanos: i64, span: Span) -> ShellResult<Value> {
     let today = Utc::now().date_naive();
     NaiveTime::from_hms_opt(0, 0, 0) // midnight
         .map(|time| time + Duration::nanoseconds(nanos)) // current time
@@ -1204,12 +1207,15 @@ fn time_from_midnight(nanos: i64, span: Span) -> Result<Value, ShellError> {
                 })
         })
         .map(|datetime| Value::date(datetime, span)) // current date and time
-        .ok_or(ShellError::CantConvert {
-            to_type: "datetime".to_string(),
-            from_type: "polars time".to_string(),
-            span,
-            help: Some("Could not convert polars time of {nanos} to datetime".to_string()),
-        })
+        .ok_or(
+            ShellError::CantConvert {
+                to_type: "datetime".to_string(),
+                from_type: "polars time".to_string(),
+                span,
+                help: Some("Could not convert polars time of {nanos} to datetime".to_string()),
+            }
+            .into(),
+        )
 }
 
 #[cfg(test)]

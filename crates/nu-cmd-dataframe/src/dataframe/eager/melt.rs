@@ -110,7 +110,7 @@ impl Command for MeltDF {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         command(engine_state, stack, call, input)
     }
 }
@@ -120,7 +120,7 @@ fn command(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let id_col: Vec<Value> = call
         .get_flag(engine_state, stack, "columns")?
         .expect("required value");
@@ -183,15 +183,15 @@ fn check_column_datatypes<T: AsRef<str>>(
     df: &polars::prelude::DataFrame,
     cols: &[T],
     col_span: Span,
-) -> Result<(), ShellError> {
+) -> ShellResult<()> {
     if cols.is_empty() {
-        return Err(ShellError::GenericError {
+        Err(ShellError::GenericError {
             error: "Merge error".into(),
             msg: "empty column list".into(),
             span: Some(col_span),
             help: None,
             inner: vec![],
-        });
+        })?;
     }
 
     // Checking if they are same type
@@ -218,7 +218,7 @@ fn check_column_datatypes<T: AsRef<str>>(
                 })?;
 
             if l_series.dtype() != r_series.dtype() {
-                return Err(ShellError::GenericError {
+                Err(ShellError::GenericError {
                     error: "Merge error".into(),
                     msg: "found different column types in list".into(),
                     span: Some(col_span),
@@ -228,7 +228,7 @@ fn check_column_datatypes<T: AsRef<str>>(
                         r_series.dtype()
                     )),
                     inner: vec![],
-                });
+                })?;
             }
         }
     }

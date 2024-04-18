@@ -87,7 +87,7 @@ impl Command for OpenDataFrame {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         command(engine_state, stack, call)
     }
 }
@@ -96,7 +96,7 @@ fn command(
     engine_state: &EngineState,
     stack: &mut Stack,
     call: &Call,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let file: Spanned<PathBuf> = call.req(engine_state, stack, 0)?;
 
     let type_option: Option<Spanned<String>> = call.get_flag(engine_state, stack, "type")?;
@@ -125,21 +125,17 @@ fn command(
                     "{msg}. Supported values: csv, tsv, parquet, ipc, arrow, json, jsonl, avro"
                 ),
                 span: blamed,
-            }),
+            })?,
         },
         None => Err(ShellError::FileNotFoundCustom {
             msg: "File without extension".into(),
             span: file.span,
-        }),
+        })?,
     }
     .map(|value| PipelineData::Value(value, None))
 }
 
-fn from_parquet(
-    engine_state: &EngineState,
-    stack: &mut Stack,
-    call: &Call,
-) -> Result<Value, ShellError> {
+fn from_parquet(engine_state: &EngineState, stack: &mut Stack, call: &Call) -> ShellResult<Value> {
     if call.has_flag(engine_state, stack, "lazy")? {
         let file: String = call.req(engine_state, stack, 0)?;
         let args = ScanArgsParquet {
@@ -198,11 +194,7 @@ fn from_parquet(
     }
 }
 
-fn from_avro(
-    engine_state: &EngineState,
-    stack: &mut Stack,
-    call: &Call,
-) -> Result<Value, ShellError> {
+fn from_avro(engine_state: &EngineState, stack: &mut Stack, call: &Call) -> ShellResult<Value> {
     let file: Spanned<PathBuf> = call.req(engine_state, stack, 0)?;
     let columns: Option<Vec<String>> = call.get_flag(engine_state, stack, "columns")?;
 
@@ -234,11 +226,7 @@ fn from_avro(
     Ok(df.into_value(call.head))
 }
 
-fn from_ipc(
-    engine_state: &EngineState,
-    stack: &mut Stack,
-    call: &Call,
-) -> Result<Value, ShellError> {
+fn from_ipc(engine_state: &EngineState, stack: &mut Stack, call: &Call) -> ShellResult<Value> {
     if call.has_flag(engine_state, stack, "lazy")? {
         let file: String = call.req(engine_state, stack, 0)?;
         let args = ScanArgsIpc {
@@ -294,11 +282,7 @@ fn from_ipc(
     }
 }
 
-fn from_json(
-    engine_state: &EngineState,
-    stack: &mut Stack,
-    call: &Call,
-) -> Result<Value, ShellError> {
+fn from_json(engine_state: &EngineState, stack: &mut Stack, call: &Call) -> ShellResult<Value> {
     let file: Spanned<PathBuf> = call.req(engine_state, stack, 0)?;
     let file = File::open(&file.item).map_err(|e| ShellError::GenericError {
         error: "Error opening file".into(),
@@ -334,11 +318,7 @@ fn from_json(
     Ok(df.into_value(call.head))
 }
 
-fn from_jsonl(
-    engine_state: &EngineState,
-    stack: &mut Stack,
-    call: &Call,
-) -> Result<Value, ShellError> {
+fn from_jsonl(engine_state: &EngineState, stack: &mut Stack, call: &Call) -> ShellResult<Value> {
     let infer_schema: Option<usize> = call.get_flag(engine_state, stack, "infer-schema")?;
     let maybe_schema = call
         .get_flag(engine_state, stack, "schema")?
@@ -377,11 +357,7 @@ fn from_jsonl(
     Ok(df.into_value(call.head))
 }
 
-fn from_csv(
-    engine_state: &EngineState,
-    stack: &mut Stack,
-    call: &Call,
-) -> Result<Value, ShellError> {
+fn from_csv(engine_state: &EngineState, stack: &mut Stack, call: &Call) -> ShellResult<Value> {
     let delimiter: Option<Spanned<String>> = call.get_flag(engine_state, stack, "delimiter")?;
     let no_header: bool = call.has_flag(engine_state, stack, "no-header")?;
     let infer_schema: Option<usize> = call.get_flag(engine_state, stack, "infer-schema")?;
@@ -407,7 +383,7 @@ fn from_csv(
                         span: Some(d.span),
                         help: None,
                         inner: vec![],
-                    });
+                    })?;
                 } else {
                     let delimiter = match d.item.chars().next() {
                         Some(d) => d as u8,
@@ -469,7 +445,7 @@ fn from_csv(
                         span: Some(d.span),
                         help: None,
                         inner: vec![],
-                    });
+                    })?;
                 } else {
                     let delimiter = match d.item.chars().next() {
                         Some(d) => d as u8,

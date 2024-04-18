@@ -162,7 +162,7 @@ impl Command for ToDataFrame {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let maybe_schema = call
             .get_flag(engine_state, stack, "schema")?
             .map(|schema| NuSchema::try_from(&schema))

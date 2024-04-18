@@ -66,7 +66,7 @@ impl Command for ExprQuantile {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let value = input.into_value(call.head);
         let quantile: f64 = call.req(engine_state, stack, 0)?;
 

@@ -1,7 +1,7 @@
 mod custom_value;
 
 use core::fmt;
-use nu_protocol::{ShellError, Span, Value};
+use nu_protocol::{ShellError, ShellResult, Span, Value};
 use polars::prelude::{col, when, ChainedThen, Then};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -54,7 +54,7 @@ impl NuWhen {
         Value::custom(Box::new(self), span)
     }
 
-    pub fn try_from_value(value: Value) -> Result<Self, ShellError> {
+    pub fn try_from_value(value: Value) -> ShellResult<Self> {
         let span = value.span();
         match value {
             Value::Custom { val, .. } => match val.as_any().downcast_ref::<Self>() {
@@ -64,14 +64,14 @@ impl NuWhen {
                     from_type: "non when expression".into(),
                     span,
                     help: None,
-                }),
+                })?,
             },
             x => Err(ShellError::CantConvert {
                 to_type: "when expression".into(),
                 from_type: x.get_type().to_string(),
                 span: x.span(),
                 help: None,
-            }),
+            })?,
         }
     }
 }

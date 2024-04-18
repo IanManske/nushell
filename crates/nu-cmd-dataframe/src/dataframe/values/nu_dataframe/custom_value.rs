@@ -1,5 +1,5 @@
 use super::NuDataFrame;
-use nu_protocol::{ast::Operator, CustomValue, ShellError, Span, Value};
+use nu_protocol::{ast::Operator, CustomValue, ShellResult, Span, Value};
 
 // CustomValue implementation for NuDataFrame
 impl CustomValue for NuDataFrame {
@@ -24,7 +24,7 @@ impl CustomValue for NuDataFrame {
         self.typetag_name().to_string()
     }
 
-    fn to_base_value(&self, span: Span) -> Result<Value, ShellError> {
+    fn to_base_value(&self, span: Span) -> ShellResult<Value> {
         let vals = self.print(span)?;
 
         Ok(Value::list(vals, span))
@@ -43,7 +43,7 @@ impl CustomValue for NuDataFrame {
         _self_span: Span,
         count: usize,
         path_span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         self.get_value(count, path_span)
     }
 
@@ -52,7 +52,7 @@ impl CustomValue for NuDataFrame {
         _self_span: Span,
         column_name: String,
         path_span: Span,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         let column = self.column(&column_name, path_span)?;
         Ok(column.into_value(path_span))
     }
@@ -73,7 +73,7 @@ impl CustomValue for NuDataFrame {
         operator: Operator,
         op: Span,
         right: &Value,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         self.compute_with_value(lhs_span, operator, op, right)
     }
 }

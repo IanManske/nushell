@@ -65,7 +65,7 @@ impl Command for DropDuplicates {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         command(engine_state, stack, call, input)
     }
 }
@@ -75,7 +75,7 @@ fn command(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let columns: Option<Vec<Value>> = call.opt(engine_state, stack, 0)?;
     let (subset, col_span) = match columns {
         Some(cols) => {
@@ -97,12 +97,15 @@ fn command(
 
     df.as_ref()
         .unique(subset_slice, keep_strategy, None)
-        .map_err(|e| ShellError::GenericError {
-            error: "Error dropping duplicates".into(),
-            msg: e.to_string(),
-            span: Some(col_span),
-            help: None,
-            inner: vec![],
+        .map_err(|e| {
+            ShellError::GenericError {
+                error: "Error dropping duplicates".into(),
+                msg: e.to_string(),
+                span: Some(col_span),
+                help: None,
+                inner: vec![],
+            }
+            .into()
         })
         .map(|df| PipelineData::Value(NuDataFrame::dataframe_into_value(df, call.head), None))
 }

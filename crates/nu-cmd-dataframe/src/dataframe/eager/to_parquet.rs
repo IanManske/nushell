@@ -37,7 +37,7 @@ impl Command for ToParquet {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         command(engine_state, stack, call, input)
     }
 }
@@ -47,7 +47,7 @@ fn command(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let file_name: Spanned<PathBuf> = call.req(engine_state, stack, 0)?;
 
     let mut df = NuDataFrame::try_from_pipeline(input, call.head)?;

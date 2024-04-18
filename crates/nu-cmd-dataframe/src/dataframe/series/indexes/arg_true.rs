@@ -51,7 +51,7 @@ impl Command for ArgTrue {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         command(engine_state, stack, call, input)
     }
 }
@@ -61,17 +61,17 @@ fn command(
     _stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let df = NuDataFrame::try_from_pipeline(input, call.head)?;
     let columns = df.as_ref().get_column_names();
     if columns.len() > 1 {
-        return Err(ShellError::GenericError {
+        Err(ShellError::GenericError {
             error: "Error using as series".into(),
             msg: "dataframe has more than one column".into(),
             span: Some(call.head),
             help: None,
             inner: vec![],
-        });
+        })?;
     }
 
     match columns.first() {
@@ -99,7 +99,7 @@ fn command(
             input: "".to_string(),
             msg_span: call.head,
             input_span: call.head,
-        }),
+        })?,
     }
 }
 

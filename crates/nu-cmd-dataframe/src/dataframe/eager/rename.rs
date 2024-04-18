@@ -108,7 +108,7 @@ impl Command for RenameDF {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let value = input.into_value(call.head);
 
         if NuLazyFrame::can_downcast(&value) {
@@ -126,7 +126,7 @@ fn command_eager(
     stack: &mut Stack,
     call: &Call,
     mut df: NuDataFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let columns: Value = call.req(engine_state, stack, 0)?;
     let columns = extract_strings(columns)?;
 
@@ -153,7 +153,7 @@ fn command_lazy(
     stack: &mut Stack,
     call: &Call,
     lazy: NuLazyFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let columns: Value = call.req(engine_state, stack, 0)?;
     let columns = extract_strings(columns)?;
 
@@ -162,10 +162,10 @@ fn command_lazy(
 
     if columns.len() != new_names.len() {
         let value: Value = call.req(engine_state, stack, 1)?;
-        return Err(ShellError::IncompatibleParametersSingle {
+        Err(ShellError::IncompatibleParametersSingle {
             msg: "New name list has different size to column list".into(),
             span: value.span(),
-        });
+        })?;
     }
 
     let lazy = lazy.into_polars();

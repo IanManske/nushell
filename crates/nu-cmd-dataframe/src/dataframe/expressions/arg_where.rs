@@ -51,7 +51,7 @@ impl Command for ExprArgWhere {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let value: Value = call.req(engine_state, stack, 0)?;
         let expr = NuExpression::try_from_value(value)?;
         let expr: NuExpression = arg_where(expr.into_polars()).into();

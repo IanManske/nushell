@@ -53,7 +53,7 @@ impl Command for NotSeries {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let df = NuDataFrame::try_from_pipeline(input, call.head)?;
         command(engine_state, stack, call, df)
     }
@@ -64,7 +64,7 @@ fn command(
     _stack: &mut Stack,
     call: &Call,
     df: NuDataFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let series = df.as_series(call.head)?;
 
     let bool = series.bool().map_err(|e| ShellError::GenericError {

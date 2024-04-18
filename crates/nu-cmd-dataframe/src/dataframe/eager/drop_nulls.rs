@@ -87,7 +87,7 @@ impl Command for DropNulls {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         command(engine_state, stack, call, input)
     }
 }
@@ -97,7 +97,7 @@ fn command(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let df = NuDataFrame::try_from_pipeline(input, call.head)?;
 
     let columns: Option<Vec<Value>> = call.opt(engine_state, stack, 0)?;
@@ -114,12 +114,15 @@ fn command(
 
     df.as_ref()
         .drop_nulls(subset_slice)
-        .map_err(|e| ShellError::GenericError {
-            error: "Error dropping nulls".into(),
-            msg: e.to_string(),
-            span: Some(col_span),
-            help: None,
-            inner: vec![],
+        .map_err(|e| {
+            ShellError::GenericError {
+                error: "Error dropping nulls".into(),
+                msg: e.to_string(),
+                span: Some(col_span),
+                help: None,
+                inner: vec![],
+            }
+            .into()
         })
         .map(|df| PipelineData::Value(NuDataFrame::dataframe_into_value(df, call.head), None))
 }

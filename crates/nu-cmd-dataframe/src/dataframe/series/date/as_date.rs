@@ -47,7 +47,7 @@ impl Command for AsDate {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         command(engine_state, stack, call, input)
     }
 }
@@ -57,7 +57,7 @@ fn command(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let format: String = call.req(engine_state, stack, 0)?;
     let not_exact = call.has_flag(engine_state, stack, "not-exact")?;
 

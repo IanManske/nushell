@@ -8,7 +8,7 @@ pub use operations::Axis;
 
 use super::{nu_schema::NuSchema, utils::DEFAULT_ROWS, NuLazyFrame};
 use indexmap::IndexMap;
-use nu_protocol::{did_you_mean, PipelineData, Record, ShellError, Span, Value};
+use nu_protocol::{did_you_mean, PipelineData, Record, ShellError, ShellResult, Span, Value};
 use polars::{
     chunked_array::ops::SortMultipleOptions,
     prelude::{DataFrame, DataType, IntoLazy, LazyFrame, PolarsObject, Series},
@@ -145,7 +145,7 @@ impl NuDataFrame {
         }
     }
 
-    pub fn series_to_value(series: Series, span: Span) -> Result<Value, ShellError> {
+    pub fn series_to_value(series: Series, span: Span) -> ShellResult<Value> {
         match DataFrame::new(vec![series]) {
             Ok(dataframe) => Ok(NuDataFrame::dataframe_into_value(dataframe, span)),
             Err(e) => Err(ShellError::GenericError {
@@ -154,11 +154,11 @@ impl NuDataFrame {
                 span: Some(span),
                 help: None,
                 inner: vec![],
-            }),
+            })?,
         }
     }
 
-    pub fn try_from_iter<T>(iter: T, maybe_schema: Option<NuSchema>) -> Result<Self, ShellError>
+    pub fn try_from_iter<T>(iter: T, maybe_schema: Option<NuSchema>) -> ShellResult<Self>
     where
         T: Iterator<Item = Value>,
     {
@@ -195,7 +195,7 @@ impl NuDataFrame {
         add_missing_columns(df, &maybe_schema, Span::unknown())
     }
 
-    pub fn try_from_series(columns: Vec<Series>, span: Span) -> Result<Self, ShellError> {
+    pub fn try_from_series(columns: Vec<Series>, span: Span) -> ShellResult<Self> {
         let dataframe = DataFrame::new(columns).map_err(|e| ShellError::GenericError {
             error: "Error creating dataframe".into(),
             msg: format!("Unable to create DataFrame: {e}"),
@@ -210,7 +210,7 @@ impl NuDataFrame {
     pub fn try_from_columns(
         columns: Vec<Column>,
         maybe_schema: Option<NuSchema>,
-    ) -> Result<Self, ShellError> {
+    ) -> ShellResult<Self> {
         let mut column_values: ColumnMap = IndexMap::new();
 
         for column in columns {
@@ -245,16 +245,16 @@ impl NuDataFrame {
         Value::list(newlist, list_span)
     }
 
-    pub fn columns(&self, span: Span) -> Result<Vec<Column>, ShellError> {
+    pub fn columns(&self, span: Span) -> ShellResult<Vec<Column>> {
         let height = self.df.height();
         self.df
             .get_columns()
             .iter()
             .map(|col| conversion::create_column(col, 0, height, span))
-            .collect::<Result<Vec<Column>, ShellError>>()
+            .collect()
     }
 
-    pub fn try_from_value(value: Value) -> Result<Self, ShellError> {
+    pub fn try_from_value(value: Value) -> ShellResult<Self> {
         if Self::can_downcast(&value) {
             Ok(Self::get_df(value)?)
         } else if NuLazyFrame::can_downcast(&value) {
@@ -268,11 +268,11 @@ impl NuDataFrame {
                 from_type: value.get_type().to_string(),
                 span: value.span(),
                 help: None,
-            })
+            })?
         }
     }
 
-    pub fn get_df(value: Value) -> Result<Self, ShellError> {
+    pub fn get_df(value: Value) -> ShellResult<Self> {
         let span = value.span();
         match value {
             Value::Custom { val, .. } => match val.as_any().downcast_ref::<Self>() {
@@ -285,18 +285,18 @@ impl NuDataFrame {
                     from_type: "non-dataframe".into(),
                     span,
                     help: None,
-                }),
+                })?,
             },
             x => Err(ShellError::CantConvert {
                 to_type: "dataframe".into(),
                 from_type: x.get_type().to_string(),
                 span: x.span(),
                 help: None,
-            }),
+            })?,
         }
     }
 
-    pub fn try_from_pipeline(input: PipelineData, span: Span) -> Result<Self, ShellError> {
+    pub fn try_from_pipeline(input: PipelineData, span: Span) -> ShellResult<Self> {
         let value = input.into_value(span);
         Self::try_from_value(value)
     }
@@ -309,7 +309,7 @@ impl NuDataFrame {
         }
     }
 
-    pub fn column(&self, column: &str, span: Span) -> Result<Self, ShellError> {
+    pub fn column(&self, column: &str, span: Span) -> ShellResult<Self> {
         let s = self.df.column(column).map_err(|_| {
             let possibilities = self
                 .df
@@ -343,15 +343,15 @@ impl NuDataFrame {
         self.df.width() == 1
     }
 
-    pub fn as_series(&self, span: Span) -> Result<Series, ShellError> {
+    pub fn as_series(&self, span: Span) -> ShellResult<Series> {
         if !self.is_series() {
-            return Err(ShellError::GenericError {
+            Err(ShellError::GenericError {
                 error: "Error using as series".into(),
                 msg: "dataframe has more than one column".into(),
                 span: Some(span),
                 help: None,
                 inner: vec![],
-            });
+            })?;
         }
 
         let series = self
@@ -363,12 +363,12 @@ impl NuDataFrame {
         Ok(series.clone())
     }
 
-    pub fn get_value(&self, row: usize, span: Span) -> Result<Value, ShellError> {
+    pub fn get_value(&self, row: usize, span: Span) -> ShellResult<Value> {
         let series = self.as_series(span)?;
         let column = conversion::create_column(&series, row, row + 1, span)?;
 
         if column.len() == 0 {
-            Err(ShellError::AccessEmptyContent { span })
+            Err(ShellError::AccessEmptyContent { span })?
         } else {
             let value = column
                 .into_iter()
@@ -379,7 +379,7 @@ impl NuDataFrame {
     }
 
     // Print is made out a head and if the dataframe is too large, then a tail
-    pub fn print(&self, span: Span) -> Result<Vec<Value>, ShellError> {
+    pub fn print(&self, span: Span) -> ShellResult<Vec<Value>> {
         let df = &self.df;
         let size: usize = 20;
 
@@ -402,14 +402,14 @@ impl NuDataFrame {
         self.df.height()
     }
 
-    pub fn head(&self, rows: Option<usize>, span: Span) -> Result<Vec<Value>, ShellError> {
+    pub fn head(&self, rows: Option<usize>, span: Span) -> ShellResult<Vec<Value>> {
         let to_row = rows.unwrap_or(5);
         let values = self.to_rows(0, to_row, span)?;
 
         Ok(values)
     }
 
-    pub fn tail(&self, rows: Option<usize>, span: Span) -> Result<Vec<Value>, ShellError> {
+    pub fn tail(&self, rows: Option<usize>, span: Span) -> ShellResult<Vec<Value>> {
         let df = &self.df;
         let to_row = df.height();
         let size = rows.unwrap_or(DEFAULT_ROWS);
@@ -420,12 +420,7 @@ impl NuDataFrame {
         Ok(values)
     }
 
-    pub fn to_rows(
-        &self,
-        from_row: usize,
-        to_row: usize,
-        span: Span,
-    ) -> Result<Vec<Value>, ShellError> {
+    pub fn to_rows(&self, from_row: usize, to_row: usize, span: Span) -> ShellResult<Vec<Value>> {
         let df = &self.df;
         let upper_row = to_row.min(df.height());
 
@@ -443,7 +438,7 @@ impl NuDataFrame {
                     Err(e) => Err(e),
                 },
             )
-            .collect::<Result<Vec<Column>, ShellError>>()?;
+            .collect::<ShellResult<Vec<Column>>>()?;
 
         let mut iterators = columns
             .into_iter()
@@ -542,7 +537,7 @@ fn add_missing_columns(
     df: NuDataFrame,
     maybe_schema: &Option<NuSchema>,
     span: Span,
-) -> Result<NuDataFrame, ShellError> {
+) -> ShellResult<NuDataFrame> {
     // If there are fields that are in the schema, but not in the dataframe
     // add them to the dataframe.
     if let Some(schema) = maybe_schema {

@@ -69,7 +69,7 @@ impl Command for Dummies {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         command(engine_state, stack, call, input)
     }
 }
@@ -79,18 +79,21 @@ fn command(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let drop_first: bool = call.has_flag(engine_state, stack, "drop-first")?;
     let df = NuDataFrame::try_from_pipeline(input, call.head)?;
 
     df.as_ref()
         .to_dummies(None, drop_first)
-        .map_err(|e| ShellError::GenericError {
-            error: "Error calculating dummies".into(),
-            msg: e.to_string(),
-            span: Some(call.head),
-            help: Some("The only allowed column types for dummies are String or Int".into()),
-            inner: vec![],
+        .map_err(|e| {
+            ShellError::GenericError {
+                error: "Error calculating dummies".into(),
+                msg: e.to_string(),
+                span: Some(call.head),
+                help: Some("The only allowed column types for dummies are String or Int".into()),
+                inner: vec![],
+            }
+            .into()
         })
         .map(|df| PipelineData::Value(NuDataFrame::dataframe_into_value(df, call.head), None))
 }

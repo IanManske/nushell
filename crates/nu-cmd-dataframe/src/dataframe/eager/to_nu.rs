@@ -75,7 +75,7 @@ impl Command for ToNu {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let value = input.into_value(call.head);
         if NuDataFrame::can_downcast(&value) {
             dataframe_command(engine_state, stack, call, value)
@@ -90,7 +90,7 @@ fn dataframe_command(
     stack: &mut Stack,
     call: &Call,
     input: Value,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let rows: Option<usize> = call.get_flag(engine_state, stack, "rows")?;
     let tail: bool = call.has_flag(engine_state, stack, "tail")?;
 
@@ -111,7 +111,7 @@ fn dataframe_command(
 
     Ok(PipelineData::Value(value, None))
 }
-fn expression_command(call: &Call, input: Value) -> Result<PipelineData, ShellError> {
+fn expression_command(call: &Call, input: Value) -> ShellResult<PipelineData> {
     let expr = NuExpression::try_from_value(input)?;
     let value = expr.to_value(call.head)?;
 

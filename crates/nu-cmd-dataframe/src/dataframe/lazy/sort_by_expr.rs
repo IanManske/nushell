@@ -98,7 +98,7 @@ impl Command for LazySortBy {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let vals: Vec<Value> = call.rest(engine_state, stack, 0)?;
         let value = Value::list(vals, call.head);
         let expressions = NuExpression::extract_exprs(value)?;
@@ -119,7 +119,7 @@ impl Command for LazySortBy {
                         span: Some(span),
                         help: None,
                         inner: vec![],
-                    });
+                    })?;
                 } else {
                     list
                 }

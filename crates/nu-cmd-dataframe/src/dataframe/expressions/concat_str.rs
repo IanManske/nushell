@@ -77,7 +77,7 @@ impl Command for ExprConcatStr {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let separator: String = call.req(engine_state, stack, 0)?;
         let value: Value = call.req(engine_state, stack, 1)?;
 

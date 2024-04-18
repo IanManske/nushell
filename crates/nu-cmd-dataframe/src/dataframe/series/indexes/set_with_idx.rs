@@ -64,7 +64,7 @@ impl Command for SetWithIndex {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         command(engine_state, stack, call, input)
     }
 }
@@ -74,7 +74,7 @@ fn command(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let value: Value = call.req(engine_state, stack, 0)?;
 
     let indices_value: Value = call
@@ -195,7 +195,7 @@ fn command(
             span: Some(span),
             help: None,
             inner: vec![],
-        }),
+        })?,
     };
 
     res.map(|df| PipelineData::Value(NuDataFrame::into_value(df, call.head), None))

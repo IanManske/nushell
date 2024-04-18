@@ -76,7 +76,7 @@ impl Command for ExprIsIn {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let list: Vec<Value> = call.req(engine_state, stack, 0)?;
         let expr = NuExpression::try_from_pipeline(input, call.head)?;
 
@@ -88,7 +88,7 @@ impl Command for ExprIsIn {
             return Err(ShellError::IncompatibleParametersSingle {
                 msg: "Cannot use a mixed list as argument".into(),
                 span: call.head,
-            });
+            })?;
         }
 
         let expr: NuExpression = expr.into_polars().is_in(lit(list)).into();

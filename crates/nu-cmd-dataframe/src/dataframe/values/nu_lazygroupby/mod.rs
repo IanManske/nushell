@@ -1,7 +1,7 @@
 mod custom_value;
 
 use core::fmt;
-use nu_protocol::{PipelineData, ShellError, Span, Value};
+use nu_protocol::{PipelineData, ShellError, ShellResult, Span, Value};
 use polars::prelude::{LazyGroupBy, Schema};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -81,7 +81,7 @@ impl NuLazyGroupBy {
         self.group_by.expect("GroupBy cannot be none to convert")
     }
 
-    pub fn try_from_value(value: Value) -> Result<Self, ShellError> {
+    pub fn try_from_value(value: Value) -> ShellResult<Self> {
         let span = value.span();
         match value {
             Value::Custom { val, .. } => match val.as_any().downcast_ref::<NuLazyGroupBy>() {
@@ -95,18 +95,18 @@ impl NuLazyGroupBy {
                     from_type: "custom value".into(),
                     span,
                     help: None,
-                }),
+                })?,
             },
             x => Err(ShellError::CantConvert {
                 to_type: "lazy groupby".into(),
                 from_type: x.get_type().to_string(),
                 span: x.span(),
                 help: None,
-            }),
+            })?,
         }
     }
 
-    pub fn try_from_pipeline(input: PipelineData, span: Span) -> Result<Self, ShellError> {
+    pub fn try_from_pipeline(input: PipelineData, span: Span) -> ShellResult<Self> {
         let value = input.into_value(span);
         Self::try_from_value(value)
     }

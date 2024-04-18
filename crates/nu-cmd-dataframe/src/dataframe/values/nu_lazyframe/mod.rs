@@ -2,7 +2,7 @@ mod custom_value;
 
 use super::{NuDataFrame, NuExpression};
 use core::fmt;
-use nu_protocol::{PipelineData, ShellError, Span, Value};
+use nu_protocol::{PipelineData, ShellError, ShellResult, Span, Value};
 use polars::prelude::{Expr, IntoLazy, LazyFrame, Schema};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -87,7 +87,7 @@ impl NuLazyFrame {
         }
     }
 
-    pub fn into_value(self, span: Span) -> Result<Value, ShellError> {
+    pub fn into_value(self, span: Span) -> ShellResult<Value> {
         if self.from_eager {
             let df = self.collect(span)?;
             Ok(Value::custom(Box::new(df), span))
@@ -100,16 +100,19 @@ impl NuLazyFrame {
         self.lazy.expect("lazyframe cannot be none to convert")
     }
 
-    pub fn collect(self, span: Span) -> Result<NuDataFrame, ShellError> {
+    pub fn collect(self, span: Span) -> ShellResult<NuDataFrame> {
         self.lazy
             .expect("No empty lazy for collect")
             .collect()
-            .map_err(|e| ShellError::GenericError {
-                error: "Error collecting lazy frame".into(),
-                msg: e.to_string(),
-                span: Some(span),
-                help: None,
-                inner: vec![],
+            .map_err(|e| {
+                ShellError::GenericError {
+                    error: "Error collecting lazy frame".into(),
+                    msg: e.to_string(),
+                    span: Some(span),
+                    help: None,
+                    inner: vec![],
+                }
+                .into()
             })
             .map(|df| NuDataFrame {
                 df,
@@ -117,7 +120,7 @@ impl NuLazyFrame {
             })
     }
 
-    pub fn try_from_value(value: Value) -> Result<Self, ShellError> {
+    pub fn try_from_value(value: Value) -> ShellResult<Self> {
         if Self::can_downcast(&value) {
             Ok(Self::get_lazy_df(value)?)
         } else if NuDataFrame::can_downcast(&value) {
@@ -129,16 +132,16 @@ impl NuLazyFrame {
                 from_type: value.get_type().to_string(),
                 span: value.span(),
                 help: None,
-            })
+            })?
         }
     }
 
-    pub fn try_from_pipeline(input: PipelineData, span: Span) -> Result<Self, ShellError> {
+    pub fn try_from_pipeline(input: PipelineData, span: Span) -> ShellResult<Self> {
         let value = input.into_value(span);
         Self::try_from_value(value)
     }
 
-    pub fn get_lazy_df(value: Value) -> Result<Self, ShellError> {
+    pub fn get_lazy_df(value: Value) -> ShellResult<Self> {
         let span = value.span();
         match value {
             Value::Custom { val, .. } => match val.as_any().downcast_ref::<Self>() {
@@ -152,14 +155,14 @@ impl NuLazyFrame {
                     from_type: "non-dataframe".into(),
                     span,
                     help: None,
-                }),
+                })?,
             },
             x => Err(ShellError::CantConvert {
                 to_type: "lazy frame".into(),
                 from_type: x.get_type().to_string(),
                 span: x.span(),
                 help: None,
-            }),
+            })?,
         }
     }
 

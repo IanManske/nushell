@@ -37,7 +37,7 @@ macro_rules! lazy_command {
                 _stack: &mut Stack,
                 call: &Call,
                 input: PipelineData,
-            ) -> Result<PipelineData, ShellError> {
+            ) -> ShellResult<PipelineData> {
                 let lazy = NuLazyFrame::try_from_pipeline(input, call.head)?;
                 let lazy = NuLazyFrame::new(lazy.from_eager, lazy.into_polars().$func());
 
@@ -89,7 +89,7 @@ macro_rules! lazy_command {
                 _stack: &mut Stack,
                 call: &Call,
                 input: PipelineData,
-            ) -> Result<PipelineData, ShellError> {
+            ) -> ShellResult<PipelineData> {
                 let lazy = NuLazyFrame::try_from_pipeline(input, call.head)?;
                 let lazy = NuLazyFrame::new(lazy.from_eager, lazy.into_polars().$func($ddot));
 
@@ -141,7 +141,7 @@ macro_rules! lazy_command {
                 _stack: &mut Stack,
                 call: &Call,
                 input: PipelineData,
-            ) -> Result<PipelineData, ShellError> {
+            ) -> ShellResult<PipelineData> {
                 let lazy = NuLazyFrame::try_from_pipeline(input, call.head)?;
 
                 let lazy = NuLazyFrame::new(

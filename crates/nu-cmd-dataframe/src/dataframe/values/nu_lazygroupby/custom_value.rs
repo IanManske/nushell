@@ -1,5 +1,5 @@
 use super::NuLazyGroupBy;
-use nu_protocol::{record, CustomValue, ShellError, Span, Value};
+use nu_protocol::{record, CustomValue, ShellResult, Span, Value};
 
 // CustomValue implementation for NuDataFrame
 impl CustomValue for NuLazyGroupBy {
@@ -25,7 +25,7 @@ impl CustomValue for NuLazyGroupBy {
         self.typetag_name().to_string()
     }
 
-    fn to_base_value(&self, span: Span) -> Result<Value, ShellError> {
+    fn to_base_value(&self, span: Span) -> ShellResult<Value> {
         Ok(Value::record(
             record! {
                 "LazyGroupBy" => Value::string("apply aggregation to complete execution plan", span)

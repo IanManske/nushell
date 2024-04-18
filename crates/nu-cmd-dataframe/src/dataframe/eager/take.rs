@@ -80,7 +80,7 @@ impl Command for TakeDF {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         command(engine_state, stack, call, input)
     }
 }
@@ -90,7 +90,7 @@ fn command(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let index_value: Value = call.req(engine_state, stack, 0)?;
     let index_span = index_value.span();
     let index = NuDataFrame::try_from_value(index_value)?.as_series(index_span)?;
@@ -125,12 +125,15 @@ fn command(
     NuDataFrame::try_from_pipeline(input, call.head).and_then(|df| {
         df.as_ref()
             .take(indices)
-            .map_err(|e| ShellError::GenericError {
-                error: "Error taking values".into(),
-                msg: e.to_string(),
-                span: Some(call.head),
-                help: None,
-                inner: vec![],
+            .map_err(|e| {
+                ShellError::GenericError {
+                    error: "Error taking values".into(),
+                    msg: e.to_string(),
+                    span: Some(call.head),
+                    help: None,
+                    inner: vec![],
+                }
+                .into()
             })
             .map(|df| PipelineData::Value(NuDataFrame::dataframe_into_value(df, call.head), None))
     })

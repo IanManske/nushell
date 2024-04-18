@@ -96,7 +96,7 @@ impl Command for ExprWhen {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let when_predicate: Value = call.req(engine_state, stack, 0)?;
         let when_predicate = NuExpression::try_from_value(when_predicate)?;
 

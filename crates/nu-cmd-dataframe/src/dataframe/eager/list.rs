@@ -32,7 +32,7 @@ impl Command for ListDF {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let mut vals: Vec<(String, Value)> = vec![];
 
         for overlay_frame in engine_state.active_overlays(&[]) {

@@ -103,7 +103,7 @@ impl Command for Summary {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         command(engine_state, stack, call, input)
     }
 }
@@ -113,7 +113,7 @@ fn command(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let quantiles: Option<Vec<Value>> = call.get_flag(engine_state, stack, "quantiles")?;
     let quantiles = quantiles.map(|values| {
         values
@@ -131,20 +131,20 @@ fn command(
                                 span: Some(span),
                                 help: None,
                                 inner: vec![],
-                            })
+                            })?
                         }
                     }
-                    Value::Error { error, .. } => Err(*error.clone()),
+                    Value::Error { error, .. } => Err(error.clone()),
                     _ => Err(ShellError::GenericError {
                         error: "Incorrect value for quantile".into(),
                         msg: "value should be a float".into(),
                         span: Some(span),
                         help: None,
                         inner: vec![],
-                    }),
+                    })?,
                 }
             })
-            .collect::<Result<Vec<f64>, ShellError>>()
+            .collect::<ShellResult<Vec<f64>>>()
     });
 
     let quantiles = match quantiles {
@@ -257,12 +257,15 @@ fn command(
     let res = head.chain(tail).collect::<Vec<Series>>();
 
     DataFrame::new(res)
-        .map_err(|e| ShellError::GenericError {
-            error: "Dataframe Error".into(),
-            msg: e.to_string(),
-            span: Some(call.head),
-            help: None,
-            inner: vec![],
+        .map_err(|e| {
+            ShellError::GenericError {
+                error: "Dataframe Error".into(),
+                msg: e.to_string(),
+                span: Some(call.head),
+                help: None,
+                inner: vec![],
+            }
+            .into()
         })
         .map(|df| PipelineData::Value(NuDataFrame::dataframe_into_value(df, call.head), None))
 }

@@ -11,7 +11,7 @@ enum RollType {
 }
 
 impl RollType {
-    fn from_str(roll_type: &str, span: Span) -> Result<Self, ShellError> {
+    fn from_str(roll_type: &str, span: Span) -> ShellResult<Self> {
         match roll_type {
             "min" => Ok(Self::Min),
             "max" => Ok(Self::Max),
@@ -23,7 +23,7 @@ impl RollType {
                 span: Some(span),
                 help: Some("Allowed values: min, max, sum, mean".into()),
                 inner: vec![],
-            }),
+            })?,
         }
     }
 
@@ -111,7 +111,7 @@ impl Command for Rolling {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         command(engine_state, stack, call, input)
     }
 }
@@ -121,7 +121,7 @@ fn command(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let roll_type: Spanned<String> = call.req(engine_state, stack, 0)?;
     let window_size: i64 = call.req(engine_state, stack, 1)?;
 
@@ -129,13 +129,13 @@ fn command(
     let series = df.as_series(call.head)?;
 
     if let DataType::Object(..) = series.dtype() {
-        return Err(ShellError::GenericError {
+        Err(ShellError::GenericError {
             error: "Found object series".into(),
             msg: "Series of type object cannot be used for rolling operation".into(),
             span: Some(call.head),
             help: None,
             inner: vec![],
-        });
+        })?;
     }
 
     let roll_type = RollType::from_str(&roll_type.item, roll_type.span)?;

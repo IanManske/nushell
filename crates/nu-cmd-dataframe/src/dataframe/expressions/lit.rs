@@ -45,7 +45,7 @@ impl Command for ExprLit {
         stack: &mut Stack,
         call: &Call,
         _input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let literal: Value = call.req(engine_state, stack, 0)?;
 
         let expr = NuExpression::try_from_value(literal)?;

@@ -67,7 +67,7 @@ impl Command for IsNull {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let value = input.into_value(call.head);
         if NuDataFrame::can_downcast(&value) {
             let df = NuDataFrame::try_from_value(value)?;
@@ -89,7 +89,7 @@ fn command(
     _stack: &mut Stack,
     call: &Call,
     df: NuDataFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let mut res = df.as_series(call.head)?.is_null();
     res.rename("is_null");
 

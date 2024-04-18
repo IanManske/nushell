@@ -60,7 +60,7 @@ impl Command for LastDF {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let value = input.into_value(call.head);
         if NuDataFrame::can_downcast(&value) {
             let df = NuDataFrame::try_from_value(value)?;
@@ -82,7 +82,7 @@ fn command(
     stack: &mut Stack,
     call: &Call,
     df: NuDataFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let rows: Option<usize> = call.opt(engine_state, stack, 0)?;
     let rows = rows.unwrap_or(DEFAULT_ROWS);
 

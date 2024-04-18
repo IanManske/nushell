@@ -101,7 +101,7 @@ impl Command for WithColumn {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let value = input.into_value(call.head);
 
         if NuLazyFrame::can_downcast(&value) {
@@ -116,7 +116,7 @@ impl Command for WithColumn {
                 from_type: value.get_type().to_string(),
                 span: value.span(),
                 help: None,
-            })
+            })?
         }
     }
 }
@@ -126,7 +126,7 @@ fn command_eager(
     stack: &mut Stack,
     call: &Call,
     mut df: NuDataFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let new_column: Value = call.req(engine_state, stack, 0)?;
     let column_span = new_column.span();
 
@@ -151,12 +151,15 @@ fn command_eager(
 
         df.as_mut()
             .with_column(series)
-            .map_err(|e| ShellError::GenericError {
-                error: "Error adding column to dataframe".into(),
-                msg: e.to_string(),
-                span: Some(column_span),
-                help: None,
-                inner: vec![],
+            .map_err(|e| {
+                ShellError::GenericError {
+                    error: "Error adding column to dataframe".into(),
+                    msg: e.to_string(),
+                    span: Some(column_span),
+                    help: None,
+                    inner: vec![],
+                }
+                .into()
             })
             .map(|df| {
                 PipelineData::Value(
@@ -172,7 +175,7 @@ fn command_lazy(
     stack: &mut Stack,
     call: &Call,
     lazy: NuLazyFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let vals: Vec<Value> = call.rest(engine_state, stack, 0)?;
     let value = Value::list(vals, call.head);
     let expressions = NuExpression::extract_exprs(value)?;

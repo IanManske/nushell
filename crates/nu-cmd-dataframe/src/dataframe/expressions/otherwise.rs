@@ -87,7 +87,7 @@ impl Command for ExprOtherwise {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let otherwise_predicate: Value = call.req(engine_state, stack, 0)?;
         let otherwise_predicate = NuExpression::try_from_value(otherwise_predicate)?;
 

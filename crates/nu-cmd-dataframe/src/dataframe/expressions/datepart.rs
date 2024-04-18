@@ -112,7 +112,7 @@ impl Command for ExprDatePart {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let part: Spanned<String> = call.req(engine_state, stack, 0)?;
 
         let expr = NuExpression::try_from_pipeline(input, call.head)?;
@@ -135,7 +135,7 @@ impl Command for ExprDatePart {
                     input: "value originates from here".to_string(),
                     msg_span: call.head,
                     input_span: part.span,
-                });
+                })?;
             }
         }.into();
 

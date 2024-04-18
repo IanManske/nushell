@@ -2,7 +2,7 @@ use super::{
     between_values::{between_dataframes, compute_between_series, compute_series_single_value},
     NuDataFrame,
 };
-use nu_protocol::{ast::Operator, ShellError, Span, Spanned, Value};
+use nu_protocol::{ast::Operator, ShellError, ShellResult, Span, Spanned, Value};
 use polars::prelude::{DataFrame, Series};
 
 pub enum Axis {
@@ -17,7 +17,7 @@ impl NuDataFrame {
         operator: Operator,
         op_span: Span,
         right: &Value,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         let rhs_span = right.span();
         match right {
             Value::Custom { val: rhs, .. } => {
@@ -43,7 +43,7 @@ impl NuDataFrame {
                                 left_span: lhs_span,
                                 right_message: format!("datatype {}", lhs.dtype()),
                                 right_span: rhs_span,
-                            });
+                            })?;
                         }
 
                         if lhs.len() != rhs.len() {
@@ -52,7 +52,7 @@ impl NuDataFrame {
                                 left_span: lhs_span,
                                 right_message: format!("len {}", rhs.len()),
                                 right_span: rhs_span,
-                            });
+                            })?;
                         }
 
                         let op = Spanned {
@@ -75,7 +75,7 @@ impl NuDataFrame {
                                 left_span: lhs_span,
                                 right_message: format!("rows {}", rhs.df.height()),
                                 right_span: rhs_span,
-                            });
+                            })?;
                         }
 
                         let op = Spanned {
@@ -104,12 +104,7 @@ impl NuDataFrame {
         }
     }
 
-    pub fn append_df(
-        &self,
-        other: &NuDataFrame,
-        axis: Axis,
-        span: Span,
-    ) -> Result<Self, ShellError> {
+    pub fn append_df(&self, other: &NuDataFrame, axis: Axis, span: Span) -> ShellResult<Self> {
         match axis {
             Axis::Row => {
                 let mut columns: Vec<&str> = Vec::new();
@@ -148,7 +143,7 @@ impl NuDataFrame {
                     return Err(ShellError::IncompatibleParametersSingle {
                         msg: "Dataframes with different number of columns".into(),
                         span,
-                    });
+                    })?;
                 }
 
                 if !self
@@ -160,7 +155,7 @@ impl NuDataFrame {
                     return Err(ShellError::IncompatibleParametersSingle {
                         msg: "Dataframes with different columns names".into(),
                         span,
-                    });
+                    })?;
                 }
 
                 let new_cols = self
@@ -186,10 +181,10 @@ impl NuDataFrame {
                                     help: None,
                                     inner: vec![],
                                 }
-                            }),
+                            })?,
                         }
                     })
-                    .collect::<Result<Vec<Series>, ShellError>>()?;
+                    .collect::<ShellResult<Vec<Series>>>()?;
 
                 let df_new = DataFrame::new(new_cols).map_err(|e| ShellError::GenericError {
                     error: "Error appending dataframe".into(),

@@ -80,7 +80,7 @@ impl Command for LazyFillNA {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let fill: Value = call.req(engine_state, stack, 0)?;
         let value = input.into_value(call.head);
 

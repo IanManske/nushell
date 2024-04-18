@@ -1,7 +1,7 @@
 use super::{operations::Axis, NuDataFrame};
 use nu_protocol::{
     ast::{Boolean, Comparison, Math, Operator},
-    span, ShellError, Span, Spanned, Value,
+    span, ShellError, ShellResult, Span, Spanned, Value,
 };
 use num::Zero;
 use polars::prelude::{
@@ -16,7 +16,7 @@ pub(super) fn between_dataframes(
     lhs: &NuDataFrame,
     right: &Value,
     rhs: &NuDataFrame,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     let operation_span = span(&[left.span(), right.span()]);
     match operator.item {
         Operator::Math(Math::Plus) => match lhs.append_df(rhs, Axis::Row, operation_span) {
@@ -29,7 +29,7 @@ pub(super) fn between_dataframes(
             lhs_span: left.span(),
             rhs_ty: right.get_type().to_string(),
             rhs_span: right.span(),
-        }),
+        })?,
     }
 }
 
@@ -39,7 +39,7 @@ pub(super) fn compute_between_series(
     lhs: &Series,
     right: &Value,
     rhs: &Series,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     let operation_span = span(&[left.span(), right.span()]);
     match operator.item {
         Operator::Math(Math::Plus) => {
@@ -74,7 +74,7 @@ pub(super) fn compute_between_series(
                     span: Some(right.span()),
                     help: None,
                     inner: vec![],
-                }),
+                })?,
             }
         }
         Operator::Comparison(Comparison::Equal) => {
@@ -125,7 +125,7 @@ pub(super) fn compute_between_series(
                         span: Some(right.span()),
                         help: None,
                         inner: vec![],
-                    }),
+                    })?,
                 }
             }
             _ => Err(ShellError::IncompatibleParametersSingle {
@@ -134,7 +134,7 @@ pub(super) fn compute_between_series(
                     operator.item
                 ),
                 span: operation_span,
-            }),
+            })?,
         },
         Operator::Boolean(Boolean::Or) => match lhs.dtype() {
             DataType::Boolean => {
@@ -154,7 +154,7 @@ pub(super) fn compute_between_series(
                         span: Some(right.span()),
                         help: None,
                         inner: vec![],
-                    }),
+                    })?,
                 }
             }
             _ => Err(ShellError::IncompatibleParametersSingle {
@@ -163,7 +163,7 @@ pub(super) fn compute_between_series(
                     operator.item
                 ),
                 span: operation_span,
-            }),
+            })?,
         },
         _ => Err(ShellError::OperatorMismatch {
             op_span: operator.span,
@@ -171,7 +171,7 @@ pub(super) fn compute_between_series(
             lhs_span: left.span(),
             rhs_ty: right.get_type().to_string(),
             rhs_span: right.span(),
-        }),
+        })?,
     }
 }
 
@@ -181,7 +181,7 @@ fn compare_series<'s, F>(
     name: &'s str,
     span: Span,
     f: F,
-) -> Result<Series, ShellError>
+) -> ShellResult<Series>
 where
     F: Fn(&'s Series, &'s Series) -> Result<ChunkedArray<BooleanType>, PolarsError>,
 {
@@ -204,15 +204,15 @@ pub(super) fn compute_series_single_value(
     left: &Value,
     lhs: &NuDataFrame,
     right: &Value,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     if !lhs.is_series() {
-        return Err(ShellError::OperatorMismatch {
+        Err(ShellError::OperatorMismatch {
             op_span: operator.span,
             lhs_ty: left.get_type().to_string(),
             lhs_span: left.span(),
             rhs_ty: right.get_type().to_string(),
             rhs_span: right.span(),
-        });
+        })?;
     }
 
     let lhs_span = left.span();
@@ -233,7 +233,7 @@ pub(super) fn compute_series_single_value(
                 lhs_span: left.span(),
                 rhs_ty: right.get_type().to_string(),
                 rhs_span: right.span(),
-            }),
+            })?,
         },
         Operator::Math(Math::Minus) => match &right {
             Value::Int { val, .. } => {
@@ -248,7 +248,7 @@ pub(super) fn compute_series_single_value(
                 lhs_span: left.span(),
                 rhs_ty: right.get_type().to_string(),
                 rhs_span: right.span(),
-            }),
+            })?,
         },
         Operator::Math(Math::Multiply) => match &right {
             Value::Int { val, .. } => {
@@ -263,21 +263,21 @@ pub(super) fn compute_series_single_value(
                 lhs_span: left.span(),
                 rhs_ty: right.get_type().to_string(),
                 rhs_span: right.span(),
-            }),
+            })?,
         },
         Operator::Math(Math::Divide) => {
             let span = right.span();
             match &right {
                 Value::Int { val, .. } => {
                     if *val == 0 {
-                        Err(ShellError::DivisionByZero { span })
+                        Err(ShellError::DivisionByZero { span })?
                     } else {
                         compute_series_i64(&lhs, *val, <ChunkedArray<Int64Type>>::div, lhs_span)
                     }
                 }
                 Value::Float { val, .. } => {
                     if val.is_zero() {
-                        Err(ShellError::DivisionByZero { span })
+                        Err(ShellError::DivisionByZero { span })?
                     } else {
                         compute_series_float(&lhs, *val, <ChunkedArray<Float64Type>>::div, lhs_span)
                     }
@@ -288,7 +288,7 @@ pub(super) fn compute_series_single_value(
                     lhs_span: left.span(),
                     rhs_ty: right.get_type().to_string(),
                     rhs_span: right.span(),
-                }),
+                })?,
             }
         }
         Operator::Comparison(Comparison::Equal) => match &right {
@@ -309,7 +309,7 @@ pub(super) fn compute_series_single_value(
                 lhs_span: left.span(),
                 rhs_ty: right.get_type().to_string(),
                 rhs_span: right.span(),
-            }),
+            })?,
         },
         Operator::Comparison(Comparison::NotEqual) => match &right {
             Value::Int { val, .. } => {
@@ -330,7 +330,7 @@ pub(super) fn compute_series_single_value(
                 lhs_span: left.span(),
                 rhs_ty: right.get_type().to_string(),
                 rhs_span: right.span(),
-            }),
+            })?,
         },
         Operator::Comparison(Comparison::LessThan) => match &right {
             Value::Int { val, .. } => compare_series_i64(&lhs, *val, ChunkedArray::lt, lhs_span),
@@ -346,7 +346,7 @@ pub(super) fn compute_series_single_value(
                 lhs_span: left.span(),
                 rhs_ty: right.get_type().to_string(),
                 rhs_span: right.span(),
-            }),
+            })?,
         },
         Operator::Comparison(Comparison::LessThanOrEqual) => match &right {
             Value::Int { val, .. } => compare_series_i64(&lhs, *val, ChunkedArray::lt_eq, lhs_span),
@@ -362,7 +362,7 @@ pub(super) fn compute_series_single_value(
                 lhs_span: left.span(),
                 rhs_ty: right.get_type().to_string(),
                 rhs_span: right.span(),
-            }),
+            })?,
         },
         Operator::Comparison(Comparison::GreaterThan) => match &right {
             Value::Int { val, .. } => compare_series_i64(&lhs, *val, ChunkedArray::gt, lhs_span),
@@ -378,7 +378,7 @@ pub(super) fn compute_series_single_value(
                 lhs_span: left.span(),
                 rhs_ty: right.get_type().to_string(),
                 rhs_span: right.span(),
-            }),
+            })?,
         },
         Operator::Comparison(Comparison::GreaterThanOrEqual) => match &right {
             Value::Int { val, .. } => compare_series_i64(&lhs, *val, ChunkedArray::gt_eq, lhs_span),
@@ -394,7 +394,7 @@ pub(super) fn compute_series_single_value(
                 lhs_span: left.span(),
                 rhs_ty: right.get_type().to_string(),
                 rhs_span: right.span(),
-            }),
+            })?,
         },
         // TODO: update this to do a regex match instead of a simple contains?
         Operator::Comparison(Comparison::RegexMatch) => match &right {
@@ -405,7 +405,7 @@ pub(super) fn compute_series_single_value(
                 lhs_span: left.span(),
                 rhs_ty: right.get_type().to_string(),
                 rhs_span: right.span(),
-            }),
+            })?,
         },
         Operator::Comparison(Comparison::StartsWith) => match &right {
             Value::String { val, .. } => {
@@ -418,7 +418,7 @@ pub(super) fn compute_series_single_value(
                 lhs_span: left.span(),
                 rhs_ty: right.get_type().to_string(),
                 rhs_span: right.span(),
-            }),
+            })?,
         },
         Operator::Comparison(Comparison::EndsWith) => match &right {
             Value::String { val, .. } => {
@@ -431,7 +431,7 @@ pub(super) fn compute_series_single_value(
                 lhs_span: left.span(),
                 rhs_ty: right.get_type().to_string(),
                 rhs_span: right.span(),
-            }),
+            })?,
         },
         _ => Err(ShellError::OperatorMismatch {
             op_span: operator.span,
@@ -439,11 +439,11 @@ pub(super) fn compute_series_single_value(
             lhs_span: left.span(),
             rhs_ty: right.get_type().to_string(),
             rhs_span: right.span(),
-        }),
+        })?,
     }
 }
 
-fn compute_series_i64<F>(series: &Series, val: i64, f: F, span: Span) -> Result<Value, ShellError>
+fn compute_series_i64<F>(series: &Series, val: i64, f: F, span: Span) -> ShellResult<Value>
 where
     F: Fn(ChunkedArray<Int64Type>, i64) -> ChunkedArray<Int64Type>,
 {
@@ -462,7 +462,7 @@ where
                     span: Some(span),
                     help: None,
                     inner: vec![],
-                }),
+                })?,
             }
         }
         DataType::Int64 => {
@@ -478,7 +478,7 @@ where
             span: Some(span),
             help: None,
             inner: vec![],
-        }),
+        })?,
     }
 }
 
@@ -487,7 +487,7 @@ fn compute_casted_i64<F>(
     val: i64,
     f: F,
     span: Span,
-) -> Result<Value, ShellError>
+) -> ShellResult<Value>
 where
     F: Fn(ChunkedArray<Int64Type>, i64) -> ChunkedArray<Int64Type>,
 {
@@ -503,11 +503,11 @@ where
             span: Some(span),
             help: None,
             inner: vec![],
-        }),
+        })?,
     }
 }
 
-fn compute_series_float<F>(series: &Series, val: f64, f: F, span: Span) -> Result<Value, ShellError>
+fn compute_series_float<F>(series: &Series, val: f64, f: F, span: Span) -> ShellResult<Value>
 where
     F: Fn(ChunkedArray<Float64Type>, f64) -> ChunkedArray<Float64Type>,
 {
@@ -526,7 +526,7 @@ where
                     span: Some(span),
                     help: None,
                     inner: vec![],
-                }),
+                })?,
             }
         }
         DataType::Float64 => {
@@ -542,7 +542,7 @@ where
             span: Some(span),
             help: None,
             inner: vec![],
-        }),
+        })?,
     }
 }
 
@@ -551,7 +551,7 @@ fn compute_casted_f64<F>(
     val: f64,
     f: F,
     span: Span,
-) -> Result<Value, ShellError>
+) -> ShellResult<Value>
 where
     F: Fn(ChunkedArray<Float64Type>, f64) -> ChunkedArray<Float64Type>,
 {
@@ -567,11 +567,11 @@ where
             span: Some(span),
             help: None,
             inner: vec![],
-        }),
+        })?,
     }
 }
 
-fn compare_series_i64<F>(series: &Series, val: i64, f: F, span: Span) -> Result<Value, ShellError>
+fn compare_series_i64<F>(series: &Series, val: i64, f: F, span: Span) -> ShellResult<Value>
 where
     F: Fn(&ChunkedArray<Int64Type>, i64) -> ChunkedArray<BooleanType>,
 {
@@ -590,7 +590,7 @@ where
                     span: Some(span),
                     help: None,
                     inner: vec![],
-                }),
+                })?,
             }
         }
         DataType::Date => {
@@ -611,7 +611,7 @@ where
                     span: Some(span),
                     help: None,
                     inner: vec![],
-                }),
+                })?,
             }
         }
         DataType::Int64 => {
@@ -627,7 +627,7 @@ where
             span: Some(span),
             help: None,
             inner: vec![],
-        }),
+        })?,
     }
 }
 
@@ -636,7 +636,7 @@ fn compare_casted_i64<F>(
     val: i64,
     f: F,
     span: Span,
-) -> Result<Value, ShellError>
+) -> ShellResult<Value>
 where
     F: Fn(&ChunkedArray<Int64Type>, i64) -> ChunkedArray<BooleanType>,
 {
@@ -652,11 +652,11 @@ where
             span: Some(span),
             help: None,
             inner: vec![],
-        }),
+        })?,
     }
 }
 
-fn compare_series_float<F>(series: &Series, val: f64, f: F, span: Span) -> Result<Value, ShellError>
+fn compare_series_float<F>(series: &Series, val: f64, f: F, span: Span) -> ShellResult<Value>
 where
     F: Fn(&ChunkedArray<Float64Type>, f64) -> ChunkedArray<BooleanType>,
 {
@@ -675,7 +675,7 @@ where
                     span: Some(span),
                     help: None,
                     inner: vec![],
-                }),
+                })?,
             }
         }
         DataType::Float64 => {
@@ -691,7 +691,7 @@ where
             span: Some(span),
             help: None,
             inner: vec![],
-        }),
+        })?,
     }
 }
 
@@ -700,7 +700,7 @@ fn compare_casted_f64<F>(
     val: f64,
     f: F,
     span: Span,
-) -> Result<Value, ShellError>
+) -> ShellResult<Value>
 where
     F: Fn(&ChunkedArray<Float64Type>, f64) -> ChunkedArray<BooleanType>,
 {
@@ -716,11 +716,11 @@ where
             span: Some(span),
             help: None,
             inner: vec![],
-        }),
+        })?,
     }
 }
 
-fn contains_series_pat(series: &Series, pat: &str, span: Span) -> Result<Value, ShellError> {
+fn contains_series_pat(series: &Series, pat: &str, span: Span) -> ShellResult<Value> {
     let casted = series.str();
     match casted {
         Ok(casted) => {
@@ -737,7 +737,7 @@ fn contains_series_pat(series: &Series, pat: &str, span: Span) -> Result<Value, 
                     span: Some(span),
                     help: None,
                     inner: vec![],
-                }),
+                })?,
             }
         }
         Err(e) => Err(ShellError::GenericError {
@@ -746,11 +746,11 @@ fn contains_series_pat(series: &Series, pat: &str, span: Span) -> Result<Value, 
             span: Some(span),
             help: None,
             inner: vec![],
-        }),
+        })?,
     }
 }
 
-fn add_string_to_series(series: &Series, pat: &str, span: Span) -> Result<Value, ShellError> {
+fn add_string_to_series(series: &Series, pat: &str, span: Span) -> ShellResult<Value> {
     let casted = series.str();
     match casted {
         Ok(casted) => {
@@ -765,7 +765,7 @@ fn add_string_to_series(series: &Series, pat: &str, span: Span) -> Result<Value,
             span: Some(span),
             help: None,
             inner: vec![],
-        }),
+        })?,
     }
 }
 

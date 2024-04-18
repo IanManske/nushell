@@ -57,7 +57,7 @@ impl Command for LazyFetch {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let rows: i64 = call.req(engine_state, stack, 0)?;
 
         let lazy = NuLazyFrame::try_from_pipeline(input, call.head)?;

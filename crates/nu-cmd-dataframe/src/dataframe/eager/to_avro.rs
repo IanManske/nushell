@@ -46,12 +46,12 @@ impl Command for ToAvro {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         command(engine_state, stack, call, input)
     }
 }
 
-fn get_compression(call: &Call) -> Result<Option<AvroCompression>, ShellError> {
+fn get_compression(call: &Call) -> ShellResult<Option<AvroCompression>> {
     if let Some((compression, span)) = call
         .get_flag_expr("compression")
         .and_then(|e| e.as_string().map(|s| (s, e.span)))
@@ -63,7 +63,7 @@ fn get_compression(call: &Call) -> Result<Option<AvroCompression>, ShellError> {
                 msg: "compression must be one of deflate or snappy".to_string(),
                 val_span: span,
                 call_span: span,
-            }),
+            })?,
         }
     } else {
         Ok(None)
@@ -75,7 +75,7 @@ fn command(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let file_name: Spanned<PathBuf> = call.req(engine_state, stack, 0)?;
     let compression = get_compression(call)?;
 

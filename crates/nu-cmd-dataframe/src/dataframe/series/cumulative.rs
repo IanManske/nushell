@@ -11,7 +11,7 @@ enum CumType {
 }
 
 impl CumType {
-    fn from_str(roll_type: &str, span: Span) -> Result<Self, ShellError> {
+    fn from_str(roll_type: &str, span: Span) -> ShellResult<Self> {
         match roll_type {
             "min" => Ok(Self::Min),
             "max" => Ok(Self::Max),
@@ -22,7 +22,7 @@ impl CumType {
                 span: Some(span),
                 help: Some("Allowed values: max, min, sum".into()),
                 inner: vec![],
-            }),
+            })?,
         }
     }
 
@@ -88,7 +88,7 @@ impl Command for Cumulative {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         command(engine_state, stack, call, input)
     }
 }
@@ -98,7 +98,7 @@ fn command(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let cum_type: Spanned<String> = call.req(engine_state, stack, 0)?;
     let reverse = call.has_flag(engine_state, stack, "reverse")?;
 
@@ -106,13 +106,13 @@ fn command(
     let series = df.as_series(call.head)?;
 
     if let DataType::Object(..) = series.dtype() {
-        return Err(ShellError::GenericError {
+        Err(ShellError::GenericError {
             error: "Found object series".into(),
             msg: "Series of type object cannot be used for cumulative operation".into(),
             span: Some(call.head),
             help: None,
             inner: vec![],
-        });
+        })?;
     }
 
     let cum_type = CumType::from_str(&cum_type.item, cum_type.span)?;

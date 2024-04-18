@@ -51,7 +51,7 @@ impl Command for ToCSV {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         command(engine_state, stack, call, input)
     }
 }
@@ -61,7 +61,7 @@ fn command(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let file_name: Spanned<PathBuf> = call.req(engine_state, stack, 0)?;
     let delimiter: Option<Spanned<String>> = call.get_flag(engine_state, stack, "delimiter")?;
     let no_header: bool = call.has_flag(engine_state, stack, "no-header")?;
@@ -94,7 +94,7 @@ fn command(
                     span: Some(d.span),
                     help: None,
                     inner: vec![],
-                });
+                })?;
             } else {
                 let delimiter = match d.item.chars().next() {
                     Some(d) => d as u8,

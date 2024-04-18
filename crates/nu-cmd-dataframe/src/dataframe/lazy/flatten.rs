@@ -95,7 +95,7 @@ Example {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         explode(call, input)
     }
 }

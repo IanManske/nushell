@@ -71,7 +71,7 @@ impl Command for FilterWith {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let value = input.into_value(call.head);
 
         if NuLazyFrame::can_downcast(&value) {
@@ -89,7 +89,7 @@ fn command_eager(
     stack: &mut Stack,
     call: &Call,
     df: NuDataFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let mask_value: Value = call.req(engine_state, stack, 0)?;
     let mask_span = mask_value.span();
 
@@ -114,12 +114,17 @@ fn command_eager(
 
         df.as_ref()
             .filter(mask)
-            .map_err(|e| ShellError::GenericError {
-                error: "Error filtering dataframe".into(),
-                msg: e.to_string(),
-                span: Some(call.head),
-                help: Some("The only allowed column types for dummies are String or Int".into()),
-                inner: vec![],
+            .map_err(|e| {
+                ShellError::GenericError {
+                    error: "Error filtering dataframe".into(),
+                    msg: e.to_string(),
+                    span: Some(call.head),
+                    help: Some(
+                        "The only allowed column types for dummies are String or Int".into(),
+                    ),
+                    inner: vec![],
+                }
+                .into()
             })
             .map(|df| PipelineData::Value(NuDataFrame::dataframe_into_value(df, call.head), None))
     }
@@ -130,7 +135,7 @@ fn command_lazy(
     stack: &mut Stack,
     call: &Call,
     lazy: NuLazyFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let expr: Value = call.req(engine_state, stack, 0)?;
     let expr = NuExpression::try_from_value(expr)?;
 

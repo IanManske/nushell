@@ -39,7 +39,7 @@ macro_rules! expr_command {
                 _stack: &mut Stack,
                 call: &Call,
                 input: PipelineData,
-            ) -> Result<PipelineData, ShellError> {
+            ) -> ShellResult<PipelineData> {
                 let expr = NuExpression::try_from_pipeline(input, call.head)?;
                 let expr: NuExpression = expr.into_polars().$func().into();
 
@@ -100,7 +100,7 @@ macro_rules! expr_command {
                 _stack: &mut Stack,
                 call: &Call,
                 input: PipelineData,
-            ) -> Result<PipelineData, ShellError> {
+            ) -> ShellResult<PipelineData> {
                 let expr = NuExpression::try_from_pipeline(input, call.head)?;
                 let expr: NuExpression = expr.into_polars().$func($ddof).into();
 
@@ -171,7 +171,7 @@ macro_rules! lazy_expr_command {
                 _stack: &mut Stack,
                 call: &Call,
                 input: PipelineData,
-            ) -> Result<PipelineData, ShellError> {
+            ) -> ShellResult<PipelineData> {
                 let value = input.into_value(call.head);
                 if NuDataFrame::can_downcast(&value) {
                     let lazy = NuLazyFrame::try_from_value(value)?;
@@ -270,7 +270,7 @@ macro_rules! lazy_expr_command {
                 _stack: &mut Stack,
                 call: &Call,
                 input: PipelineData,
-            ) -> Result<PipelineData, ShellError> {
+            ) -> ShellResult<PipelineData> {
                 let value = input.into_value(call.head);
                 if NuDataFrame::can_downcast(&value) {
                     let lazy = NuLazyFrame::try_from_value(value)?;

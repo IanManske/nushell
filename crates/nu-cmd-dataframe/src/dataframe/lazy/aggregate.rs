@@ -113,7 +113,7 @@ impl Command for LazyAggregate {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let vals: Vec<Value> = call.rest(engine_state, stack, 0)?;
         let value = Value::list(vals, call.head);
         let expressions = NuExpression::extract_exprs(value)?;
@@ -132,7 +132,7 @@ impl Command for LazyAggregate {
                             span: Some(call.head),
                             help: Some("Aggregations cannot be performed on Object type columns. Use dtype command to check column types".into()),
                             inner: vec![],
-                        });
+                        })?;
                     }
                 }
             }

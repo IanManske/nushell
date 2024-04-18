@@ -55,7 +55,7 @@ impl Command for Shift {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let value = input.into_value(call.head);
 
         if NuLazyFrame::can_downcast(&value) {
@@ -73,7 +73,7 @@ fn command_eager(
     stack: &mut Stack,
     call: &Call,
     df: NuDataFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let period: i64 = call.req(engine_state, stack, 0)?;
     let series = df.as_series(call.head)?.shift(period);
 
@@ -86,7 +86,7 @@ fn command_lazy(
     stack: &mut Stack,
     call: &Call,
     lazy: NuLazyFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let shift: i64 = call.req(engine_state, stack, 0)?;
     let fill: Option<Value> = call.get_flag(engine_state, stack, "fill")?;
 

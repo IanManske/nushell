@@ -47,7 +47,7 @@ impl Command for GetDF {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         command(engine_state, stack, call, input)
     }
 }
@@ -57,7 +57,7 @@ fn command(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let columns: Vec<Value> = call.rest(engine_state, stack, 0)?;
     let (col_string, col_span) = convert_columns_string(columns, call.head)?;
 
@@ -65,12 +65,15 @@ fn command(
 
     df.as_ref()
         .select(col_string)
-        .map_err(|e| ShellError::GenericError {
-            error: "Error selecting columns".into(),
-            msg: e.to_string(),
-            span: Some(col_span),
-            help: None,
-            inner: vec![],
+        .map_err(|e| {
+            ShellError::GenericError {
+                error: "Error selecting columns".into(),
+                msg: e.to_string(),
+                span: Some(col_span),
+                help: None,
+                inner: vec![],
+            }
+            .into()
         })
         .map(|df| PipelineData::Value(NuDataFrame::dataframe_into_value(df, call.head), None))
 }

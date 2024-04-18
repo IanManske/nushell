@@ -97,7 +97,7 @@ impl Command for AppendDF {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         command(engine_state, stack, call, input)
     }
 }
@@ -107,7 +107,7 @@ fn command(
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let other: Value = call.req(engine_state, stack, 0)?;
 
     let axis = if call.has_flag(engine_state, stack, "col")? {

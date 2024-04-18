@@ -52,7 +52,7 @@ impl Command for LazyCollect {
         _stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let lazy = NuLazyFrame::try_from_pipeline(input, call.head)?;
         let eager = lazy.collect(call.head)?;
         let value = Value::custom(Box::new(eager), call.head);

@@ -1,7 +1,7 @@
 use super::NuExpression;
 use nu_protocol::{
     ast::{Comparison, Math, Operator},
-    CustomValue, ShellError, Span, Type, Value,
+    CustomValue, ShellError, ShellResult, Span, Type, Value,
 };
 use polars::prelude::Expr;
 use std::ops::{Add, Div, Mul, Rem, Sub};
@@ -26,7 +26,7 @@ impl CustomValue for NuExpression {
         self.typetag_name().to_string()
     }
 
-    fn to_base_value(&self, span: Span) -> Result<Value, ShellError> {
+    fn to_base_value(&self, span: Span) -> ShellResult<Value> {
         self.to_value(span)
     }
 
@@ -44,7 +44,7 @@ impl CustomValue for NuExpression {
         operator: Operator,
         op: Span,
         right: &Value,
-    ) -> Result<Value, ShellError> {
+    ) -> ShellResult<Value> {
         compute_with_value(self, lhs_span, operator, op, right)
     }
 }
@@ -55,7 +55,7 @@ fn compute_with_value(
     operator: Operator,
     op: Span,
     right: &Value,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     let rhs_span = right.span();
     match right {
         Value::Custom { val: rhs, .. } => {
@@ -73,7 +73,7 @@ fn compute_with_value(
                 _ => Err(ShellError::TypeMismatch {
                     err_message: "Only literal expressions or number".into(),
                     span: right.span(),
-                }),
+                })?,
             }
         }
         _ => {
@@ -90,7 +90,7 @@ fn with_operator(
     lhs_span: Span,
     rhs_span: Span,
     op_span: Span,
-) -> Result<Value, ShellError> {
+) -> ShellResult<Value> {
     match operator {
         Operator::Math(Math::Plus) => apply_arithmetic(left, right, lhs_span, Add::add),
         Operator::Math(Math::Minus) => apply_arithmetic(left, right, lhs_span, Sub::sub),
@@ -128,7 +128,7 @@ fn with_operator(
             lhs_span,
             rhs_ty: Type::Custom(right.typetag_name().into()).to_string(),
             rhs_span,
-        }),
+        })?,
     }
 }
 
@@ -137,7 +137,7 @@ fn apply_arithmetic<F>(
     right: &NuExpression,
     span: Span,
     f: F,
-) -> Result<Value, ShellError>
+) -> ShellResult<Value>
 where
     F: Fn(Expr, Expr) -> Expr,
 {

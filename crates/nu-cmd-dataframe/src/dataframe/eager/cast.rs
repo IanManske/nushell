@@ -78,7 +78,7 @@ impl Command for CastDF {
         stack: &mut Stack,
         call: &Call,
         input: PipelineData,
-    ) -> Result<PipelineData, ShellError> {
+    ) -> ShellResult<PipelineData> {
         let value = input.into_value(call.head);
         if NuLazyFrame::can_downcast(&value) {
             let (dtype, column_nm) = df_args(engine_state, stack, call)?;
@@ -107,7 +107,7 @@ fn df_args(
     engine_state: &EngineState,
     stack: &mut Stack,
     call: &Call,
-) -> Result<(DataType, String), ShellError> {
+) -> ShellResult<(DataType, String)> {
     let dtype = dtype_arg(engine_state, stack, call)?;
     let column_nm: String =
         call.opt(engine_state, stack, 1)?
@@ -118,11 +118,7 @@ fn df_args(
     Ok((dtype, column_nm))
 }
 
-fn dtype_arg(
-    engine_state: &EngineState,
-    stack: &mut Stack,
-    call: &Call,
-) -> Result<DataType, ShellError> {
+fn dtype_arg(engine_state: &EngineState, stack: &mut Stack, call: &Call) -> ShellResult<DataType> {
     let dtype: String = call.req(engine_state, stack, 0)?;
     str_to_dtype(&dtype, call.head)
 }
@@ -132,7 +128,7 @@ fn command_lazy(
     column_nm: String,
     dtype: DataType,
     lazy: NuLazyFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let column = col(&column_nm).cast(dtype);
     let lazy = lazy.into_polars().with_columns(&[column]);
     let lazy = NuLazyFrame::new(false, lazy);
@@ -148,7 +144,7 @@ fn command_eager(
     column_nm: String,
     dtype: DataType,
     nu_df: NuDataFrame,
-) -> Result<PipelineData, ShellError> {
+) -> ShellResult<PipelineData> {
     let mut df = nu_df.df;
     let column = df
         .column(&column_nm)
