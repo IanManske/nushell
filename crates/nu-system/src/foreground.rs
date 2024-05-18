@@ -273,13 +273,12 @@ mod foreground_pgroup {
 
                 // Reset signal handlers for child, sync with `terminal.rs`
                 let default = SigAction::new(SigHandler::SigDfl, SaFlags::empty(), SigSet::empty());
-                // SIGINT has special handling
                 let _ = sigaction(Signal::SIGQUIT, &default);
                 // We don't support background jobs, so keep some signals blocked for now
                 // let _ = sigaction(Signal::SIGTSTP, &default);
                 // let _ = sigaction(Signal::SIGTTIN, &default);
                 // let _ = sigaction(Signal::SIGTTOU, &default);
-                let _ = sigaction(Signal::SIGTERM, &default);
+                // SIGINT AND SIGTERM have handlers which are set to back to SIG_DFL on execve
 
                 Ok(())
             });
