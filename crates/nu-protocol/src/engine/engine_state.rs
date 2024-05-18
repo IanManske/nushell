@@ -12,12 +12,13 @@ use crate::{
 };
 use fancy_regex::Regex;
 use lru::LruCache;
+use nu_system::ForegroundState;
 use std::{
     collections::HashMap,
     num::NonZeroUsize,
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicBool, AtomicU32, Ordering},
+        atomic::{AtomicBool, Ordering},
         Arc, Mutex, MutexGuard, PoisonError,
     },
 };
@@ -87,7 +88,7 @@ pub struct EngineState {
     pub env_vars: Arc<EnvVars>,
     pub previous_env_vars: Arc<HashMap<String, Value>>,
     pub config: Arc<Config>,
-    pub pipeline_externals_state: Arc<(AtomicU32, AtomicU32)>,
+    foreground_state: ForegroundState,
     pub repl_state: Arc<Mutex<ReplState>>,
     pub table_decl_id: Option<usize>,
     #[cfg(feature = "plugin")]
@@ -147,7 +148,7 @@ impl EngineState {
             ),
             previous_env_vars: Arc::new(HashMap::new()),
             config: Arc::new(Config::default()),
-            pipeline_externals_state: Arc::new((AtomicU32::new(0), AtomicU32::new(0))),
+            foreground_state: ForegroundState::new(),
             repl_state: Arc::new(Mutex::new(ReplState {
                 buffer: "".to_string(),
                 cursor_pos: 0,
@@ -983,6 +984,10 @@ impl EngineState {
         self.startup_time = startup_time;
     }
 
+    pub fn foreground_state(&self) -> &ForegroundState {
+        &self.foreground_state
+    }
+
     pub fn activate_debugger(
         &self,
         debugger: Box<dyn Debugger>,
@@ -1007,17 +1012,21 @@ impl EngineState {
     }
 
     pub fn recover_from_panic(&mut self) {
-        if Mutex::is_poisoned(&self.repl_state) {
+        if self.repl_state.is_poisoned() {
             self.repl_state = Arc::new(Mutex::new(ReplState {
                 buffer: "".to_string(),
                 cursor_pos: 0,
             }));
         }
-        if Mutex::is_poisoned(&self.regex_cache) {
+        if self.regex_cache.is_poisoned() {
             self.regex_cache = Arc::new(Mutex::new(LruCache::new(
                 NonZeroUsize::new(REGEX_CACHE_SIZE).expect("tried to create cache of size zero"),
             )));
         }
+        // `ForegroundState` contains a `Mutex` that could be the source of the panic.
+        // TODO: after a panic we need to kill? any child processes still running.
+        // For now, we'll just forcibly take back control of the terminal.
+        unsafe { self.foreground_state.force_reset() };
     }
 }
 

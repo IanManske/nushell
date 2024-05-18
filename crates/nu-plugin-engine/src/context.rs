@@ -5,13 +5,11 @@ use nu_protocol::{
     engine::{Closure, EngineState, Redirection, Stack},
     Config, IntoSpanned, OutDest, PipelineData, PluginIdentity, ShellError, Span, Spanned, Value,
 };
+use nu_system::ForegroundState;
 use std::{
     borrow::Cow,
     collections::HashMap,
-    sync::{
-        atomic::{AtomicBool, AtomicU32},
-        Arc,
-    },
+    sync::{atomic::AtomicBool, Arc},
 };
 
 /// Object safe trait for abstracting operations required of the plugin context.
@@ -20,8 +18,8 @@ pub trait PluginExecutionContext: Send + Sync {
     fn span(&self) -> Span;
     /// The interrupt signal, if present
     fn ctrlc(&self) -> Option<&Arc<AtomicBool>>;
-    /// The pipeline externals state, for tracking the foreground process group, if present
-    fn pipeline_externals_state(&self) -> Option<&Arc<(AtomicU32, AtomicU32)>>;
+    /// The state for tracking the foreground process group, if present
+    fn foreground_state(&self) -> Option<&ForegroundState>;
     /// Get engine configuration
     fn get_config(&self) -> Result<Config, ShellError>;
     /// Get plugin configuration
@@ -84,8 +82,8 @@ impl<'a> PluginExecutionContext for PluginExecutionCommandContext<'a> {
         self.engine_state.ctrlc.as_ref()
     }
 
-    fn pipeline_externals_state(&self) -> Option<&Arc<(AtomicU32, AtomicU32)>> {
-        Some(&self.engine_state.pipeline_externals_state)
+    fn foreground_state(&self) -> Option<&ForegroundState> {
+        Some(self.engine_state.foreground_state())
     }
 
     fn get_config(&self) -> Result<Config, ShellError> {
@@ -238,7 +236,7 @@ impl PluginExecutionContext for PluginExecutionBogusContext {
         None
     }
 
-    fn pipeline_externals_state(&self) -> Option<&Arc<(AtomicU32, AtomicU32)>> {
+    fn foreground_state(&self) -> Option<&ForegroundState> {
         None
     }
 

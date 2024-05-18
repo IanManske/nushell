@@ -1310,9 +1310,9 @@ fn set_foreground(
     enter: bool,
 ) -> Result<EngineCallResponse<PipelineData>, ShellError> {
     if let Some(process) = process {
-        if let Some(pipeline_externals_state) = context.pipeline_externals_state() {
+        if let Some(state) = context.foreground_state() {
             if enter {
-                let pgrp = process.enter_foreground(context.span(), pipeline_externals_state)?;
+                let pgrp = process.enter_foreground(context.span(), state)?;
                 Ok(pgrp.map_or_else(EngineCallResponse::empty, |id| {
                     EngineCallResponse::value(Value::int(id as i64, context.span()))
                 }))

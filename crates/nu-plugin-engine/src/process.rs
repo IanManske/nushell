@@ -1,7 +1,6 @@
-use std::sync::{atomic::AtomicU32, Arc, Mutex, MutexGuard};
-
 use nu_protocol::{ShellError, Span};
-use nu_system::ForegroundGuard;
+use nu_system::{ForegroundGuard, ForegroundState};
+use std::sync::{Mutex, MutexGuard};
 
 /// Provides a utility interface for a plugin interface to manage the process the plugin is running
 /// in.
@@ -47,12 +46,12 @@ impl PluginProcess {
     pub(crate) fn enter_foreground(
         &self,
         span: Span,
-        pipeline_state: &Arc<(AtomicU32, AtomicU32)>,
+        foreground_state: &ForegroundState,
     ) -> Result<Option<u32>, ShellError> {
         let pid = self.pid;
         let mut mutable = self.lock_mutable()?;
         if mutable.foreground_guard.is_none() {
-            let guard = ForegroundGuard::new(pid, pipeline_state).map_err(|err| {
+            let guard = ForegroundGuard::new(pid, foreground_state).map_err(|err| {
                 ShellError::GenericError {
                     error: "Failed to enter foreground".into(),
                     msg: err.to_string(),
@@ -61,7 +60,7 @@ impl PluginProcess {
                     inner: vec![],
                 }
             })?;
-            let pgrp = guard.pgrp();
+            let pgrp = guard.pgroup();
             mutable.foreground_guard = Some(guard);
             Ok(pgrp)
         } else {

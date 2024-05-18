@@ -277,7 +277,7 @@ impl ExternalCommand {
             let child = ForegroundChild::spawn(
                 cmd,
                 engine_state.is_interactive,
-                &engine_state.pipeline_externals_state,
+                engine_state.foreground_state(),
             );
             (child, reader, input)
         };
