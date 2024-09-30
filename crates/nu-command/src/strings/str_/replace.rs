@@ -244,9 +244,8 @@ fn action(
                     false => "",
                 };
                 let regex_string = flags.to_string() + find_str;
-                let regex = Regex::new(&regex_string);
 
-                match regex {
+                match Regex::new(&regex_string) {
                     Ok(re) => {
                         if *all {
                             Value::string(
@@ -273,10 +272,12 @@ fn action(
                         }
                     }
                     Err(e) => Value::error(
-                        ShellError::IncorrectValue {
-                            msg: format!("Regex error: {e}"),
-                            val_span: find.span,
-                            call_span: head,
+                        ShellError::GenericError {
+                            error: "Failed to create regex".into(),
+                            msg: e.to_string(),
+                            span: Some(find.span),
+                            help: None,
+                            inner: Vec::new(),
                         },
                         find.span,
                     ),

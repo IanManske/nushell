@@ -83,15 +83,22 @@ the declaration may not be in scope.
             }
             // Decl by ID - IR dump always shows name of decl, but sometimes it isn't in scope
             Value::Int { val, .. } if is_decl_id => {
-                let decl_id = val
-                    .try_into()
-                    .ok()
-                    .filter(|id| *id < engine_state.num_decls())
-                    .ok_or_else(|| ShellError::IncorrectValue {
-                        msg: "not a valid decl id".into(),
-                        val_span: target.span(),
-                        call_span: call.head,
-                    })?;
+                let decl_id = val.try_into().map_err(|_| ShellError::InvalidValue {
+                    valid: "a non-negative integer".into(),
+                    actual: val.to_string(),
+                    span: target.span(),
+                })?;
+
+                if decl_id >= engine_state.num_decls() {
+                    return Err(ShellError::GenericError {
+                        error: format!("Unknown decl ID: {decl_id}"),
+                        msg: "ensure the decl ID is correct and try again".into(),
+                        span: Some(target.span()),
+                        help: None,
+                        inner: vec![],
+                    });
+                };
+
                 let decl = engine_state.get_decl(decl_id);
                 decl.block_id().ok_or_else(|| ShellError::GenericError {
                     error: format!("Can't view IR for `{}`", decl.name()),
@@ -102,10 +109,10 @@ the declaration may not be in scope.
                 })?
             }
             // Block by ID - often shows up in IR
-            Value::Int { val, .. } => val.try_into().map_err(|_| ShellError::IncorrectValue {
-                msg: "not a valid block id".into(),
-                val_span: target.span(),
-                call_span: call.head,
+            Value::Int { val, .. } => val.try_into().map_err(|_| ShellError::InvalidValue {
+                valid: "a non-negative interger".into(),
+                actual: val.to_string(),
+                span: target.span(),
             })?,
             // Pass through errors
             Value::Error { error, .. } => return Err(*error),
