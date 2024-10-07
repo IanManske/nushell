@@ -202,8 +202,9 @@ fn move_record_columns(
     }
 
     // Find indices of columns to be moved
-    for column in columns.iter() {
-        if let Some(idx) = record.index_of(column.coerce_string()?) {
+    for column in columns {
+        let col = column.coerce_str()?;
+        if let Some(idx) = record.index_of(col.as_ref()) {
             column_idx.push(idx);
         } else {
             return Err(ShellError::GenericError {
@@ -215,9 +216,8 @@ fn move_record_columns(
             });
         }
 
-        let column_as_string = column.coerce_string()?;
         // check if column is also pivot
-        if &column_as_string == pivot {
+        if col.as_ref() == pivot {
             return Err(ShellError::IncompatibleParameters {
                 left_message: "Column cannot be moved".to_string(),
                 left_span: column.span(),

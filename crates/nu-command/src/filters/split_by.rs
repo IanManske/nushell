@@ -12,7 +12,7 @@ impl Command for SplitBy {
     fn signature(&self) -> Signature {
         Signature::build("split-by")
             .input_output_types(vec![(Type::record(), Type::record())])
-            .optional("splitter", SyntaxShape::Any, "The splitter value to use.")
+            .required("splitter", SyntaxShape::Any, "The splitter value to use.")
             .category(Category::Filters)
     }
 
@@ -73,162 +73,87 @@ impl Command for SplitBy {
     }
 }
 
-enum Grouper {
-    ByColumn(Option<Spanned<String>>),
-}
-
-pub fn split_by(
+fn split_by(
     engine_state: &EngineState,
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
 ) -> Result<PipelineData, ShellError> {
-    let name = call.head;
+    let head = call.head;
+    let splitter: Value = call.req(engine_state, stack, 0)?;
 
-    let splitter: Option<Value> = call.opt(engine_state, stack, 0)?;
-
-    match splitter {
-        Some(v) => {
-            let splitter = Some(Spanned {
-                item: v.coerce_into_string()?,
-                span: name,
-            });
-            Ok(split(splitter.as_ref(), input, name)?)
-        }
-        // This uses the same format as the 'requires a column name' error in sort_utils.rs
-        None => Err(ShellError::GenericError {
-            error: "expected name".into(),
-            msg: "requires a column name for splitting".into(),
-            span: Some(name),
-            help: None,
-            inner: vec![],
-        }),
-    }
-}
-
-pub fn split(
-    column_name: Option<&Spanned<String>>,
-    values: PipelineData,
-    span: Span,
-) -> Result<PipelineData, ShellError> {
-    let grouper = if let Some(column_name) = column_name {
-        Grouper::ByColumn(Some(column_name.clone()))
+    if let PipelineData::Value(value, ..) = input {
+        let column = Spanned {
+            span: splitter.span(),
+            item: splitter.coerce_into_string()?,
+        };
+        let record = Spanned {
+            span: value.span(),
+            item: value.into_record()?,
+        };
+        Ok(split(record, &column, head)?)
     } else {
-        Grouper::ByColumn(None)
-    };
-
-    match grouper {
-        Grouper::ByColumn(Some(column_name)) => {
-            let block = move |_, row: &Value| {
-                let group_key = if let Value::Record { val: row, .. } = row {
-                    row.get(&column_name.item)
-                } else {
-                    None
-                };
-
-                match group_key {
-                    Some(group_key) => Ok(group_key.coerce_string()?),
-                    None => Err(ShellError::CantFindColumn {
-                        col_name: column_name.item.to_string(),
-                        span: Some(column_name.span),
-                        src_span: row.span(),
-                    }),
-                }
-            };
-
-            data_split(values, Some(&block), span)
-        }
-        Grouper::ByColumn(None) => {
-            let block = move |_, row: &Value| row.coerce_string();
-
-            data_split(values, Some(&block), span)
-        }
+        Err(input.unsupported_input_error("record", head))
     }
 }
 
-#[allow(clippy::type_complexity)]
 fn data_group(
     values: &Value,
-    grouper: Option<&dyn Fn(usize, &Value) -> Result<String, ShellError>>,
+    column_name: &Spanned<String>,
     span: Span,
 ) -> Result<Value, ShellError> {
     let mut groups: IndexMap<String, Vec<Value>> = IndexMap::new();
 
-    for (idx, value) in values.clone().into_pipeline_data().into_iter().enumerate() {
-        let group_key = if let Some(ref grouper) = grouper {
-            grouper(idx, &value)
-        } else {
-            value.coerce_string()
-        };
+    for value in values.clone().into_pipeline_data().into_iter() {
+        let key = value
+            .as_record()?
+            .get(&column_name.item)
+            .ok_or_else(|| ShellError::CantFindColumn {
+                col_name: column_name.item.clone(),
+                span: Some(column_name.span),
+                src_span: value.span(),
+            })?
+            .coerce_str()?
+            .into_owned();
 
-        let group = groups.entry(group_key?).or_default();
-        group.push(value);
+        groups.entry(key).or_default().push(value);
     }
 
-    Ok(Value::record(
-        groups
-            .into_iter()
-            .map(|(k, v)| (k, Value::list(v, span)))
-            .collect(),
-        span,
-    ))
+    Ok(groups
+        .into_iter()
+        .map(|(k, v)| (k, Value::list(v, span)))
+        .collect::<Record>()
+        .into_value(span))
 }
 
-#[allow(clippy::type_complexity)]
-pub fn data_split(
-    value: PipelineData,
-    splitter: Option<&dyn Fn(usize, &Value) -> Result<String, ShellError>>,
-    dst_span: Span,
+fn split(
+    record: Spanned<Record>,
+    column_name: &Spanned<String>,
+    head: Span,
 ) -> Result<PipelineData, ShellError> {
     let mut splits = indexmap::IndexMap::new();
 
-    match value {
-        PipelineData::Value(v, _) => {
-            let span = v.span();
-            match v {
-                Value::Record { val: grouped, .. } => {
-                    for (outer_key, list) in grouped.into_owned() {
-                        match data_group(&list, splitter, span) {
-                            Ok(grouped_vals) => {
-                                if let Value::Record { val: sub, .. } = grouped_vals {
-                                    for (inner_key, subset) in sub.into_owned() {
-                                        let s: &mut IndexMap<String, Value> =
-                                            splits.entry(inner_key).or_default();
+    for (outer_key, list) in record.item.iter() {
+        match data_group(list, column_name, record.span) {
+            Ok(grouped_vals) => {
+                if let Value::Record { val: sub, .. } = grouped_vals {
+                    for (inner_key, subset) in sub.into_owned() {
+                        let s: &mut IndexMap<String, Value> = splits.entry(inner_key).or_default();
 
-                                        s.insert(outer_key.clone(), subset.clone());
-                                    }
-                                }
-                            }
-                            Err(reason) => return Err(reason),
-                        }
+                        s.insert(outer_key.clone(), subset.clone());
                     }
                 }
-                _ => {
-                    return Err(ShellError::OnlySupportsThisInputType {
-                        exp_input_type: "Record".into(),
-                        wrong_type: v.get_type().to_string(),
-                        dst_span,
-                        src_span: v.span(),
-                    })
-                }
             }
-        }
-        PipelineData::Empty => return Err(ShellError::PipelineEmpty { dst_span }),
-        _ => {
-            return Err(ShellError::PipelineMismatch {
-                exp_input_type: "record".into(),
-                dst_span,
-                src_span: value.span().unwrap_or(Span::unknown()),
-            })
+            Err(reason) => return Err(reason),
         }
     }
 
     let record = splits
         .into_iter()
-        .map(|(k, rows)| (k, Value::record(rows.into_iter().collect(), dst_span)))
-        .collect();
+        .map(|(k, rows)| (k, Value::record(rows.into_iter().collect(), head)))
+        .collect::<Record>();
 
-    Ok(PipelineData::Value(Value::record(record, dst_span), None))
+    Ok(record.into_value(head).into_pipeline_data())
 }
 
 #[cfg(test)]

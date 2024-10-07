@@ -101,10 +101,7 @@ impl NuCompleter {
         match result.and_then(|data| data.into_value(span)) {
             Ok(value) => {
                 if let Value::List { vals, .. } = value {
-                    let result =
-                        map_value_completions(vals.iter(), Span::new(span.start, span.end), offset);
-
-                    return Some(result);
+                    return Some(map_value_completions(vals, span, offset));
                 }
             }
             Err(err) => println!("failed to eval completer block: {err}"),
@@ -470,78 +467,79 @@ fn most_left_variable(
     Some((var, sublevels))
 }
 
-pub fn map_value_completions<'a>(
-    list: impl Iterator<Item = &'a Value>,
+pub fn map_value_completions(
+    list: Vec<Value>,
     span: Span,
     offset: usize,
 ) -> Vec<SemanticSuggestion> {
-    list.filter_map(move |x| {
-        // Match for string values
-        if let Ok(s) = x.coerce_string() {
-            return Some(SemanticSuggestion {
-                suggestion: Suggestion {
-                    value: s,
+    list.into_iter()
+        .filter_map(move |x| {
+            // Match for string values
+            if let Ok(s) = x.coerce_string() {
+                return Some(SemanticSuggestion {
+                    suggestion: Suggestion {
+                        value: s,
+                        span: reedline::Span {
+                            start: span.start - offset,
+                            end: span.end - offset,
+                        },
+                        ..Suggestion::default()
+                    },
+                    kind: Some(SuggestionKind::Type(x.get_type())),
+                });
+            }
+
+            // Match for record values
+            if let Ok(record) = x.as_record() {
+                let mut suggestion = Suggestion {
+                    value: String::from(""), // Initialize with empty string
                     span: reedline::Span {
                         start: span.start - offset,
                         end: span.end - offset,
                     },
                     ..Suggestion::default()
-                },
-                kind: Some(SuggestionKind::Type(x.get_type())),
-            });
-        }
+                };
 
-        // Match for record values
-        if let Ok(record) = x.as_record() {
-            let mut suggestion = Suggestion {
-                value: String::from(""), // Initialize with empty string
-                span: reedline::Span {
-                    start: span.start - offset,
-                    end: span.end - offset,
-                },
-                ..Suggestion::default()
-            };
-
-            // Iterate the cols looking for `value` and `description`
-            record.iter().for_each(|it| {
-                // Match `value` column
-                if it.0 == "value" {
-                    // Convert the value to string
-                    if let Ok(val_str) = it.1.coerce_string() {
-                        // Update the suggestion value
-                        suggestion.value = val_str;
+                // Iterate the cols looking for `value` and `description`
+                record.iter().for_each(|it| {
+                    // Match `value` column
+                    if it.0 == "value" {
+                        // Convert the value to string
+                        if let Ok(val_str) = it.1.coerce_string() {
+                            // Update the suggestion value
+                            suggestion.value = val_str;
+                        }
                     }
-                }
 
-                // Match `description` column
-                if it.0 == "description" {
-                    // Convert the value to string
-                    if let Ok(desc_str) = it.1.coerce_string() {
-                        // Update the suggestion value
-                        suggestion.description = Some(desc_str);
+                    // Match `description` column
+                    if it.0 == "description" {
+                        // Convert the value to string
+                        if let Ok(desc_str) = it.1.coerce_string() {
+                            // Update the suggestion value
+                            suggestion.description = Some(desc_str);
+                        }
                     }
-                }
 
-                // Match `style` column
-                if it.0 == "style" {
-                    // Convert the value to string
-                    suggestion.style = match it.1 {
-                        Value::String { val, .. } => Some(lookup_ansi_color_style(val)),
-                        Value::Record { .. } => Some(color_record_to_nustyle(it.1)),
-                        _ => None,
-                    };
-                }
-            });
+                    // Match `style` column
+                    if it.0 == "style" {
+                        // Convert the value to string
+                        suggestion.style = match it.1 {
+                            Value::String { val, .. } => Some(lookup_ansi_color_style(val)),
+                            Value::Record { .. } => Some(color_record_to_nustyle(it.1)),
+                            _ => None,
+                        };
+                    }
+                });
 
-            return Some(SemanticSuggestion {
-                suggestion,
-                kind: Some(SuggestionKind::Type(x.get_type())),
-            });
-        }
+                return Some(SemanticSuggestion {
+                    suggestion,
+                    kind: Some(SuggestionKind::Type(x.get_type())),
+                });
+            }
 
-        None
-    })
-    .collect()
+            None
+        })
+        .collect()
 }
 
 #[cfg(test)]

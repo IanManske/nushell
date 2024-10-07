@@ -73,14 +73,15 @@ impl Completer for CustomCompletion {
         // Parse result
         let suggestions = result
             .and_then(|data| data.into_value(span))
-            .map(|value| match &value {
+            .map(|value| match value {
                 Value::Record { val, .. } => {
+                    let mut val = val.into_owned();
                     let completions = val
-                        .get("completions")
+                        .remove("completions")
                         .and_then(|val| {
-                            val.as_list()
+                            val.into_list()
                                 .ok()
-                                .map(|it| map_value_completions(it.iter(), span, offset))
+                                .map(|it| map_value_completions(it, span, offset))
                         })
                         .unwrap_or_default();
                     let options = val.get("options");
@@ -118,7 +119,7 @@ impl Completer for CustomCompletion {
 
                     completions
                 }
-                Value::List { vals, .. } => map_value_completions(vals.iter(), span, offset),
+                Value::List { vals, .. } => map_value_completions(vals, span, offset),
                 _ => vec![],
             })
             .unwrap_or_default();
