@@ -1,7 +1,7 @@
 use nu_plugin::{EngineInterface, EvaluatedCall, PluginCommand};
 use nu_protocol::{
-    ByteStream, ByteStreamType, Category, Example, LabeledError, PipelineData, Signals, Signature,
-    Type, Value,
+    ByteStream, ByteStreamType, Category, Example, LabeledError, PipelineData, ShellError, Signals,
+    Signature, Type, Value,
 };
 
 use crate::ExamplePlugin;
@@ -50,7 +50,15 @@ impl PluginCommand for CollectBytes {
     ) -> Result<PipelineData, LabeledError> {
         Ok(PipelineData::ByteStream(
             ByteStream::from_result_iter(
-                input.into_iter().map(Value::coerce_into_binary),
+                input.into_iter().map(|val| match val {
+                    Value::String { val, .. } => Ok(val.into_bytes()),
+                    Value::Binary { val, .. } => Ok(val),
+                    val => Err(ShellError::RuntimeTypeMismatch {
+                        expected: Type::custom("string or binary"),
+                        actual: val.get_type(),
+                        span: val.span(),
+                    })?,
+                }),
                 call.head,
                 Signals::empty(),
                 ByteStreamType::Unknown,

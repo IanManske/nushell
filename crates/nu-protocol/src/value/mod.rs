@@ -278,29 +278,6 @@ impl Value {
         }
     }
 
-    /// Returns this `Value` converted to a `f64` or an error if it cannot be converted
-    ///
-    /// Only the following `Value` cases will return an `Ok` result:
-    /// - `Int`
-    /// - `Float`
-    ///
-    /// ```
-    /// # use nu_protocol::Value;
-    /// for val in Value::test_values() {
-    ///     assert_eq!(
-    ///         matches!(val, Value::Float { .. } | Value::Int { .. }),
-    ///         val.coerce_float().is_ok(),
-    ///     );
-    /// }
-    /// ```
-    pub fn coerce_float(&self) -> Result<f64, ShellError> {
-        match self {
-            Value::Float { val, .. } => Ok(*val),
-            Value::Int { val, .. } => Ok(*val as f64),
-            val => val.cant_convert_to("float"),
-        }
-    }
-
     /// Returns the inner `i64` filesize value or an error if this `Value` is not a filesize
     pub fn as_filesize(&self) -> Result<i64, ShellError> {
         if let Value::Filesize { val, .. } = self {
@@ -586,55 +563,6 @@ impl Value {
             Ok(val)
         } else {
             self.cant_convert_to("binary")
-        }
-    }
-
-    /// Returns this `Value` as a `u8` slice or an error if it cannot be converted
-    ///
-    /// Prefer [`coerce_into_binary`](Self::coerce_into_binary)
-    /// if you do not need to keep the original `Value` around.
-    ///
-    /// Only the following `Value` cases will return an `Ok` result:
-    /// - `Binary`
-    /// - `String`
-    ///
-    /// ```
-    /// # use nu_protocol::Value;
-    /// for val in Value::test_values() {
-    ///     assert_eq!(
-    ///         matches!(val, Value::Binary { .. } | Value::String { .. }),
-    ///         val.coerce_binary().is_ok(),
-    ///     );
-    /// }
-    /// ```
-    pub fn coerce_binary(&self) -> Result<&[u8], ShellError> {
-        match self {
-            Value::Binary { val, .. } => Ok(val),
-            Value::String { val, .. } => Ok(val.as_bytes()),
-            val => val.cant_convert_to("binary"),
-        }
-    }
-
-    /// Returns this `Value` as a `Vec<u8>` or an error if it cannot be converted
-    ///
-    /// Only the following `Value` cases will return an `Ok` result:
-    /// - `Binary`
-    /// - `String`
-    ///
-    /// ```
-    /// # use nu_protocol::Value;
-    /// for val in Value::test_values() {
-    ///     assert_eq!(
-    ///         matches!(val, Value::Binary { .. } | Value::String { .. }),
-    ///         val.coerce_into_binary().is_ok(),
-    ///     );
-    /// }
-    /// ```
-    pub fn coerce_into_binary(self) -> Result<Vec<u8>, ShellError> {
-        match self {
-            Value::Binary { val, .. } => Ok(val),
-            Value::String { val, .. } => Ok(val.into_bytes()),
-            val => val.cant_convert_to("binary"),
         }
     }
 

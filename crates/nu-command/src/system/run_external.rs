@@ -356,11 +356,7 @@ fn write_pipeline_data(
         let output =
             crate::Table.run(&engine_state, &mut stack, &Call::new(Span::unknown()), data)?;
 
-        // Write the output.
-        for value in output {
-            let bytes = value.coerce_into_binary()?;
-            writer.write_all(&bytes)?;
-        }
+        output.write_to(writer)?;
     }
     Ok(())
 }

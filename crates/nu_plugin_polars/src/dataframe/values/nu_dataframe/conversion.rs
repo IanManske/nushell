@@ -408,9 +408,13 @@ fn typed_column_to_series(name: &str, column: TypedColumn) -> Result<Series, She
                 Ok(Series::new(name, series_values?))
             }
             DataType::Binary | DataType::BinaryOffset => {
-                let series_values: Result<Vec<_>, _> =
-                    column.values.iter().map(|v| v.coerce_binary()).collect();
-                Ok(Series::new(name, series_values?))
+                let series_values = column
+                    .values
+                    .iter()
+                    .map(|v| v.as_binary())
+                    .collect::<Result<Vec<_>, _>>()?
+                    .concat();
+                Ok(Series::new(name, series_values))
             }
             DataType::Object(_, _) => value_to_series(name, &column.values),
             DataType::Duration(time_unit) => {
