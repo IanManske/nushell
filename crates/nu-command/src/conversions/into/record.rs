@@ -139,7 +139,7 @@ fn into_record(call: &Call, input: PipelineData) -> Result<PipelineData, ShellEr
                     {
                         if vals.len() == 2 {
                             let (val, key) = vals.pop().zip(vals.pop()).expect("length is < 2");
-                            record.insert(key.coerce_into_string()?, val);
+                            record.insert(key.into_string()?, val);
                         } else {
                             return Err(ShellError::IncorrectValue {
                                 msg: format!(

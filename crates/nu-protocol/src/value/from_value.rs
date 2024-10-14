@@ -7,8 +7,9 @@ use chrono::{DateTime, FixedOffset};
 use std::{
     any,
     cmp::Ordering,
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     fmt,
+    hash::Hash,
     path::PathBuf,
     str::FromStr,
 };
@@ -530,16 +531,35 @@ where
     V: FromValue,
 {
     fn from_value(v: Value) -> Result<Self, ShellError> {
-        let record = v.into_record()?;
-        let items: Result<Vec<(String, V)>, ShellError> = record
+        v.into_record()?
             .into_iter()
             .map(|(k, v)| Ok((k, V::from_value(v)?)))
-            .collect();
-        Ok(HashMap::from_iter(items?))
+            .collect()
     }
 
     fn expected_type() -> Type {
         Type::Record(vec![].into_boxed_slice())
+    }
+}
+
+impl<T> FromValue for HashSet<T>
+where
+    T: FromValue + Eq + Hash,
+{
+    fn from_value(v: Value) -> Result<Self, ShellError> {
+        match v {
+            Value::List { vals, .. } => vals.into_iter().map(T::from_value).collect(),
+            v => Err(ShellError::CantConvert {
+                to_type: Self::expected_type().to_string(),
+                from_type: v.get_type().to_string(),
+                span: v.span(),
+                help: None,
+            }),
+        }
+    }
+
+    fn expected_type() -> Type {
+        Type::List(Box::new(T::expected_type()))
     }
 }
 
@@ -549,10 +569,7 @@ where
 {
     fn from_value(v: Value) -> Result<Self, ShellError> {
         match v {
-            Value::List { vals, .. } => vals
-                .into_iter()
-                .map(|v| T::from_value(v))
-                .collect::<Result<Vec<T>, ShellError>>(),
+            Value::List { vals, .. } => vals.into_iter().map(T::from_value).collect(),
             v => Err(ShellError::CantConvert {
                 to_type: Self::expected_type().to_string(),
                 from_type: v.get_type().to_string(),

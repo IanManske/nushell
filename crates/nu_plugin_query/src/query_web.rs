@@ -497,7 +497,7 @@ mod tests {
                     .into_list()
                     .unwrap()
                     .into_iter()
-                    .map(|text_nodes| text_nodes.coerce_into_string().unwrap())
+                    .map(|text_nodes| text_nodes.into_string().unwrap())
                     .collect::<Vec<String>>()
             })
             .collect::<Vec<Vec<String>>>();
@@ -533,7 +533,7 @@ mod tests {
                     .into_record()
                     .unwrap()
                     .into_iter()
-                    .map(|(key, value)| (key, value.coerce_into_string().unwrap()))
+                    .map(|(key, value)| (key, value.into_string().unwrap()))
                     .collect::<Vec<(String, String)>>()
             })
             .collect::<Vec<Vec<(String, String)>>>();

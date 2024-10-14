@@ -97,30 +97,22 @@ impl Command for SubCommand {
     }
 }
 
-fn value_to_color(v: Option<Value>) -> Result<Option<Rgb>, ShellError> {
-    let s = match v {
-        None => return Ok(None),
-        Some(x) => x.coerce_into_string()?,
-    };
-    Ok(Some(Rgb::from_hex_string(s)))
-}
-
 fn operate(
     engine_state: &EngineState,
     stack: &mut Stack,
     call: &Call,
     input: PipelineData,
 ) -> Result<PipelineData, ShellError> {
-    let fgstart: Option<Value> = call.get_flag(engine_state, stack, "fgstart")?;
-    let fgend: Option<Value> = call.get_flag(engine_state, stack, "fgend")?;
-    let bgstart: Option<Value> = call.get_flag(engine_state, stack, "bgstart")?;
-    let bgend: Option<Value> = call.get_flag(engine_state, stack, "bgend")?;
+    let fgstart: Option<String> = call.get_flag(engine_state, stack, "fgstart")?;
+    let fgend: Option<String> = call.get_flag(engine_state, stack, "fgend")?;
+    let bgstart: Option<String> = call.get_flag(engine_state, stack, "bgstart")?;
+    let bgend: Option<String> = call.get_flag(engine_state, stack, "bgend")?;
     let column_paths: Vec<CellPath> = call.rest(engine_state, stack, 0)?;
 
-    let fgs_hex = value_to_color(fgstart)?;
-    let fge_hex = value_to_color(fgend)?;
-    let bgs_hex = value_to_color(bgstart)?;
-    let bge_hex = value_to_color(bgend)?;
+    let fgs_hex = fgstart.map(Rgb::from_hex_string);
+    let fge_hex = fgend.map(Rgb::from_hex_string);
+    let bgs_hex = bgstart.map(Rgb::from_hex_string);
+    let bge_hex = bgend.map(Rgb::from_hex_string);
     let head = call.head;
     input.map(
         move |v| {

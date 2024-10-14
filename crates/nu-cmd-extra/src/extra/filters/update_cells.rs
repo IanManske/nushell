@@ -20,7 +20,7 @@ impl Command for UpdateCells {
             )
             .named(
                 "columns",
-                SyntaxShape::List(Box::new(SyntaxShape::Any)),
+                SyntaxShape::List(Box::new(SyntaxShape::String)),
                 "list of columns to update",
                 Some('c'),
             )
@@ -89,16 +89,7 @@ impl Command for UpdateCells {
     ) -> Result<PipelineData, ShellError> {
         let head = call.head;
         let closure: Closure = call.req(engine_state, stack, 0)?;
-        let columns: Option<Value> = call.get_flag(engine_state, stack, "columns")?;
-        let columns: Option<HashSet<String>> = match columns {
-            Some(val) => Some(
-                val.into_list()?
-                    .into_iter()
-                    .map(Value::coerce_into_string)
-                    .collect::<Result<HashSet<String>, ShellError>>()?,
-            ),
-            None => None,
-        };
+        let columns: Option<HashSet<String>> = call.get_flag(engine_state, stack, "columns")?;
 
         let metadata = input.metadata();
 

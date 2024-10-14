@@ -116,26 +116,14 @@ impl Command for SeqDate {
         call: &Call,
         _input: PipelineData,
     ) -> Result<PipelineData, ShellError> {
-        let output_format: Option<Spanned<String>> =
-            call.get_flag(engine_state, stack, "output-format")?;
-        let input_format: Option<Spanned<String>> =
-            call.get_flag(engine_state, stack, "input-format")?;
+        let output_format: Option<String> = call.get_flag(engine_state, stack, "output-format")?;
+        let input_format: Option<String> = call.get_flag(engine_state, stack, "input-format")?;
         let begin_date: Option<Spanned<String>> =
             call.get_flag(engine_state, stack, "begin-date")?;
         let end_date: Option<Spanned<String>> = call.get_flag(engine_state, stack, "end-date")?;
         let increment: Option<Spanned<i64>> = call.get_flag(engine_state, stack, "increment")?;
         let days: Option<Spanned<i64>> = call.get_flag(engine_state, stack, "days")?;
         let reverse = call.has_flag(engine_state, stack, "reverse")?;
-
-        let outformat = match output_format {
-            Some(s) => Some(Value::string(s.item, s.span)),
-            _ => None,
-        };
-
-        let informat = match input_format {
-            Some(s) => Some(Value::string(s.item, s.span)),
-            _ => None,
-        };
 
         let begin = match begin_date {
             Some(s) => Some(s.item),
@@ -160,7 +148,14 @@ impl Command for SeqDate {
         }
 
         Ok(run_seq_dates(
-            outformat, informat, begin, end, inc, day_count, rev, call.head,
+            output_format,
+            input_format,
+            begin,
+            end,
+            inc,
+            day_count,
+            rev,
+            call.head,
         )?
         .into_pipeline_data())
     }
@@ -176,8 +171,8 @@ pub fn parse_date_string(s: &str, format: &str) -> Result<NaiveDate, &'static st
 
 #[allow(clippy::too_many_arguments)]
 pub fn run_seq_dates(
-    output_format: Option<Value>,
-    input_format: Option<Value>,
+    output_format: Option<String>,
+    input_format: Option<String>,
     beginning_date: Option<String>,
     ending_date: Option<String>,
     increment: Value,
@@ -199,37 +194,8 @@ pub fn run_seq_dates(
         });
     }
 
-    let in_format = match input_format {
-        Some(i) => match i.coerce_into_string() {
-            Ok(v) => v,
-            Err(e) => {
-                return Err(ShellError::GenericError {
-                    error: e.to_string(),
-                    msg: "".into(),
-                    span: None,
-                    help: Some("error with input_format as_string".into()),
-                    inner: vec![],
-                });
-            }
-        },
-        _ => "%Y-%m-%d".to_string(),
-    };
-
-    let out_format = match output_format {
-        Some(o) => match o.coerce_into_string() {
-            Ok(v) => v,
-            Err(e) => {
-                return Err(ShellError::GenericError {
-                    error: e.to_string(),
-                    msg: "".into(),
-                    span: None,
-                    help: Some("error with output_format as_string".into()),
-                    inner: vec![],
-                });
-            }
-        },
-        _ => "%Y-%m-%d".to_string(),
-    };
+    let in_format = input_format.unwrap_or_else(|| "%Y-%m-%d".into());
+    let out_format = output_format.unwrap_or_else(|| "%Y-%m-%d".into());
 
     let start_date = match beginning_date {
         Some(d) => match parse_date_string(&d, &in_format) {

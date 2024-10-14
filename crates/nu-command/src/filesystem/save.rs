@@ -201,7 +201,7 @@ impl Command for Save {
 
                 let (mut file, _) = get_files(&path, stderr_path.as_ref(), append, force)?;
                 for val in ls {
-                    file.write_all(&value_to_bytes(val)?)
+                    file.write_all(&val.into_bytes()?)
                         .map_err(|err| ShellError::IOError {
                             msg: err.to_string(),
                         })?;
@@ -341,7 +341,7 @@ fn input_to_bytes(
         input
     };
 
-    value_to_bytes(input.into_value(span)?)
+    input.into_value(span)?.into_bytes()
 }
 
 /// Convert given data into content of file of specified extension if
@@ -366,29 +366,6 @@ fn convert_to_extension(
         }
     } else {
         Ok(input)
-    }
-}
-
-/// Convert [`Value::String`] [`Value::Binary`] or [`Value::List`] into [`Vec`] of bytes
-///
-/// Propagates [`Value::Error`] and creates error otherwise
-fn value_to_bytes(value: Value) -> Result<Vec<u8>, ShellError> {
-    match value {
-        Value::String { val, .. } => Ok(val.into_bytes()),
-        Value::Binary { val, .. } => Ok(val),
-        Value::List { vals, .. } => {
-            let val = vals
-                .into_iter()
-                .map(Value::coerce_into_string)
-                .collect::<Result<Vec<String>, ShellError>>()?
-                .join("\n")
-                + "\n";
-
-            Ok(val.into_bytes())
-        }
-        // Propagate errors by explicitly matching them before the final case.
-        Value::Error { error, .. } => Err(*error),
-        other => Ok(other.coerce_into_string()?.into_bytes()),
     }
 }
 

@@ -247,15 +247,12 @@ pub fn eval_arguments_from_call(
     Ok(args)
 }
 
-/// Custom `coerce_into_string()`, including globs, since those are often args to `run-external`
-/// as well
 fn coerce_into_string(engine_state: &EngineState, val: Value) -> Result<String, ShellError> {
     match val {
         Value::List { .. } => Err(ShellError::CannotPassListToExternal {
             arg: String::from_utf8_lossy(engine_state.get_span_contents(val.span())).into_owned(),
             span: val.span(),
         }),
-        Value::Glob { val, .. } => Ok(val),
         _ => val.coerce_into_string(),
     }
 }

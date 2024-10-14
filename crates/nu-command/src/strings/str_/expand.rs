@@ -218,7 +218,7 @@ fn run(
     input.map(
         move |v| {
             let value_span = v.span();
-            match v.coerce_into_string() {
+            match v.into_string() {
                 Ok(s) => {
                     let contents = if is_path { s.replace('\\', "\\\\") } else { s };
                     str_expand(&contents, span, value_span)

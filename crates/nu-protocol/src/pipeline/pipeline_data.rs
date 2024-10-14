@@ -172,15 +172,13 @@ impl PipelineData {
         match self {
             PipelineData::Empty => Ok(()),
             PipelineData::Value(value, ..) => {
-                let bytes = value_to_bytes(value)?;
-                dest.write_all(&bytes)?;
+                dest.write_all(&value.into_bytes()?)?;
                 dest.flush()?;
                 Ok(())
             }
             PipelineData::ListStream(stream, ..) => {
                 for value in stream {
-                    let bytes = value_to_bytes(value)?;
-                    dest.write_all(&bytes)?;
+                    dest.write_all(&value.into_bytes()?)?;
                     dest.write_all(b"\n")?;
                 }
                 dest.flush()?;
@@ -777,25 +775,4 @@ where
             metadata.into(),
         )
     }
-}
-
-fn value_to_bytes(value: Value) -> Result<Vec<u8>, ShellError> {
-    let bytes = match value {
-        Value::String { val, .. } => val.into_bytes(),
-        Value::Binary { val, .. } => val,
-        Value::List { vals, .. } => {
-            let val = vals
-                .into_iter()
-                .map(Value::coerce_into_string)
-                .collect::<Result<Vec<String>, ShellError>>()?
-                .join("\n")
-                + "\n";
-
-            val.into_bytes()
-        }
-        // Propagate errors by explicitly matching them before the final case.
-        Value::Error { error, .. } => return Err(*error),
-        value => value.coerce_into_string()?.into_bytes(),
-    };
-    Ok(bytes)
 }

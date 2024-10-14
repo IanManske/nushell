@@ -61,7 +61,7 @@ impl Command for Open {
             let (filename, span) = match input {
                 PipelineData::Value(val, ..) => {
                     let span = val.span();
-                    (val.coerce_into_string()?, span)
+                    (val.into_string()?, span)
                 }
                 _ => {
                     return Err(ShellError::MissingParameter {

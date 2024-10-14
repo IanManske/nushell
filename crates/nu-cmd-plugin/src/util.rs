@@ -104,5 +104,5 @@ pub(crate) fn get_plugin_dirs(
         .into_iter()
         .flat_map(|value| value.into_list().ok())
         .flatten()
-        .flat_map(|list_item| list_item.coerce_into_string().ok())
+        .flat_map(|list_item| list_item.into_string().ok())
 }

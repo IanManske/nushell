@@ -62,8 +62,7 @@ impl Command for FormatFilesize {
         input: PipelineData,
     ) -> Result<PipelineData, ShellError> {
         let format_value = call
-            .req::<Value>(engine_state, stack, 0)?
-            .coerce_into_string()?
+            .req::<String>(engine_state, stack, 0)?
             .to_ascii_lowercase();
         let cell_paths: Vec<CellPath> = call.rest(engine_state, stack, 1)?;
         let cell_paths = (!cell_paths.is_empty()).then_some(cell_paths);
@@ -87,8 +86,7 @@ impl Command for FormatFilesize {
         input: PipelineData,
     ) -> Result<PipelineData, ShellError> {
         let format_value = call
-            .req_const::<Value>(working_set, 0)?
-            .coerce_into_string()?
+            .req_const::<String>(working_set, 0)?
             .to_ascii_lowercase();
         let cell_paths: Vec<CellPath> = call.rest_const(working_set, 1)?;
         let cell_paths = (!cell_paths.is_empty()).then_some(cell_paths);

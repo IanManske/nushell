@@ -42,7 +42,7 @@ impl Command for NuHighlight {
         };
 
         input.map(
-            move |x| match x.coerce_into_string() {
+            move |x| match x.into_string() {
                 Ok(line) => {
                     let highlights = highlighter.highlight(&line, line.len());
                     Value::string(highlights.render_simple(), head)

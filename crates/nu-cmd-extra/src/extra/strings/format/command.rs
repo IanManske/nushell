@@ -37,7 +37,7 @@ impl Command for FormatPattern {
     ) -> Result<PipelineData, ShellError> {
         let mut working_set = StateWorkingSet::new(engine_state);
 
-        let specified_pattern: Result<Value, ShellError> = call.req(engine_state, stack, 0);
+        let pattern: Spanned<String> = call.req(engine_state, stack, 0)?;
         let input_val = input.into_value(call.head)?;
         // add '$it' variable to support format like this: $it.column1.column2.
         let it_id = working_set.add_variable(b"$it".to_vec(), call.head, Type::Any, false);
@@ -45,22 +45,11 @@ impl Command for FormatPattern {
 
         let config = stack.get_config(engine_state);
 
-        match specified_pattern {
-            Err(e) => Err(e),
-            Ok(pattern) => {
-                let string_span = pattern.span();
-                let string_pattern = pattern.coerce_into_string()?;
-                // the string span is start as `"`, we don't need the character
-                // to generate proper span for sub expression.
-                let ops = extract_formatting_operations(
-                    string_pattern,
-                    call.head,
-                    string_span.start + 1,
-                )?;
+        // the string span is start as `"`, we don't need the character
+        // to generate proper span for sub expression.
+        let ops = extract_formatting_operations(pattern.item, call.head, pattern.span.start + 1)?;
 
-                format(input_val, &ops, engine_state, &config, call.head)
-            }
-        }
+        format(input_val, &ops, engine_state, &config, call.head)
     }
 
     fn examples(&self) -> Vec<Example> {

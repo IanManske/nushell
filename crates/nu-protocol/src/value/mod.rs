@@ -602,6 +602,29 @@ impl Value {
         }
     }
 
+    /// Convert [`Value::String`], [`Value::Binary`], or [`Value::List`] into a [`Vec`] of bytes.
+    ///
+    /// Propagates [`Value::Error`] and creates error otherwise.
+    pub fn into_bytes(self) -> Result<Vec<u8>, ShellError> {
+        match self {
+            Value::String { val, .. } => Ok(val.into_bytes()),
+            Value::Binary { val, .. } => Ok(val),
+            Value::List { vals, .. } => {
+                let val = vals
+                    .into_iter()
+                    .map(Value::coerce_into_string)
+                    .collect::<Result<Vec<String>, ShellError>>()?
+                    .join("\n")
+                    + "\n";
+
+                Ok(val.into_bytes())
+            }
+            // Propagate errors by explicitly matching them before the final case.
+            Value::Error { error, .. } => Err(*error),
+            value => Ok(value.coerce_into_string()?.into_bytes()),
+        }
+    }
+
     /// Get the span for the current value
     pub fn span(&self) -> Span {
         match self {

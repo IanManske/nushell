@@ -18,7 +18,7 @@ impl Command for IntoValue {
             .input_output_types(vec![(Type::table(), Type::table())])
             .named(
                 "columns",
-                SyntaxShape::Table(vec![]),
+                SyntaxShape::List(Box::new(SyntaxShape::String)),
                 "list of columns to update",
                 Some('c'),
             )
@@ -66,16 +66,7 @@ impl Command for IntoValue {
         let display_as_filesizes = call.has_flag(engine_state, stack, "prefer-filesizes")?;
 
         // the columns to update
-        let columns: Option<Value> = call.get_flag(engine_state, stack, "columns")?;
-        let columns: Option<HashSet<String>> = match columns {
-            Some(val) => Some(
-                val.into_list()?
-                    .into_iter()
-                    .map(Value::coerce_into_string)
-                    .collect::<Result<HashSet<String>, ShellError>>()?,
-            ),
-            None => None,
-        };
+        let columns: Option<HashSet<String>> = call.get_flag(engine_state, stack, "columns")?;
 
         Ok(UpdateCellIterator {
             input: input.into_iter(),
