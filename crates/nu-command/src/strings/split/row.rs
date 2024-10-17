@@ -183,14 +183,14 @@ fn split_row_helper(v: &Value, regex: &Regex, max_split: Option<usize>, name: Sp
         v => {
             let v_span = v.span();
 
-            if let Ok(s) = v.coerce_str() {
+            if let Ok(s) = v.as_str() {
                 match max_split {
                     Some(max_split) => regex
-                        .splitn(&s, max_split)
+                        .splitn(s, max_split)
                         .map(|x: &str| Value::string(x, v_span))
                         .collect(),
                     None => regex
-                        .split(&s)
+                        .split(s)
                         .map(|x: &str| Value::string(x, v_span))
                         .collect(),
                 }

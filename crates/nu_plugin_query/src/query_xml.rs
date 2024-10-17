@@ -53,8 +53,7 @@ pub fn execute_xpath_query(
     };
 
     let xpath = build_xpath(query_string, span)?;
-    let input_string = input.coerce_str()?;
-    let package = parser::parse(&input_string);
+    let package = parser::parse(input.as_str()?);
 
     if let Err(err) = package {
         return Err(

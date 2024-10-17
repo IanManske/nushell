@@ -172,8 +172,8 @@ enum Matcher {
 impl Matcher {
     pub fn new(regex: bool, lhs: Value) -> Result<Self, ShellError> {
         if regex {
-            Ok(Matcher::Regex(Regex::new(&lhs.coerce_str()?).map_err(
-                |e| ShellError::GenericError {
+            Ok(Matcher::Regex(Regex::new(lhs.as_str()?).map_err(|e| {
+                ShellError::GenericError {
                     error: "Error with regular expression".into(),
                     msg: e.to_string(),
                     span: match lhs {
@@ -182,8 +182,8 @@ impl Matcher {
                     },
                     help: None,
                     inner: vec![],
-                },
-            )?))
+                }
+            })?))
         } else {
             Ok(Matcher::Direct(lhs))
         }
@@ -192,8 +192,8 @@ impl Matcher {
     pub fn compare(&self, rhs: &Value) -> Result<bool, ShellError> {
         Ok(match self {
             Matcher::Regex(regex) => {
-                if let Ok(rhs_str) = rhs.coerce_str() {
-                    regex.is_match(&rhs_str)
+                if let Ok(rhs_str) = rhs.as_str() {
+                    regex.is_match(rhs_str)
                 } else {
                     false
                 }

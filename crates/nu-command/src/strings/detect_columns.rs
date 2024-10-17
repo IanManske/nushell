@@ -543,7 +543,7 @@ fn merge_record_impl(
         .iter()
         .take(end_index)
         .skip(start_index)
-        .map(|v| v.coerce_str().unwrap_or_default())
+        .map(|v| v.as_str().unwrap_or_default())
         .join(" ");
     let binding = Value::string(combined, Span::unknown());
     let last_seg = vals.split_off(end_index);

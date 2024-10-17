@@ -338,9 +338,9 @@ pub fn nu_repl() {
 
         if let Some(cwd) = stack.get_env_var(&engine_state, "PWD") {
             let path = cwd
-                .coerce_str()
+                .as_str()
                 .unwrap_or_else(|err| outcome_err(&engine_state, &err));
-            let _ = std::env::set_current_dir(path.as_ref());
+            let _ = std::env::set_current_dir(path);
             engine_state.add_env_var("PWD".into(), cwd.clone());
         }
         top_stack = Arc::new(Stack::with_changes_from_child(top_stack, stack));

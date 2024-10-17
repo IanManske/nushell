@@ -40,7 +40,7 @@ pub fn execute_json_query(
     input: &Value,
     query: Option<Spanned<String>>,
 ) -> Result<Value, LabeledError> {
-    let input_string = match input.coerce_str() {
+    let input_string = match input.as_str() {
         Ok(s) => s,
         Err(e) => {
             return Err(LabeledError::new("Problem with input data").with_inner(e));
@@ -56,7 +56,7 @@ pub fn execute_json_query(
     };
 
     // Validate the json before trying to query it
-    let is_valid_json = gjson::valid(&input_string);
+    let is_valid_json = gjson::valid(input_string);
 
     if !is_valid_json {
         return Err(
@@ -64,7 +64,7 @@ pub fn execute_json_query(
         );
     }
 
-    let val: gjValue = gjson::get(&input_string, query_string);
+    let val: gjValue = gjson::get(input_string, query_string);
 
     if query_contains_modifiers(query_string) {
         let json_str = val.json();

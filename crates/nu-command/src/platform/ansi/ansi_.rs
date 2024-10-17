@@ -740,9 +740,9 @@ fn heavy_lifting(
         });
     }
     let code_string = if param_is_string {
-        code.coerce_str().expect("error getting code as string")
+        code.as_str().expect("error getting code as string")
     } else {
-        "".into()
+        ""
     };
     let param_is_valid_string = param_is_string && !code_string.is_empty();
     if (escape || osc) && (param_is_valid_string) {
@@ -767,7 +767,7 @@ fn heavy_lifting(
     } else if param_is_valid_string {
         // parse hex colors like #00FF00
         if code_string.starts_with('#') {
-            match nu_color_config::color_from_hex(&code_string) {
+            match nu_color_config::color_from_hex(code_string) {
                 Ok(color) => match color {
                     Some(c) => c.prefix().to_string(),
                     None => Color::White.prefix().to_string(),
@@ -783,7 +783,7 @@ fn heavy_lifting(
                 }
             }
         } else {
-            match str_to_ansi(&code_string) {
+            match str_to_ansi(code_string) {
                 Some(c) => c,
                 None => {
                     return Err(ShellError::TypeMismatch {

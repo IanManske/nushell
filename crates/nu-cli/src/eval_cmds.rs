@@ -32,7 +32,7 @@ pub fn evaluate_commands(
 
     // Handle the configured error style early
     if let Some(e_style) = error_style {
-        match e_style.coerce_str()?.parse() {
+        match e_style.as_str()?.parse() {
             Ok(e_style) => {
                 Arc::make_mut(&mut engine_state.config).error_style = e_style;
             }
@@ -55,7 +55,7 @@ pub fn evaluate_commands(
     let (block, delta) = {
         if let Some(ref t_mode) = table_mode {
             Arc::make_mut(&mut engine_state.config).table.mode =
-                t_mode.coerce_str()?.parse().unwrap_or_default();
+                t_mode.as_str()?.parse().unwrap_or_default();
         }
 
         let mut working_set = StateWorkingSet::new(engine_state);
@@ -90,7 +90,7 @@ pub fn evaluate_commands(
 
     if let Some(t_mode) = table_mode {
         Arc::make_mut(&mut engine_state.config).table.mode =
-            t_mode.coerce_str()?.parse().unwrap_or_default();
+            t_mode.as_str()?.parse().unwrap_or_default();
     }
 
     pipeline.print(engine_state, stack, no_newline, false)?;

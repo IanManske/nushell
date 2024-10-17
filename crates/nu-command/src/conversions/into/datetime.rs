@@ -268,11 +268,11 @@ fn action(input: &Value, args: &Arguments, head: Span) -> Value {
     // Let's try dtparse first
     if matches!(input, Value::String { .. }) && dateformat.is_none() {
         let span = input.span();
-        if let Ok(input_val) = input.coerce_str() {
-            match parse_date_from_string(&input_val, span) {
+        if let Ok(input_val) = input.as_str() {
+            match parse_date_from_string(input_val, span) {
                 Ok(date) => return Value::date(date, span),
                 Err(_) => {
-                    if let Ok(date) = from_human_time(&input_val) {
+                    if let Ok(date) = from_human_time(input_val) {
                         match date {
                             ParseResult::Date(date) => {
                                 let time = NaiveTime::from_hms_opt(0, 0, 0).expect("valid time");

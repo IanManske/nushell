@@ -36,10 +36,10 @@ impl SimplePluginCommand for FromIni {
         input: &Value,
     ) -> Result<Value, LabeledError> {
         let span = input.span();
-        let input_string = input.coerce_str()?;
+        let input_string = input.as_str()?;
         let head = call.head;
 
-        let ini_config: Result<ini::Ini, ini::ParseError> = ini::Ini::load_from_str(&input_string);
+        let ini_config: Result<ini::Ini, ini::ParseError> = ini::Ini::load_from_str(input_string);
         match ini_config {
             Ok(config) => {
                 let mut sections = Record::new();

@@ -255,32 +255,32 @@ fn merge_record(record: &Record, head: Span, span: Span) -> Result<PathBuf, Shel
 
     #[cfg(windows)]
     if let Some(val) = record.get("prefix") {
-        let p = val.coerce_str()?;
+        let p = val.as_str()?;
         if !p.is_empty() {
             result.push(p.as_ref());
         }
     }
 
     if let Some(val) = record.get("parent") {
-        let p = val.coerce_str()?;
+        let p = val.as_str()?;
         if !p.is_empty() {
-            result.push(p.as_ref());
+            result.push(p);
         }
     }
 
     let mut basename = String::new();
     if let Some(val) = record.get("stem") {
-        let p = val.coerce_str()?;
+        let p = val.as_str()?;
         if !p.is_empty() {
-            basename.push_str(&p);
+            basename.push_str(p);
         }
     }
 
     if let Some(val) = record.get("extension") {
-        let p = val.coerce_str()?;
+        let p = val.as_str()?;
         if !p.is_empty() {
             basename.push('.');
-            basename.push_str(&p);
+            basename.push_str(p);
         }
     }
 
