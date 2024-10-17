@@ -1,6 +1,6 @@
 use chrono::{DateTime, FixedOffset};
 use nu_path::AbsolutePathBuf;
-use nu_protocol::{ast::PathMember, record, Span, Value};
+use nu_protocol::{record, Span, Value};
 use nu_test_support::{
     fs::{line_ending, Stub},
     nu, pipeline,
@@ -314,21 +314,7 @@ fn into_sqlite_big_insert() {
 
         // write the header
         for row in std::iter::repeat_with(TestRow::random).take(NUM_ROWS) {
-            let mut value: Value = row.clone().into();
-
-            // HACK: Convert to a string to get around this: https://github.com/nushell/nushell/issues/9186
-            value
-                .upsert_cell_path(
-                    &[PathMember::String {
-                        val: "somedate".into(),
-                        span: Span::unknown(),
-                        optional: false,
-                    }],
-                    Box::new(|dateval| {
-                        Value::string(dateval.coerce_string().unwrap(), dateval.span())
-                    }),
-                )
-                .unwrap();
+            let value = row.clone().into();
 
             let nuon = nuon::to_nuon(&value, nuon::ToStyle::Raw, Some(Span::unknown())).unwrap()
                 + &line_ending();

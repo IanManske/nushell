@@ -108,16 +108,10 @@ impl Inc {
         match value {
             Value::Int { val, .. } => Ok(Value::int(val + 1, head)),
             Value::String { val, .. } => Ok(self.apply(val, head)),
-            x => {
-                let msg = x.coerce_string().map_err(|e| {
-                    LabeledError::new("Unable to extract string").with_label(
-                        format!("value cannot be converted to string {x:?} - {e}"),
-                        head,
-                    )
-                })?;
-
-                Err(LabeledError::new("Incorrect value").with_label(msg, head))
-            }
+            val => Err(LabeledError::new("Type mismatch").with_label(
+                format!("Expected int or string, but got {}", val.get_type()),
+                val.span(),
+            )),
         }
     }
 }

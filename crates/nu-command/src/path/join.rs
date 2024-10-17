@@ -206,7 +206,7 @@ fn join_single(path: &Path, head: Span, args: &Arguments) -> Value {
 }
 
 fn join_list(parts: &[Value], head: Span, span: Span, args: &Arguments) -> Value {
-    let path: Result<PathBuf, ShellError> = parts.iter().map(Value::coerce_string).collect();
+    let path: Result<PathBuf, ShellError> = parts.iter().map(Value::as_str).collect();
 
     match path {
         Ok(ref path) => join_single(path, head, args),

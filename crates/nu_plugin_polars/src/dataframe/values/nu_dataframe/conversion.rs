@@ -403,7 +403,7 @@ fn typed_column_to_series(name: &str, column: TypedColumn) -> Result<Series, She
                 let series_values: Result<Vec<_>, _> = column
                     .values
                     .iter()
-                    .map(|v| value_to_option(v, |v| v.coerce_string()))
+                    .map(|v| value_to_option(v, |v| v.as_str().map(String::from)))
                     .collect();
                 Ok(Series::new(name, series_values?))
             }
@@ -662,10 +662,10 @@ fn input_type_list_to_series(
                 let value_list = v
                     .as_list()?
                     .iter()
-                    .map(|v| v.coerce_string())
-                    .collect::<Result<Vec<String>, _>>()
+                    .map(|v| v.as_str())
+                    .collect::<Result<Vec<_>, _>>()
                     .map_err(inconsistent_error)?;
-                builder.append_values_iter(value_list.iter().map(AsRef::as_ref));
+                builder.append_values_iter(value_list.into_iter());
             }
             let res = builder.finish();
             Ok(res.into_series())

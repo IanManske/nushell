@@ -23,16 +23,12 @@ impl GStat {
         path: Option<Spanned<String>>,
         span: Span,
     ) -> Result<Value, LabeledError> {
-        // use std::any::Any;
-        // eprintln!("input type: {:?} value: {:#?}", &value.type_id(), &value);
-        // eprintln!("path type: {:?} value: {:#?}", &path.type_id(), &path);
-
         // If the path isn't set, get it from input, and failing that, set to "."
         let path = match path {
             Some(path) => path,
             None => {
                 if !value.is_nothing() {
-                    value.coerce_string()?.into_spanned(value.span())
+                    value.as_str()?.to_owned().into_spanned(value.span())
                 } else {
                     String::from(".").into_spanned(span)
                 }
