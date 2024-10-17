@@ -69,6 +69,7 @@ pub trait Eval {
                     match item {
                         RecordItem::Pair(col, val) => {
                             // avoid duplicate cols
+                            #[allow(deprecated)]
                             let col_name = Self::eval::<D>(state, mut_state, col)?.coerce_into_string()?;
                             let col_span = col.span(&state);
                             if let Some(orig_span) = col_names.get(&col_name) {
@@ -114,6 +115,7 @@ pub trait Eval {
             Expr::Table(table) => {
                 let mut output_headers = vec![];
                 for expr in table.columns.as_ref() {
+                    #[allow(deprecated)]
                     let header = Self::eval::<D>(state, mut_state, expr)?.coerce_into_string()?;
                     if let Some(idx) = output_headers
                         .iter()

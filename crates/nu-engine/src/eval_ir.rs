@@ -598,6 +598,7 @@ fn eval_instruction<D: DebugContext>(
             let record_span = record_value.span();
             let mut record = record_value.into_record()?;
 
+            #[allow(deprecated)]
             let key = key.coerce_into_string()?;
             if let Some(old_value) = record.insert(&key, val) {
                 return Err(ShellError::ColumnDefinedTwice {

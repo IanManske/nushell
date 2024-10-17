@@ -89,6 +89,7 @@ pub fn split_by(
 
     match splitter {
         Some(v) => {
+            #[allow(deprecated)]
             let splitter = Some(Spanned {
                 item: v.coerce_into_string()?,
                 span: name,
@@ -127,6 +128,7 @@ pub fn split(
                 };
 
                 match group_key {
+                    #[allow(deprecated)]
                     Some(group_key) => Ok(group_key.coerce_string()?),
                     None => Err(ShellError::CantFindColumn {
                         col_name: column_name.item.to_string(),
@@ -139,6 +141,7 @@ pub fn split(
             data_split(values, Some(&block), span)
         }
         Grouper::ByColumn(None) => {
+            #[allow(deprecated)]
             let block = move |_, row: &Value| row.coerce_string();
 
             data_split(values, Some(&block), span)
@@ -155,6 +158,7 @@ fn data_group(
     let mut groups: IndexMap<String, Vec<Value>> = IndexMap::new();
 
     for (idx, value) in values.clone().into_pipeline_data().into_iter().enumerate() {
+        #[allow(deprecated)]
         let group_key = if let Some(ref grouper) = grouper {
             grouper(idx, &value)
         } else {

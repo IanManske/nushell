@@ -131,6 +131,7 @@ impl Iterator for UpdateCellIterator {
 // for a particular datatype. If it does, it will convert the cell to that datatype.
 fn process_cell(val: Value, display_as_filesizes: bool, span: Span) -> Result<Value, ShellError> {
     // step 1: convert value to string
+    #[allow(deprecated)]
     let val_str = val.coerce_str().unwrap_or_default();
 
     // step 2: bounce string up against regexes

@@ -75,11 +75,13 @@ fn convert_to_suggestions(
 ) -> Vec<Suggestion> {
     match value {
         Value::Record { val, .. } => {
+            #[allow(deprecated)]
             let text = val
                 .get("value")
                 .and_then(|val| val.coerce_string().ok())
                 .unwrap_or_else(|| "No value key".to_string());
 
+            #[allow(deprecated)]
             let description = val
                 .get("description")
                 .and_then(|val| val.coerce_string().ok());

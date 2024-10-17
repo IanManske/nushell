@@ -1,7 +1,7 @@
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use nu_parser::trim_quotes_str;
 use nu_protocol::{CompletionAlgorithm, CompletionSort};
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
 /// Describes how suggestions should be matched.
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -57,11 +57,11 @@ impl From<CompletionAlgorithm> for MatchAlgorithm {
     }
 }
 
-impl TryFrom<String> for MatchAlgorithm {
-    type Error = InvalidMatchAlgorithm;
+impl FromStr for MatchAlgorithm {
+    type Err = InvalidMatchAlgorithm;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        match value.as_str() {
+    fn from_str(str: &str) -> Result<Self, Self::Err> {
+        match str {
             "prefix" => Ok(Self::Prefix),
             "fuzzy" => Ok(Self::Fuzzy),
             _ => Err(InvalidMatchAlgorithm::Unknown),

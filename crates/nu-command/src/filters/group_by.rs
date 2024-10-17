@@ -176,6 +176,7 @@ fn group_cell_path(
             continue; // likely the result of a failed optional access, ignore this value
         }
 
+        #[allow(deprecated)]
         let key = key.coerce_string()?;
         groups.entry(key).or_default().push(value);
     }
@@ -187,6 +188,7 @@ fn group_no_grouper(values: Vec<Value>) -> Result<IndexMap<String, Vec<Value>>, 
     let mut groups = IndexMap::<_, Vec<_>>::new();
 
     for value in values.into_iter() {
+        #[allow(deprecated)]
         let key = value.coerce_string()?;
         groups.entry(key).or_default().push(value);
     }
@@ -205,6 +207,7 @@ fn group_closure(
     let mut closure = ClosureEval::new(engine_state, stack, closure);
 
     for value in values {
+        #[allow(deprecated)]
         let key = closure
             .run_with_value(value.clone())?
             .into_value(span)?

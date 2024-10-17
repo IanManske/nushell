@@ -368,6 +368,7 @@ impl Value {
     ///     );
     /// }
     /// ```
+    #[deprecated]
     pub fn coerce_str(&self) -> Result<Cow<str>, ShellError> {
         match self {
             Value::Int { val, .. } => Ok(Cow::Owned(val.to_string())),
@@ -421,6 +422,8 @@ impl Value {
     ///     );
     /// }
     /// ```
+    #[deprecated]
+    #[allow(deprecated)]
     pub fn coerce_string(&self) -> Result<String, ShellError> {
         self.coerce_str().map(Cow::into_owned)
     }
@@ -452,6 +455,7 @@ impl Value {
     ///     );
     /// }
     /// ```
+    #[deprecated]
     pub fn coerce_into_string(self) -> Result<String, ShellError> {
         let span = self.span();
         match self {
@@ -605,6 +609,7 @@ impl Value {
     /// Convert [`Value::String`], [`Value::Binary`], or [`Value::List`] into a [`Vec`] of bytes.
     ///
     /// Propagates [`Value::Error`] and creates error otherwise.
+    #[allow(deprecated)]
     pub fn into_bytes(self) -> Result<Vec<u8>, ShellError> {
         match self {
             Value::String { val, .. } => Ok(val.into_bytes()),

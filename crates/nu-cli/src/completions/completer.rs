@@ -477,6 +477,7 @@ pub fn map_value_completions<'a>(
 ) -> Vec<SemanticSuggestion> {
     list.filter_map(move |x| {
         // Match for string values
+        #[allow(deprecated)]
         if let Ok(s) = x.coerce_string() {
             return Some(SemanticSuggestion {
                 suggestion: Suggestion {
@@ -507,6 +508,7 @@ pub fn map_value_completions<'a>(
                 // Match `value` column
                 if it.0 == "value" {
                     // Convert the value to string
+                    #[allow(deprecated)]
                     if let Ok(val_str) = it.1.coerce_string() {
                         // Update the suggestion value
                         suggestion.value = val_str;
@@ -516,6 +518,7 @@ pub fn map_value_completions<'a>(
                 // Match `description` column
                 if it.0 == "description" {
                     // Convert the value to string
+                    #[allow(deprecated)]
                     if let Ok(desc_str) = it.1.coerce_string() {
                         // Update the suggestion value
                         suggestion.description = Some(desc_str);

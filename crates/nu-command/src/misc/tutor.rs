@@ -417,7 +417,7 @@ fn display(help: &str, engine_state: &EngineState, stack: &mut Stack, span: Span
                 );
 
                 if let Ok(value) = result.and_then(|data| data.into_value(Span::unknown())) {
-                    match value.coerce_into_string() {
+                    match value.into_string() {
                         Ok(s) => {
                             build.push_str(&s);
                         }

@@ -66,6 +66,7 @@ fn to_url(input: PipelineData, head: Span) -> Result<PipelineData, ShellError> {
                 Value::Record { ref val, .. } => {
                     let mut row_vec = vec![];
                     for (k, v) in &**val {
+                        #[allow(deprecated)]
                         match v.coerce_string() {
                             Ok(s) => {
                                 row_vec.push((k.clone(), s));

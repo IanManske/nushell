@@ -84,21 +84,17 @@ pub fn http_client(
     Ok(agent_builder.build())
 }
 
-pub fn http_parse_url(
-    call: &Call,
-    span: Span,
-    raw_url: Value,
-) -> Result<(String, Url), ShellError> {
-    let requested_url = raw_url.coerce_into_string()?;
-    let url = match url::Url::parse(&requested_url) {
-        Ok(u) => u,
-        Err(_e) => {
-            return Err(ShellError::UnsupportedInput { msg: "Incomplete or incorrect URL. Expected a full URL, e.g., https://www.example.com"
-                    .to_string(), input: format!("value: '{requested_url:?}'"), msg_span: call.head, input_span: span });
-        }
-    };
-
-    Ok((requested_url, url))
+pub fn http_parse_url(call: &Call, span: Span, url: &str) -> Result<Url, ShellError> {
+    match url::Url::parse(url) {
+        Ok(u) => Ok(u),
+        Err(_e) => Err(ShellError::UnsupportedInput {
+            msg: "Incomplete or incorrect URL. Expected a full URL, e.g., https://www.example.com"
+                .to_string(),
+            input: format!("value: '{url:?}'"),
+            msg_span: call.head,
+            input_span: span,
+        }),
+    }
 }
 
 pub fn http_parse_redirect_mode(mode: Option<Spanned<String>>) -> Result<RedirectMode, ShellError> {
@@ -320,6 +316,7 @@ fn send_form_request(
                 }));
             }
 
+            #[allow(deprecated)]
             let data = vals
                 .chunks(2)
                 .map(|it| Ok((it[0].coerce_string()?, it[1].coerce_string()?)))
@@ -332,6 +329,7 @@ fn send_form_request(
             let mut data: Vec<(String, String)> = Vec::with_capacity(val.len());
 
             for (col, val) in val.into_owned() {
+                #[allow(deprecated)]
                 data.push((col, val.coerce_into_string()?))
             }
 
@@ -380,6 +378,7 @@ fn send_multipart_request(
                         .map_err(err)?;
                 } else {
                     let headers = format!(r#"Content-Disposition: form-data; name="{}""#, col);
+                    #[allow(deprecated)]
                     builder
                         .add(val.coerce_into_string()?.as_bytes(), &headers)
                         .map_err(err)?;
@@ -576,6 +575,7 @@ pub fn request_add_custom_headers(
                     // primitive values ([key1 val1 key2 val2])
                     for row in table.chunks(2) {
                         if row.len() == 2 {
+                            #[allow(deprecated)]
                             custom_headers.insert(row[0].coerce_string()?, row[1].clone());
                         }
                     }
@@ -593,6 +593,7 @@ pub fn request_add_custom_headers(
         };
 
         for (k, v) in custom_headers {
+            #[allow(deprecated)]
             if let Ok(s) = v.coerce_into_string() {
                 request = request.set(&k, &s);
             }
@@ -894,15 +895,17 @@ pub fn request_handle_response_headers(
     }
 }
 
-fn retrieve_http_proxy_from_env(engine_state: &EngineState, stack: &mut Stack) -> Option<String> {
+fn retrieve_http_proxy_from_env<'a>(
+    engine_state: &'a EngineState,
+    stack: &'a mut Stack,
+) -> Option<&'a str> {
     stack
         .get_env_var(engine_state, "http_proxy")
         .or(stack.get_env_var(engine_state, "HTTP_PROXY"))
         .or(stack.get_env_var(engine_state, "https_proxy"))
         .or(stack.get_env_var(engine_state, "HTTPS_PROXY"))
         .or(stack.get_env_var(engine_state, "ALL_PROXY"))
-        .cloned()
-        .and_then(|proxy| proxy.coerce_into_string().ok())
+        .and_then(|proxy| proxy.as_str().ok())
 }
 
 #[cfg(test)]

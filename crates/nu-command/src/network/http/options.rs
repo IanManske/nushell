@@ -115,7 +115,7 @@ impl Command for SubCommand {
 }
 
 struct Arguments {
-    url: Value,
+    url: Spanned<String>,
     headers: Option<Value>,
     insecure: bool,
     user: Option<String>,
@@ -150,11 +150,12 @@ fn helper(
     call: &Call,
     args: Arguments,
 ) -> Result<PipelineData, ShellError> {
-    let span = args.url.span();
-    let (requested_url, _) = http_parse_url(call, span, args.url)?;
+    let span = args.url.span;
+    let url = &args.url.item;
+    let _ = http_parse_url(call, span, url)?;
 
     let client = http_client(args.insecure, RedirectMode::Follow, engine_state, stack)?;
-    let mut request = client.request("OPTIONS", &requested_url);
+    let mut request = client.request("OPTIONS", url);
 
     request = request_set_timeout(args.timeout, request)?;
     request = request_add_authorization_header(args.user, args.password, request);
@@ -181,7 +182,7 @@ fn helper(
         engine_state,
         stack,
         span,
-        &requested_url,
+        url,
         request_flags,
         response,
         request,

@@ -44,6 +44,7 @@ impl CommandCompletion {
         if let Some(paths) = paths {
             if let Ok(paths) = paths.as_list() {
                 for path in paths {
+                    #[allow(deprecated)]
                     let path = path.coerce_str().unwrap_or_default();
 
                     if let Ok(mut contents) = std::fs::read_dir(path.as_ref()) {

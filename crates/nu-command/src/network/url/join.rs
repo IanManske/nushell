@@ -179,6 +179,7 @@ impl UrlComponents {
         if key == "params" {
             return match value {
                 Value::Record { val, .. } => {
+                    #[allow(deprecated)]
                     let mut qs = val
                         .into_owned()
                         .into_iter()
@@ -222,6 +223,7 @@ impl UrlComponents {
         }
 
         // apart from port and params all other keys are strings.
+        #[allow(deprecated)]
         let s = value.coerce_into_string()?; // If value fails String conversion, just output this ShellError
         if !Self::check_empty_string_ok(&key, &s, value_span)? {
             return Ok(self);

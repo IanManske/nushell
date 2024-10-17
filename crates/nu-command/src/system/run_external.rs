@@ -57,6 +57,7 @@ impl Command for External {
         let name_str: Cow<str> = match &name {
             Value::Glob { val, .. } => Cow::Borrowed(val),
             Value::String { val, .. } => Cow::Borrowed(val),
+            #[allow(deprecated)]
             _ => Cow::Owned(name.clone().coerce_into_string()?),
         };
 
@@ -253,6 +254,7 @@ fn coerce_into_string(engine_state: &EngineState, val: Value) -> Result<String, 
             arg: String::from_utf8_lossy(engine_state.get_span_contents(val.span())).into_owned(),
             span: val.span(),
         }),
+        #[allow(deprecated)]
         _ => val.coerce_into_string(),
     }
 }

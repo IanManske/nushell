@@ -52,6 +52,7 @@ fn nu_highlight_string(code_string: &str, engine_state: &EngineState, stack: &mu
             Value::string(code_string, Span::unknown()).into_pipeline_data(),
         ) {
             let result = output.into_value(Span::unknown());
+            #[allow(deprecated)]
             if let Ok(s) = result.and_then(Value::coerce_into_string) {
                 return s; // successfully highlighted string
             }

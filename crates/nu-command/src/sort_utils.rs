@@ -201,6 +201,7 @@ pub fn compare_values(
     insensitive: bool,
     natural: bool,
 ) -> Result<Ordering, ShellError> {
+    #[allow(deprecated)]
     if should_string_compare(left, right, natural) {
         Ok(compare_strings(
             &left.coerce_str()?,

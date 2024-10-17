@@ -184,7 +184,9 @@ pub fn transpose(
         for i in input.iter() {
             if let Some(desc) = descs.first() {
                 match &i.get_data_by_key(desc) {
-                    Some(x) => {
+                    Some(x) =>
+                    {
+                        #[allow(deprecated)]
                         if let Ok(s) = x.coerce_string() {
                             headers.push(s);
                         } else {

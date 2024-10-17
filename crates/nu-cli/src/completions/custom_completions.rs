@@ -102,9 +102,9 @@ impl Completer for CustomCompletion {
                                 .unwrap_or(true),
                             match_algorithm: match options.get("completion_algorithm") {
                                 Some(option) => option
-                                    .coerce_string()
+                                    .as_str()
                                     .ok()
-                                    .and_then(|option| option.try_into().ok())
+                                    .and_then(|option| option.parse().ok())
                                     .unwrap_or(MatchAlgorithm::Prefix),
                                 None => completion_options.match_algorithm,
                             },
