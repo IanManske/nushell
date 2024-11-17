@@ -2,7 +2,7 @@ use super::ConfigPath;
 use crate::{Config, ConfigError, ShellError, Span, Type, Value};
 
 #[derive(Debug)]
-pub(super) struct ConfigErrors<'a> {
+pub(crate) struct ConfigErrors<'a> {
     config: &'a Config,
     errors: Vec<ConfigError>,
 }
@@ -65,6 +65,7 @@ impl<'a> ConfigErrors<'a> {
         });
     }
 
+    #[allow(dead_code)]
     pub fn deprecated_option(&mut self, path: &ConfigPath, suggestion: &'static str, span: Span) {
         self.error(ConfigError::Deprecated {
             path: path.to_string(),

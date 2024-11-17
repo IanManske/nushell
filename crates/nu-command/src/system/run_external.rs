@@ -1,7 +1,9 @@
 use nu_cmd_base::hook::eval_hook;
 use nu_engine::{command_prelude::*, env_to_strings, get_eval_expression};
 use nu_path::{dots::expand_ndots, expand_tilde};
-use nu_protocol::{did_you_mean, process::ChildProcess, ByteStream, NuGlob, OutDest, Signals};
+use nu_protocol::{
+    did_you_mean, process::ChildProcess, ByteStream, IntoValue, NuGlob, OutDest, Signals,
+};
 use nu_system::ForegroundChild;
 use nu_utils::IgnoreCaseExt;
 use pathdiff::diff_paths;
@@ -415,11 +417,12 @@ pub fn command_not_found(
         }
         stack.add_env_var(canary.into(), Value::bool(true, Span::unknown()));
 
+        let name_val = name.into_value(span);
         let output = eval_hook(
             &mut engine_state.clone(),
             &mut stack,
-            None,
-            vec![("cmd_name".into(), Value::string(name, span))],
+            name_val.clone().into_pipeline_data(),
+            vec![("cmd_name".into(), name_val)],
             hook,
             "command_not_found",
         );
